@@ -44,6 +44,19 @@
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
+        <!-- Spring Security (para BCrypt) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <!-- Dotenv para carregar variáveis do arquivo .env -->
+        <dependency>
+            <groupId>me.paulschwarz</groupId>
+            <artifactId>spring-dotenv</artifactId>
+            <version>4.0.0</version>
+        </dependency>
+
         <!-- Lombok (opcional, mas recomendado) -->
         <dependency>
             <groupId>org.projectlombok</groupId>
