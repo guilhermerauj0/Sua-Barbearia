@@ -28,3 +28,11 @@ hs_err_pid*
 target/
 .idea/
 *.iml
+
+# Environment variables - NUNCA COMMITAR SENHAS!
+.env
+.env.local
+.env.*.local
+
+# Docker volumes
+postgres_data/
