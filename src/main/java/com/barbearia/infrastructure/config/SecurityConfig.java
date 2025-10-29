@@ -21,10 +21,10 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
     
     /**
-     * Configura a cadeia de filtros de segurança
+     * Configura a cadeia de filtros de segurança.
      * 
-     * @param http Objeto para configurar a segurança HTTP
-     * @return SecurityFilterChain configurado
+     * @param http Objeto para configurar a segurança HTTP.
+     * @return SecurityFilterChain configurado.
      */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -33,6 +33,15 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             // Permite acesso público a todos os endpoints por enquanto
             .authorizeHttpRequests(auth -> auth
+                // Permite acesso ao Swagger UI e OpenAPI docs
+                .requestMatchers(
+                    "/swagger-ui/**",
+                    "/swagger-ui.html",
+                    "/v3/api-docs/**",
+                    "/swagger-resources/**",
+                    "/webjars/**"
+                ).permitAll()
+                // Permite acesso a todos os outros endpoints
                 .anyRequest().permitAll()
             );
         
