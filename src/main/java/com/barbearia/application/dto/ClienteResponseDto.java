@@ -2,59 +2,15 @@ package com.barbearia.application.dto;
 
 import java.time.LocalDateTime;
 
-/**
- * DTO (Data Transfer Object) para resposta de registro de cliente.
- * 
- * Este objeto é usado para retornar dados do cliente via API após o registro.
- * 
- * IMPORTANTE: Este DTO NÃO contém a senha por questões de segurança.
- * Nunca devemos expor senhas (mesmo com hash) nas respostas da API.
- * 
- * Por que usar um DTO diferente para resposta?
- * - Controle sobre quais dados são expostos (sem senha)
- * - Pode incluir dados calculados ou formatados
- * - Facilita mudanças na API sem afetar o domínio
- * 
- * @author Sua Barbearia Team
- */
 public class ClienteResponseDto {
     
-    /**
-     * ID único do cliente no sistema
-     */
     private Long id;
-    
-    /**
-     * Nome completo do cliente
-     */
     private String nome;
-    
-    /**
-     * Email do cliente
-     */
     private String email;
-    
-    /**
-     * Telefone do cliente
-     */
     private String telefone;
-    
-    /**
-     * Papel do usuário (sempre será "CLIENTE")
-     */
     private String role;
-    
-    /**
-     * Indica se o cliente está ativo
-     */
     private boolean ativo;
-    
-    /**
-     * Data e hora em que o cliente foi registrado
-     */
     private LocalDateTime dataCriacao;
-    
-    // Construtores
     
     public ClienteResponseDto() {
     }
@@ -68,8 +24,6 @@ public class ClienteResponseDto {
         this.ativo = ativo;
         this.dataCriacao = dataCriacao;
     }
-    
-    // Getters e Setters
     
     public Long getId() {
         return id;
