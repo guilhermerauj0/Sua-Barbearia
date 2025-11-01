@@ -18,6 +18,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Testes de integração para ClienteRepository usando banco H2 em memória.
  * Testa as operações de persistência sem mockar o banco.
  */
+@SuppressWarnings("null")
 @DataJpaTest
 @ActiveProfiles("test")
 @DisplayName("ClienteRepository - Testes de Integração")
