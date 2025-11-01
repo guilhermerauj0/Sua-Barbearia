@@ -23,6 +23,7 @@ import java.util.Map;
 public class DotenvConfig implements ApplicationContextInitializer<ConfigurableApplicationContext> {
     
     @Override
+    @SuppressWarnings("null")
     public void initialize(@NonNull ConfigurableApplicationContext applicationContext) {
         ConfigurableEnvironment environment = applicationContext.getEnvironment();
         
