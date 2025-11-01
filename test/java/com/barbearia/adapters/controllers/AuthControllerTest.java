@@ -2,6 +2,10 @@ package com.barbearia.adapters.controllers;
 
 import com.barbearia.application.dto.ClienteRequestDto;
 import com.barbearia.application.dto.ClienteResponseDto;
+import com.barbearia.application.dto.LoginRequestDto;
+import com.barbearia.application.dto.LoginResponseDto;
+import com.barbearia.application.security.JwtService;
+import com.barbearia.application.services.AuthService;
 import com.barbearia.application.services.ClienteService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,6 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Testes de integração para AuthController usando MockMvc.
  * Testa o endpoint HTTP sem subir o servidor completo.
  */
+@SuppressWarnings("null")
 @WebMvcTest(AuthController.class)
 @DisplayName("AuthController - Testes de Integração")
 class AuthControllerTest {
@@ -40,8 +45,16 @@ class AuthControllerTest {
     @MockitoBean
     private ClienteService clienteService;
 
+    @MockitoBean
+    private AuthService authService;
+
+    @MockitoBean
+    private JwtService jwtService;
+
     private ClienteRequestDto clienteRequestDto;
     private ClienteResponseDto clienteResponseDto;
+    private LoginRequestDto loginRequestDto;
+    private LoginResponseDto loginResponseDto;
 
     @BeforeEach
     void setUp() {
@@ -61,6 +74,17 @@ class AuthControllerTest {
                 "CLIENTE",
                 true,
                 LocalDateTime.now()
+        );
+
+        loginRequestDto = new LoginRequestDto("joao@email.com", "Senha@123");
+
+        loginResponseDto = new LoginResponseDto(
+                "fake-jwt-token",
+                1L,
+                "João Silva",
+                "joao@email.com",
+                "CLIENTE",
+                3600000L
         );
     }
 
@@ -261,5 +285,100 @@ class AuthControllerTest {
                 .andDo(print())
                 .andExpect(status().isInternalServerError())
                 .andExpect(content().string("Erro ao registrar cliente: Erro inesperado no banco de dados"));
+    }
+
+    // ==========================================
+    // TESTES DE LOGIN
+    // ==========================================
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /api/auth/cliente/login - Deve realizar login com sucesso")
+    void deveRealizarLoginComSucesso() throws Exception {
+        // Arrange
+        when(authService.login(any(LoginRequestDto.class)))
+                .thenReturn(loginResponseDto);
+
+        // Act & Assert
+        mockMvc.perform(post("/api/auth/cliente/login")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginRequestDto)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.token").value("fake-jwt-token"))
+                .andExpect(jsonPath("$.tipo").value("Bearer"))
+                .andExpect(jsonPath("$.userId").value(1))
+                .andExpect(jsonPath("$.nome").value("João Silva"))
+                .andExpect(jsonPath("$.email").value("joao@email.com"))
+                .andExpect(jsonPath("$.role").value("CLIENTE"))
+                .andExpect(jsonPath("$.expiresIn").value(3600000));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /api/auth/cliente/login - Deve retornar 401 quando credenciais inválidas")
+    void deveRetornar401QuandoCredenciaisInvalidas() throws Exception {
+        // Arrange
+        when(authService.login(any(LoginRequestDto.class)))
+                .thenThrow(new IllegalArgumentException("Credenciais inválidas"));
+
+        // Act & Assert
+        mockMvc.perform(post("/api/auth/cliente/login")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginRequestDto)))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().string("Credenciais inválidas"));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /api/auth/cliente/login - Deve retornar 400 quando email vazio")
+    void deveRetornar400QuandoEmailVazioNoLogin() throws Exception {
+        // Arrange
+        LoginRequestDto dtoInvalido = new LoginRequestDto("", "Senha@123");
+
+        // Act & Assert
+        mockMvc.perform(post("/api/auth/cliente/login")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dtoInvalido)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /api/auth/cliente/login - Deve retornar 400 quando senha vazia")
+    void deveRetornar400QuandoSenhaVaziaNoLogin() throws Exception {
+        // Arrange
+        LoginRequestDto dtoInvalido = new LoginRequestDto("joao@email.com", "");
+
+        // Act & Assert
+        mockMvc.perform(post("/api/auth/cliente/login")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dtoInvalido)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /api/auth/cliente/login - Deve retornar 400 quando email inválido")
+    void deveRetornar400QuandoEmailInvalidoNoLogin() throws Exception {
+        // Arrange
+        LoginRequestDto dtoInvalido = new LoginRequestDto("email-invalido", "Senha@123");
+
+        // Act & Assert
+        mockMvc.perform(post("/api/auth/cliente/login")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dtoInvalido)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
     }
 }
