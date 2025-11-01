@@ -4,15 +4,29 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
- * Configuração de segurança da aplicação.
+ * Configuração de segurança do Spring Security com JWT.
  * 
- * Por enquanto, desabilitamos a autenticação automática do Spring Security
- * para permitir acesso público aos endpoints de registro.
+ * Responsabilidades:
+ * - Definir quais endpoints são públicos e quais exigem autenticação
+ * - Configurar o filtro JWT
+ * - Desabilitar CSRF (não necessário para APIs REST stateless)
+ * - Configurar política de sessão (stateless para JWT)
  * 
- * Futuramente, implementaremos JWT e controle de acesso por roles.
+ * Endpoints públicos:
+ * - POST /api/auth/cliente/registro (registro de novos clientes)
+ * - POST /api/auth/cliente/login (login)
+ * - GET /api/hello (endpoint de teste)
+ * - Swagger UI e documentação da API
+ * 
+ * Endpoints protegidos:
+ * - Todos os demais exigem autenticação JWT
  * 
  * @author Sua Barbearia Team
  */
@@ -20,8 +34,14 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableWebSecurity
 public class SecurityConfig {
     
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    }
+    
     /**
-     * Configura a cadeia de filtros de segurança.
+     * Configura a cadeia de filtros de segurança com JWT.
      * 
      * @param http Objeto para configurar a segurança HTTP.
      * @return SecurityFilterChain configurado.
@@ -29,22 +49,45 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            // Desabilita CSRF (necessário para APIs REST)
-            .csrf(csrf -> csrf.disable())
-            // Permite acesso público a todos os endpoints por enquanto
+            // Desabilita CSRF (não necessário para APIs REST stateless com JWT)
+            .csrf(AbstractHttpConfigurer::disable)
+            
+            // Configura autorização de requisições
             .authorizeHttpRequests(auth -> auth
-                // Permite acesso ao Swagger UI e OpenAPI docs
+                // Endpoints públicos (não exigem autenticação)
                 .requestMatchers(
+                    "/api/auth/cliente/registro",
+                    "/api/auth/cliente/login",
+                    "/api/hello",
                     "/swagger-ui/**",
-                    "/swagger-ui.html",
                     "/v3/api-docs/**",
+                    "/swagger-ui.html",
                     "/swagger-resources/**",
                     "/webjars/**"
                 ).permitAll()
-                // Permite acesso a todos os outros endpoints
-                .anyRequest().permitAll()
-            );
+                
+                // Todos os demais endpoints exigem autenticação
+                .anyRequest().authenticated()
+            )
+            
+            // Configura política de sessão (stateless - não mantém sessão no servidor)
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            )
+            
+            // Adiciona o filtro JWT antes do filtro de autenticação padrão
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         
         return http.build();
+    }
+    
+    /**
+     * Bean do BCryptPasswordEncoder para criptografia de senhas.
+     * 
+     * @return BCryptPasswordEncoder configurado.
+     */
+    @Bean
+    public BCryptPasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 }
