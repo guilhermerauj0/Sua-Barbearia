@@ -21,6 +21,7 @@ import static org.mockito.Mockito.*;
  * Testes unitários para ClienteService usando Mockito.
  * Testa a lógica de negócio isoladamente, sem dependências externas.
  */
+@SuppressWarnings("null")
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ClienteService - Testes Unitários")
 class ClienteServiceTest {
