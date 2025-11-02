@@ -1,0 +1,17 @@
+{
+  "properties": [
+    {
+      "name": "jwt.secret",
+      "type": "java.lang.String",
+      "description": "Chave secreta para assinar tokens JWT. Deve ser uma string forte com no mínimo 256 bits. Em produção, usar variável de ambiente.",
+      "sourceType": "com.barbearia.infrastructure.config.JwtUtil"
+    },
+    {
+      "name": "jwt.expiration",
+      "type": "java.lang.Long",
+      "description": "Tempo de expiração do token JWT em milissegundos. Padrão: 3600000 (1 hora).",
+      "defaultValue": 3600000,
+      "sourceType": "com.barbearia.infrastructure.config.JwtUtil"
+    }
+  ]
+}

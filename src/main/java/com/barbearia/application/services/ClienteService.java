@@ -85,6 +85,7 @@ public class ClienteService {
         JpaCliente jpaCliente = ClienteMapper.toJpaEntity(cliente);
         
         // 6. Salva no banco de dados
+        @SuppressWarnings("null")
         JpaCliente clienteSalvo = clienteRepository.save(jpaCliente);
         
         // 7. Converte para DTO de resposta (sem senha) e retorna
@@ -126,6 +127,7 @@ public class ClienteService {
      * @return DTO com dados do cliente
      * @throws IllegalArgumentException se cliente não for encontrado
      */
+    @SuppressWarnings("null")
     public ClienteResponseDto buscarPorId(Long id) {
         JpaCliente cliente = clienteRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado com ID: " + id));
