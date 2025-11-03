@@ -1,6 +1,7 @@
 package com.barbearia.infrastructure.config;
 
 import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.examples.Example;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
@@ -26,7 +27,8 @@ public class SwaggerConfig {
                 .servers(apiServers())
                 .paths(new io.swagger.v3.oas.models.Paths()
                         .addPathItem("/api/auth/cliente/registrar", registrarClientePath())
-                        .addPathItem("/api/auth/cliente/login", loginClientePath()));
+                        .addPathItem("/api/auth/cliente/login", loginClientePath())
+                        .addPathItem("/api/auth/barbearia/registrar", registrarBarbeariaPath()));
     }
 
     private Info apiInfo() {
@@ -122,6 +124,181 @@ public class SwaggerConfig {
                                         .content(new Content()
                                                 .addMediaType("application/json", new MediaType()
                                                         .example("Erro ao realizar login"))))));
+    }
+
+    private PathItem registrarBarbeariaPath() {
+        return new PathItem()
+                .post(new Operation()
+                        .tags(List.of("Barbearias"))
+                        .summary("Registrar nova barbearia")
+                        .description("Cadastra uma nova barbearia no sistema com validação de CPF/CNPJ. Aceita tanto CPF (pessoa física) quanto CNPJ (pessoa jurídica).")
+                        .requestBody(new RequestBody()
+                                .description("Dados da barbearia para registro")
+                                .required(true)
+                                .content(new Content()
+                                        .addMediaType("application/json", new MediaType()
+                                                .schema(barbeariaRequestSchema())
+                                                .addExamples("CPF", new Example()
+                                                        .summary("Registro com CPF")
+                                                        .description("Exemplo de registro de barbearia usando CPF (pessoa física)")
+                                                        .value(barbeariaRequestCPFExample()))
+                                                .addExamples("CNPJ", new Example()
+                                                        .summary("Registro com CNPJ")
+                                                        .description("Exemplo de registro de barbearia usando CNPJ (pessoa jurídica)")
+                                                        .value(barbeariaRequestCNPJExample())))))
+                        .responses(new ApiResponses()
+                                .addApiResponse("201", new ApiResponse()
+                                        .description("Barbearia registrada com sucesso")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(barbeariaResponseSchema())
+                                                        .example(barbeariaResponseExample()))))
+                                .addApiResponse("400", new ApiResponse()
+                                        .description("Dados inválidos (CPF/CNPJ inválido, email duplicado, etc.)")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("CPF inválido. Verifique o número informado."))))
+                                .addApiResponse("500", new ApiResponse()
+                                        .description("Erro interno do servidor")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Erro ao registrar barbearia"))))));
+    }
+
+    private Schema<?> barbeariaRequestSchema() {
+        Schema<?> schema = new Schema<>();
+        schema.setType("object");
+        schema.setDescription("Dados para registro de nova barbearia");
+        schema.addProperty("nome", new StringSchema()
+                .description("Nome do proprietário")
+                .minLength(3)
+                .maxLength(100)
+                .example("Maria Santos"));
+        schema.addProperty("email", new StringSchema()
+                .description("Email da barbearia (deve ser único)")
+                .format("email")
+                .example("maria.santos@email.com"));
+        schema.addProperty("senha", new StringSchema()
+                .description("Senha forte (min 8 caracteres, com maiúscula, minúscula, número e caractere especial)")
+                .minLength(8)
+                .pattern("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&#])[A-Za-z\\d@$!%*?&#]{8,}$")
+                .example("SenhaForte@123"));
+        schema.addProperty("confirmarSenha", new StringSchema()
+                .description("Confirmação da senha (deve ser igual ao campo senha)")
+                .example("SenhaForte@123"));
+        schema.addProperty("telefone", new StringSchema()
+                .description("Telefone de contato")
+                .pattern("^\\(?\\d{2}\\)?\\s?\\d{4,5}-?\\d{4}$")
+                .example("(11) 98765-4321"));
+        schema.addProperty("nomeFantasia", new StringSchema()
+                .description("Nome fantasia da barbearia")
+                .minLength(3)
+                .maxLength(100)
+                .example("Barbearia Elegance"));
+        schema.addProperty("tipoDocumento", new StringSchema()
+                .description("Tipo de documento (CPF para pessoa física ou CNPJ para pessoa jurídica)")
+                .example("CPF"));
+        schema.addProperty("documento", new StringSchema()
+                .description("Número do CPF (11 dígitos) ou CNPJ (14 dígitos)")
+                .example("123.456.789-09"));
+        schema.addProperty("endereco", new StringSchema()
+                .description("Endereço completo da barbearia")
+                .minLength(10)
+                .maxLength(200)
+                .example("Rua das Flores, 123 - São Paulo/SP"));
+        schema.setRequired(List.of("nome", "email", "senha", "confirmarSenha", "telefone", "nomeFantasia", "tipoDocumento", "documento", "endereco"));
+        return schema;
+    }
+
+    private Object barbeariaRequestCPFExample() {
+        return """
+                {
+                  "nome": "Maria Santos",
+                  "email": "maria.santos@email.com",
+                  "senha": "SenhaForte@123",
+                  "confirmarSenha": "SenhaForte@123",
+                  "telefone": "(11) 98765-4321",
+                  "nomeFantasia": "Barbearia Elegance",
+                  "tipoDocumento": "CPF",
+                  "documento": "123.456.789-09",
+                  "endereco": "Rua das Flores, 123 - São Paulo/SP"
+                }
+                """;
+    }
+
+    private Object barbeariaRequestCNPJExample() {
+        return """
+                {
+                  "nome": "Carlos Oliveira",
+                  "email": "carlos.oliveira@email.com",
+                  "senha": "SenhaForte@123",
+                  "confirmarSenha": "SenhaForte@123",
+                  "telefone": "(21) 99876-5432",
+                  "nomeFantasia": "Barbearia Premium",
+                  "tipoDocumento": "CNPJ",
+                  "documento": "11.222.333/0001-81",
+                  "endereco": "Av. Principal, 500 - Rio de Janeiro/RJ"
+                }
+                """;
+    }
+
+    private Schema<?> barbeariaResponseSchema() {
+        return new Schema<>()
+                .type("object")
+                .description("Dados da barbearia retornados após o registro (sem senha)")
+                .addProperty("id", new IntegerSchema()
+                        .description("ID único da barbearia")
+                        .format("int64")
+                        .example(1))
+                .addProperty("nome", new StringSchema()
+                        .description("Nome do proprietário")
+                        .example("Maria Santos"))
+                .addProperty("email", new StringSchema()
+                        .description("Email da barbearia")
+                        .example("maria.santos@email.com"))
+                .addProperty("telefone", new StringSchema()
+                        .description("Telefone de contato (apenas números)")
+                        .example("11987654321"))
+                .addProperty("nomeFantasia", new StringSchema()
+                        .description("Nome fantasia da barbearia")
+                        .example("Barbearia Elegance"))
+                .addProperty("tipoDocumento", new StringSchema()
+                        .description("Tipo de documento")
+                        .example("CPF"))
+                .addProperty("documento", new StringSchema()
+                        .description("Número do documento (apenas números)")
+                        .example("12345678909"))
+                .addProperty("endereco", new StringSchema()
+                        .description("Endereço completo")
+                        .example("Rua das Flores, 123 - São Paulo/SP"))
+                .addProperty("role", new StringSchema()
+                        .description("Papel do usuário no sistema")
+                        .example("BARBEARIA"))
+                .addProperty("ativo", new BooleanSchema()
+                        .description("Status de ativação da barbearia")
+                        .example(true))
+                .addProperty("dataCriacao", new StringSchema()
+                        .description("Data e hora do registro")
+                        .format("date-time")
+                        .example("2025-11-03T12:59:22.680365557"));
+    }
+
+    private Object barbeariaResponseExample() {
+        return """
+                {
+                  "id": 1,
+                  "nome": "Maria Santos",
+                  "email": "maria.santos@email.com",
+                  "telefone": "11987654321",
+                  "nomeFantasia": "Barbearia Elegance",
+                  "tipoDocumento": "CPF",
+                  "documento": "12345678909",
+                  "endereco": "Rua das Flores, 123 - São Paulo/SP",
+                  "role": "BARBEARIA",
+                  "ativo": true,
+                  "dataCriacao": "2025-11-03T12:59:22.680365557"
+                }
+                """;
     }
 
     private Schema<?> loginRequestSchema() {
