@@ -1,5 +1,7 @@
 package com.barbearia.application.factories;
 
+import com.barbearia.application.dto.BarbeariaRequestDto;
+import com.barbearia.domain.entities.Barbearia;
 import com.barbearia.domain.entities.Cliente;
 import com.barbearia.application.dto.ClienteRequestDto;
 
@@ -125,5 +127,115 @@ public class UsuarioFactory {
         }
         // Remove tudo que não for número
         return telefone.replaceAll("[^0-9]", "");
+    }
+    
+    /**
+     * Cria uma nova Barbearia a partir de um DTO de requisição
+     * 
+     * IMPORTANTE: A senha recebida no DTO está em texto puro.
+     * O hash da senha deve ser feito ANTES de chamar este método.
+     * O documento já deve estar validado antes de chamar este método.
+     * 
+     * @param dto Dados da barbearia vindo da requisição
+     * @param senhaHash Senha já com hash aplicado
+     * @return Nova instância de Barbearia
+     * @throws IllegalArgumentException se os dados forem inválidos
+     */
+    public static Barbearia criarBarbearia(BarbeariaRequestDto dto, String senhaHash) {
+        // Validações básicas
+        validarDadosBarbeariaObrigatorios(dto, senhaHash);
+        
+        // Limpa o documento (remove formatação)
+        String documentoLimpo = limparDocumento(dto.getDocumento());
+        
+        // Cria a barbearia usando o construtor com parâmetros
+        Barbearia barbearia = new Barbearia(
+            dto.getNome().trim(),
+            dto.getEmail().toLowerCase().trim(), // Email sempre em minúsculo
+            senhaHash,
+            limparTelefone(dto.getTelefone()),
+            dto.getNomeFantasia().trim(),
+            dto.getTipoDocumento(),
+            documentoLimpo,
+            dto.getEndereco().trim()
+        );
+        
+        return barbearia;
+    }
+    
+    /**
+     * Valida se todos os dados obrigatórios da barbearia estão presentes
+     * 
+     * @param dto DTO com dados da barbearia
+     * @param senhaHash Senha com hash
+     * @throws IllegalArgumentException se algum dado estiver inválido
+     */
+    private static void validarDadosBarbeariaObrigatorios(BarbeariaRequestDto dto, String senhaHash) {
+        if (dto == null) {
+            throw new IllegalArgumentException("DTO não pode ser nulo");
+        }
+        
+        if (senhaHash == null || senhaHash.trim().isEmpty()) {
+            throw new IllegalArgumentException("Senha com hash é obrigatória");
+        }
+        
+        validarParametrosBarbearia(
+            dto.getNome(),
+            dto.getEmail(),
+            senhaHash,
+            dto.getTelefone(),
+            dto.getNomeFantasia(),
+            dto.getDocumento(),
+            dto.getEndereco()
+        );
+    }
+    
+    /**
+     * Valida parâmetros individuais da barbearia
+     */
+    private static void validarParametrosBarbearia(String nome, String email, String senha,
+                                                   String telefone, String nomeFantasia,
+                                                   String documento, String endereco) {
+        if (nome == null || nome.trim().isEmpty()) {
+            throw new IllegalArgumentException("Nome é obrigatório");
+        }
+        
+        if (email == null || email.trim().isEmpty()) {
+            throw new IllegalArgumentException("Email é obrigatório");
+        }
+        
+        if (senha == null || senha.trim().isEmpty()) {
+            throw new IllegalArgumentException("Senha é obrigatória");
+        }
+        
+        if (telefone == null || telefone.trim().isEmpty()) {
+            throw new IllegalArgumentException("Telefone é obrigatório");
+        }
+        
+        if (nomeFantasia == null || nomeFantasia.trim().isEmpty()) {
+            throw new IllegalArgumentException("Nome fantasia é obrigatório");
+        }
+        
+        if (documento == null || documento.trim().isEmpty()) {
+            throw new IllegalArgumentException("Documento é obrigatório");
+        }
+        
+        if (endereco == null || endereco.trim().isEmpty()) {
+            throw new IllegalArgumentException("Endereço é obrigatório");
+        }
+    }
+    
+    /**
+     * Remove caracteres especiais do documento, mantendo apenas números
+     * Exemplo: 123.456.789-00 -> 12345678900
+     * 
+     * @param documento Documento com formatação
+     * @return Documento apenas com números
+     */
+    private static String limparDocumento(String documento) {
+        if (documento == null) {
+            return null;
+        }
+        return documento.replaceAll("[^0-9]", "");
     }
 }
