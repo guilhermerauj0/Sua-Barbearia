@@ -42,7 +42,6 @@ public class AuthService {
      * @return LoginResponseDto com token JWT e informações do usuário
      * @throws IllegalArgumentException se as credenciais forem inválidas
      */
-    @SuppressWarnings("null")
     public LoginResponseDto login(LoginRequestDto loginRequest) {
         // 1. Normaliza o email (lowercase e trim)
         String emailNormalizado = loginRequest.email().toLowerCase().trim();

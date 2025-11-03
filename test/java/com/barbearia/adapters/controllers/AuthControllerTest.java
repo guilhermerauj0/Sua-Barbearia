@@ -1,12 +1,16 @@
 package com.barbearia.adapters.controllers;
 
+import com.barbearia.application.dto.BarbeariaRequestDto;
+import com.barbearia.application.dto.BarbeariaResponseDto;
 import com.barbearia.application.dto.ClienteRequestDto;
 import com.barbearia.application.dto.ClienteResponseDto;
 import com.barbearia.application.dto.LoginRequestDto;
 import com.barbearia.application.dto.LoginResponseDto;
 import com.barbearia.application.security.JwtService;
 import com.barbearia.application.services.AuthService;
+import com.barbearia.application.services.BarbeariaService;
 import com.barbearia.application.services.ClienteService;
+import com.barbearia.domain.enums.TipoDocumento;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -44,6 +48,9 @@ class AuthControllerTest {
 
     @MockitoBean
     private ClienteService clienteService;
+
+    @MockitoBean
+    private BarbeariaService barbeariaService;
 
     @MockitoBean
     private AuthService authService;
@@ -378,6 +385,243 @@ class AuthControllerTest {
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dtoInvalido)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+    }
+
+    // ==================== TESTES DE REGISTRO DE BARBEARIA ====================
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /api/auth/barbearia/registrar - Deve registrar barbearia com CPF com sucesso")
+    void deveRegistrarBarbeariaComCPFComSucesso() throws Exception {
+        // Arrange
+        BarbeariaRequestDto requestDto = new BarbeariaRequestDto();
+        requestDto.setNome("Maria Santos");
+        requestDto.setEmail("maria.santos@email.com");
+        requestDto.setSenha("SenhaForte@123");
+        requestDto.setConfirmarSenha("SenhaForte@123");
+        requestDto.setTelefone("(11) 98765-4321");
+        requestDto.setNomeFantasia("Barbearia Elegance");
+        requestDto.setTipoDocumento(TipoDocumento.CPF);
+        requestDto.setDocumento("123.456.789-09");
+        requestDto.setEndereco("Rua das Flores, 123 - São Paulo/SP");
+
+        BarbeariaResponseDto responseDto = new BarbeariaResponseDto(
+                1L,
+                "Maria Santos",
+                "maria.santos@email.com",
+                "11987654321",
+                "Barbearia Elegance",
+                TipoDocumento.CPF,
+                "12345678909",
+                "Rua das Flores, 123 - São Paulo/SP",
+                "BARBEARIA",
+                true,
+                LocalDateTime.now()
+        );
+
+        when(barbeariaService.registrarBarbearia(any(BarbeariaRequestDto.class)))
+                .thenReturn(responseDto);
+
+        // Act & Assert
+        mockMvc.perform(post("/api/auth/barbearia/registrar")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
+                .andDo(print())
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.nome").value("Maria Santos"))
+                .andExpect(jsonPath("$.email").value("maria.santos@email.com"))
+                .andExpect(jsonPath("$.nomeFantasia").value("Barbearia Elegance"))
+                .andExpect(jsonPath("$.tipoDocumento").value("CPF"))
+                .andExpect(jsonPath("$.documento").value("12345678909"))
+                .andExpect(jsonPath("$.role").value("BARBEARIA"))
+                .andExpect(jsonPath("$.ativo").value(true));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /api/auth/barbearia/registrar - Deve registrar barbearia com CNPJ com sucesso")
+    void deveRegistrarBarbeariaComCNPJComSucesso() throws Exception {
+        // Arrange
+        BarbeariaRequestDto requestDto = new BarbeariaRequestDto();
+        requestDto.setNome("Carlos Oliveira");
+        requestDto.setEmail("carlos.oliveira@email.com");
+        requestDto.setSenha("SenhaForte@456");
+        requestDto.setConfirmarSenha("SenhaForte@456");
+        requestDto.setTelefone("(21) 99876-5432");
+        requestDto.setNomeFantasia("Barbearia Premium");
+        requestDto.setTipoDocumento(TipoDocumento.CNPJ);
+        requestDto.setDocumento("11.222.333/0001-81");
+        requestDto.setEndereco("Av. Principal, 500 - Rio de Janeiro/RJ");
+
+        BarbeariaResponseDto responseDto = new BarbeariaResponseDto(
+                2L,
+                "Carlos Oliveira",
+                "carlos.oliveira@email.com",
+                "21998765432",
+                "Barbearia Premium",
+                TipoDocumento.CNPJ,
+                "11222333000181",
+                "Av. Principal, 500 - Rio de Janeiro/RJ",
+                "BARBEARIA",
+                true,
+                LocalDateTime.now()
+        );
+
+        when(barbeariaService.registrarBarbearia(any(BarbeariaRequestDto.class)))
+                .thenReturn(responseDto);
+
+        // Act & Assert
+        mockMvc.perform(post("/api/auth/barbearia/registrar")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
+                .andDo(print())
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.nomeFantasia").value("Barbearia Premium"))
+                .andExpect(jsonPath("$.tipoDocumento").value("CNPJ"))
+                .andExpect(jsonPath("$.documento").value("11222333000181"));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /api/auth/barbearia/registrar - Deve retornar 400 quando senhas não conferem")
+    void deveRetornar400QuandoSenhasNaoConferemBarbearia() throws Exception {
+        // Arrange
+        BarbeariaRequestDto requestDto = new BarbeariaRequestDto();
+        requestDto.setNome("Maria Santos");
+        requestDto.setEmail("maria.santos@email.com");
+        requestDto.setSenha("SenhaForte@123");
+        requestDto.setConfirmarSenha("SenhaDiferente@123");
+        requestDto.setTelefone("(11) 98765-4321");
+        requestDto.setNomeFantasia("Barbearia Elegance");
+        requestDto.setTipoDocumento(TipoDocumento.CPF);
+        requestDto.setDocumento("123.456.789-09");
+        requestDto.setEndereco("Rua das Flores, 123 - São Paulo/SP");
+
+        when(barbeariaService.registrarBarbearia(any(BarbeariaRequestDto.class)))
+                .thenThrow(new IllegalArgumentException("As senhas não conferem"));
+
+        // Act & Assert
+        mockMvc.perform(post("/api/auth/barbearia/registrar")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /api/auth/barbearia/registrar - Deve retornar 400 quando CPF é inválido")
+    void deveRetornar400QuandoCPFInvalido() throws Exception {
+        // Arrange
+        BarbeariaRequestDto requestDto = new BarbeariaRequestDto();
+        requestDto.setNome("Maria Santos");
+        requestDto.setEmail("maria.santos@email.com");
+        requestDto.setSenha("SenhaForte@123");
+        requestDto.setConfirmarSenha("SenhaForte@123");
+        requestDto.setTelefone("(11) 98765-4321");
+        requestDto.setNomeFantasia("Barbearia Elegance");
+        requestDto.setTipoDocumento(TipoDocumento.CPF);
+        requestDto.setDocumento("111.111.111-11");
+        requestDto.setEndereco("Rua das Flores, 123 - São Paulo/SP");
+
+        when(barbeariaService.registrarBarbearia(any(BarbeariaRequestDto.class)))
+                .thenThrow(new IllegalArgumentException("CPF inválido. Verifique o número informado."));
+
+        // Act & Assert
+        mockMvc.perform(post("/api/auth/barbearia/registrar")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /api/auth/barbearia/registrar - Deve retornar 400 quando CNPJ é inválido")
+    void deveRetornar400QuandoCNPJInvalido() throws Exception {
+        // Arrange
+        BarbeariaRequestDto requestDto = new BarbeariaRequestDto();
+        requestDto.setNome("Carlos Oliveira");
+        requestDto.setEmail("carlos.oliveira@email.com");
+        requestDto.setSenha("SenhaForte@456");
+        requestDto.setConfirmarSenha("SenhaForte@456");
+        requestDto.setTelefone("(21) 99876-5432");
+        requestDto.setNomeFantasia("Barbearia Premium");
+        requestDto.setTipoDocumento(TipoDocumento.CNPJ);
+        requestDto.setDocumento("00.000.000/0000-00");
+        requestDto.setEndereco("Av. Principal, 500 - Rio de Janeiro/RJ");
+
+        when(barbeariaService.registrarBarbearia(any(BarbeariaRequestDto.class)))
+                .thenThrow(new IllegalArgumentException("CNPJ inválido. Verifique o número informado."));
+
+        // Act & Assert
+        mockMvc.perform(post("/api/auth/barbearia/registrar")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /api/auth/barbearia/registrar - Deve retornar 400 quando email já cadastrado")
+    void deveRetornar400QuandoEmailJaCadastradoBarbearia() throws Exception {
+        // Arrange
+        BarbeariaRequestDto requestDto = new BarbeariaRequestDto();
+        requestDto.setNome("Maria Santos");
+        requestDto.setEmail("maria.santos@email.com");
+        requestDto.setSenha("SenhaForte@123");
+        requestDto.setConfirmarSenha("SenhaForte@123");
+        requestDto.setTelefone("(11) 98765-4321");
+        requestDto.setNomeFantasia("Barbearia Elegance");
+        requestDto.setTipoDocumento(TipoDocumento.CPF);
+        requestDto.setDocumento("123.456.789-09");
+        requestDto.setEndereco("Rua das Flores, 123 - São Paulo/SP");
+
+        when(barbeariaService.registrarBarbearia(any(BarbeariaRequestDto.class)))
+                .thenThrow(new IllegalArgumentException("Email já cadastrado no sistema"));
+
+        // Act & Assert
+        mockMvc.perform(post("/api/auth/barbearia/registrar")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /api/auth/barbearia/registrar - Deve retornar 400 quando documento já cadastrado")
+    void deveRetornar400QuandoDocumentoJaCadastradoBarbearia() throws Exception {
+        // Arrange
+        BarbeariaRequestDto requestDto = new BarbeariaRequestDto();
+        requestDto.setNome("Maria Santos");
+        requestDto.setEmail("maria.santos@email.com");
+        requestDto.setSenha("SenhaForte@123");
+        requestDto.setConfirmarSenha("SenhaForte@123");
+        requestDto.setTelefone("(11) 98765-4321");
+        requestDto.setNomeFantasia("Barbearia Elegance");
+        requestDto.setTipoDocumento(TipoDocumento.CPF);
+        requestDto.setDocumento("123.456.789-09");
+        requestDto.setEndereco("Rua das Flores, 123 - São Paulo/SP");
+
+        when(barbeariaService.registrarBarbearia(any(BarbeariaRequestDto.class)))
+                .thenThrow(new IllegalArgumentException("CPF já cadastrado no sistema"));
+
+        // Act & Assert
+        mockMvc.perform(post("/api/auth/barbearia/registrar")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
                 .andDo(print())
                 .andExpect(status().isBadRequest());
     }
