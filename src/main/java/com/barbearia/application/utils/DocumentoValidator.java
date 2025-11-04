@@ -74,10 +74,8 @@ public class DocumentoValidator {
             for (int i = 0; i < 9; i++) {
                 soma += Character.getNumericValue(cpf.charAt(i)) * (10 - i);
             }
-            int primeiroDigito = 11 - (soma % 11);
-            if (primeiroDigito >= 10) {
-                primeiroDigito = 0;
-            }
+            int resto = soma % 11;
+            int primeiroDigito = (resto < 2) ? 0 : 11 - resto;
             
             // Verifica o primeiro dígito
             if (primeiroDigito != Character.getNumericValue(cpf.charAt(9))) {
@@ -89,10 +87,8 @@ public class DocumentoValidator {
             for (int i = 0; i < 10; i++) {
                 soma += Character.getNumericValue(cpf.charAt(i)) * (11 - i);
             }
-            int segundoDigito = 11 - (soma % 11);
-            if (segundoDigito >= 10) {
-                segundoDigito = 0;
-            }
+            resto = soma % 11;
+            int segundoDigito = (resto < 2) ? 0 : 11 - resto;
             
             // Verifica o segundo dígito
             return segundoDigito == Character.getNumericValue(cpf.charAt(10));
