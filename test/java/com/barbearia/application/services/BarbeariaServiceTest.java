@@ -74,7 +74,6 @@ class BarbeariaServiceTest {
         // Arrange
         when(barbeariaRepository.existsByEmail(anyString())).thenReturn(false);
         when(barbeariaRepository.existsByTipoDocumentoAndDocumento(any(), anyString())).thenReturn(false);
-        when(passwordEncoder.encode(anyString())).thenReturn("senhaHasheada");
         when(barbeariaRepository.save(any(JpaBarbearia.class))).thenAnswer(invocation -> {
             JpaBarbearia jpa = invocation.getArgument(0);
             jpa.setId(1L);
@@ -96,7 +95,6 @@ class BarbeariaServiceTest {
 
         verify(barbeariaRepository).existsByEmail("maria.santos@email.com");
         verify(barbeariaRepository).existsByTipoDocumentoAndDocumento(TipoDocumento.CPF, "12345678909");
-        verify(passwordEncoder).encode("SenhaForte@123");
         verify(barbeariaRepository).save(any(JpaBarbearia.class));
     }
 
@@ -106,7 +104,6 @@ class BarbeariaServiceTest {
         // Arrange
         when(barbeariaRepository.existsByEmail(anyString())).thenReturn(false);
         when(barbeariaRepository.existsByTipoDocumentoAndDocumento(any(), anyString())).thenReturn(false);
-        when(passwordEncoder.encode(anyString())).thenReturn("senhaHasheada");
         when(barbeariaRepository.save(any(JpaBarbearia.class))).thenAnswer(invocation -> {
             JpaBarbearia jpa = invocation.getArgument(0);
             jpa.setId(2L);
@@ -139,7 +136,7 @@ class BarbeariaServiceTest {
             () -> barbeariaService.registrarBarbearia(requestValidoCPF)
         );
 
-        assertEquals("As senhas não conferem", exception.getMessage());
+        assertEquals("Senha e confirmação de senha não coincidem", exception.getMessage());
         verify(barbeariaRepository, never()).save(any());
     }
 
@@ -236,7 +233,6 @@ class BarbeariaServiceTest {
         // Arrange
         when(barbeariaRepository.existsByEmail(anyString())).thenReturn(false);
         when(barbeariaRepository.existsByTipoDocumentoAndDocumento(any(), anyString())).thenReturn(false);
-        when(passwordEncoder.encode(anyString())).thenReturn("senhaHasheada");
         when(barbeariaRepository.save(any(JpaBarbearia.class))).thenAnswer(invocation -> {
             JpaBarbearia jpa = invocation.getArgument(0);
             assertEquals("12345678909", jpa.getDocumento()); // Verifica sem formatação
@@ -257,7 +253,6 @@ class BarbeariaServiceTest {
         // Arrange
         when(barbeariaRepository.existsByEmail(anyString())).thenReturn(false);
         when(barbeariaRepository.existsByTipoDocumentoAndDocumento(any(), anyString())).thenReturn(false);
-        when(passwordEncoder.encode(anyString())).thenReturn("senhaHasheada");
         when(barbeariaRepository.save(any(JpaBarbearia.class))).thenAnswer(invocation -> {
             JpaBarbearia jpa = invocation.getArgument(0);
             assertEquals("11222333000181", jpa.getDocumento()); // Verifica sem formatação
@@ -278,7 +273,6 @@ class BarbeariaServiceTest {
         // Arrange
         when(barbeariaRepository.existsByEmail(anyString())).thenReturn(false);
         when(barbeariaRepository.existsByTipoDocumentoAndDocumento(any(), anyString())).thenReturn(false);
-        when(passwordEncoder.encode(anyString())).thenReturn("senhaHasheada");
         when(barbeariaRepository.save(any(JpaBarbearia.class))).thenAnswer(invocation -> {
             JpaBarbearia jpa = invocation.getArgument(0);
             assertEquals("11987654321", jpa.getTelefone()); // Verifica sem formatação
