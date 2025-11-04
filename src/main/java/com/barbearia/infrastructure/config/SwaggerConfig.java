@@ -28,7 +28,8 @@ public class SwaggerConfig {
                 .paths(new io.swagger.v3.oas.models.Paths()
                         .addPathItem("/api/auth/cliente/registrar", registrarClientePath())
                         .addPathItem("/api/auth/cliente/login", loginClientePath())
-                        .addPathItem("/api/auth/barbearia/registrar", registrarBarbeariaPath()));
+                        .addPathItem("/api/auth/barbearia/registrar", registrarBarbeariaPath())
+                        .addPathItem("/api/auth/barbearia/login", loginBarbeariaPath()));
     }
 
     private Info apiInfo() {
@@ -449,6 +450,66 @@ public class SwaggerConfig {
                   "role": "CLIENTE",
                   "ativo": true,
                   "dataCriacao": "2025-10-29T14:30:00"
+                }
+                """;
+    }
+
+    private PathItem loginBarbeariaPath() {
+        return new PathItem()
+                .post(new Operation()
+                        .tags(List.of("Barbearias"))
+                        .summary("Login de barbearia")
+                        .description("Autentica uma barbearia no sistema e retorna um token JWT com barbeariaId")
+                        .requestBody(new RequestBody()
+                                .description("Credenciais de login")
+                                .required(true)
+                                .content(new Content()
+                                        .addMediaType("application/json", new MediaType()
+                                                .schema(loginRequestSchema())
+                                                .example(loginBarbeariaRequestExample()))))
+                        .responses(new ApiResponses()
+                                .addApiResponse("200", new ApiResponse()
+                                        .description("Login realizado com sucesso")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(loginResponseSchema())
+                                                        .example(loginBarbeariaResponseExample()))))
+                                .addApiResponse("400", new ApiResponse()
+                                        .description("Dados inválidos (email ou senha vazios)")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Email e senha são obrigatórios"))))
+                                .addApiResponse("401", new ApiResponse()
+                                        .description("Credenciais inválidas")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Email ou senha incorretos"))))
+                                .addApiResponse("500", new ApiResponse()
+                                        .description("Erro interno do servidor")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Erro ao realizar login"))))));
+    }
+
+    private Object loginBarbeariaRequestExample() {
+        return """
+                {
+                  "email": "maria.santos@email.com",
+                  "senha": "SenhaForte@123"
+                }
+                """;
+    }
+
+    private Object loginBarbeariaResponseExample() {
+        return """
+                {
+                  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                  "tipo": "Bearer",
+                  "userId": 5,
+                  "nome": "Barbearia do Zé",
+                  "email": "maria.santos@email.com",
+                  "role": "BARBEARIA",
+                  "expiresIn": 3600000
                 }
                 """;
     }
