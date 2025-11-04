@@ -20,8 +20,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  * - Configurar política de sessão (stateless para JWT)
  * 
  * Endpoints públicos:
- * - POST /api/auth/cliente/registro (registro de novos clientes)
- * - POST /api/auth/cliente/login (login)
+ * - POST /api/auth/cliente/registrar (registro de novos clientes)
+ * - POST /api/auth/cliente/login (login de clientes)
+ * - POST /api/auth/barbearia/registrar (registro de novas barbearias)
+ * - POST /api/auth/barbearia/login (login de barbearias)
  * - GET /api/hello (endpoint de teste)
  * - Swagger UI e documentação da API
  * 
@@ -61,6 +63,7 @@ public class SecurityConfig {
                     "/api/auth/cliente/registrar",
                     "/api/auth/cliente/login",
                     "/api/auth/barbearia/registrar",
+                    "/api/auth/barbearia/login",
                     "/api/hello",
                     "/swagger-ui/**",
                     "/v3/api-docs/**",

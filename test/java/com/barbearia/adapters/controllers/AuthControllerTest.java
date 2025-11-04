@@ -625,4 +625,90 @@ class AuthControllerTest {
                 .andDo(print())
                 .andExpect(status().isBadRequest());
     }
+
+    // ==================== TESTES DE LOGIN DE BARBEARIA ====================
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /api/auth/barbearia/login - Deve realizar login com sucesso")
+    void deveRealizarLoginBarbeariaComSucesso() throws Exception {
+        // Arrange
+        LoginRequestDto loginRequest = new LoginRequestDto("maria@email.com", "SenhaForte@123");
+        LoginResponseDto loginResponse = new LoginResponseDto(
+                "fake-jwt-token-barbearia",
+                5L,
+                "Barbearia do Zé",
+                "maria@email.com",
+                "BARBEARIA",
+                3600000L
+        );
+
+        when(authService.loginBarbearia(any(LoginRequestDto.class))).thenReturn(loginResponse);
+
+        // Act & Assert
+        mockMvc.perform(post("/api/auth/barbearia/login")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginRequest)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").value("fake-jwt-token-barbearia"))
+                .andExpect(jsonPath("$.tipo").value("Bearer"))
+                .andExpect(jsonPath("$.userId").value(5))
+                .andExpect(jsonPath("$.nome").value("Barbearia do Zé"))
+                .andExpect(jsonPath("$.email").value("maria@email.com"))
+                .andExpect(jsonPath("$.role").value("BARBEARIA"))
+                .andExpect(jsonPath("$.expiresIn").value(3600000));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /api/auth/barbearia/login - Deve retornar 401 quando credenciais inválidas")
+    void deveRetornar401QuandoCredenciaisInvalidasBarbearia() throws Exception {
+        // Arrange
+        LoginRequestDto loginRequest = new LoginRequestDto("maria@email.com", "SenhaErrada");
+
+        when(authService.loginBarbearia(any(LoginRequestDto.class)))
+                .thenThrow(new IllegalArgumentException("Credenciais inválidas"));
+
+        // Act & Assert
+        mockMvc.perform(post("/api/auth/barbearia/login")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginRequest)))
+                .andDo(print())
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /api/auth/barbearia/login - Deve retornar 400 quando email vazio")
+    void deveRetornar400QuandoEmailVazioBarbearia() throws Exception {
+        // Arrange
+        LoginRequestDto loginRequest = new LoginRequestDto("", "SenhaForte@123");
+
+        // Act & Assert
+        mockMvc.perform(post("/api/auth/barbearia/login")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginRequest)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /api/auth/barbearia/login - Deve retornar 400 quando senha vazia")
+    void deveRetornar400QuandoSenhaVaziaBarbearia() throws Exception {
+        // Arrange
+        LoginRequestDto loginRequest = new LoginRequestDto("maria@email.com", "");
+
+        // Act & Assert
+        mockMvc.perform(post("/api/auth/barbearia/login")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginRequest)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+    }
 }

@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
  * 
  * Endpoints de Barbearia:
  * - POST /api/auth/barbearia/registrar - Registrar nova barbearia
+ * - POST /api/auth/barbearia/login - Login de barbearia
  * 
  * @author Sua Barbearia Team
  */
@@ -103,6 +104,26 @@ public class AuthController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body("Erro ao registrar barbearia: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Endpoint para login de barbearia.
+     * 
+     * @param loginRequest Credenciais da barbearia (email e senha)
+     * @return LoginResponseDto com token JWT e informações da barbearia
+     */
+    @PostMapping("/barbearia/login")
+    public ResponseEntity<?> loginBarbearia(@Valid @RequestBody LoginRequestDto loginRequest) {
+        try {
+            LoginResponseDto loginResponse = authService.loginBarbearia(loginRequest);
+            return ResponseEntity.ok(loginResponse);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body("Credenciais inválidas");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Erro ao realizar login: " + e.getMessage());
         }
     }
 }
