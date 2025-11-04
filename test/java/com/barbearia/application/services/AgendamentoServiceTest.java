@@ -1,0 +1,254 @@
+package com.barbearia.application.services;
+
+import com.barbearia.application.dto.AgendamentoBriefDto;
+import com.barbearia.domain.enums.StatusAgendamento;
+import com.barbearia.infrastructure.persistence.entities.JpaAgendamento;
+import com.barbearia.infrastructure.persistence.repositories.AgendamentoRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
+
+/**
+ * Testes unitários para AgendamentoService.
+ * Valida a lógica de negócio relacionada aos agendamentos.
+ */
+@ExtendWith(MockitoExtension.class)
+@DisplayName("AgendamentoService - Testes Unitários")
+class AgendamentoServiceTest {
+
+    @Mock
+    private AgendamentoRepository agendamentoRepository;
+
+    @InjectMocks
+    private AgendamentoService agendamentoService;
+
+    private Long clienteId;
+    private LocalDateTime now;
+
+    @BeforeEach
+    void setUp() {
+        clienteId = 1L;
+        now = LocalDateTime.now();
+    }
+
+    @Test
+    @DisplayName("Deve listar histórico de agendamentos passados do cliente")
+    void deveListarHistoricoDeAgendamentosPassados() {
+        // Arrange
+        JpaAgendamento agendamento1 = criarJpaAgendamento(1L, now.minusDays(2), StatusAgendamento.CONCLUIDO);
+        JpaAgendamento agendamento2 = criarJpaAgendamento(2L, now.minusDays(7), StatusAgendamento.CONCLUIDO);
+        JpaAgendamento agendamento3 = criarJpaAgendamento(3L, now.minusDays(30), StatusAgendamento.CANCELADO);
+
+        List<JpaAgendamento> agendamentosPassados = Arrays.asList(agendamento1, agendamento2, agendamento3);
+
+        when(agendamentoRepository.findHistoricoByClienteId(eq(clienteId), any(LocalDateTime.class)))
+                .thenReturn(agendamentosPassados);
+
+        // Act
+        List<AgendamentoBriefDto> resultado = agendamentoService.listarHistoricoCliente(clienteId);
+
+        // Assert
+        assertThat(resultado).isNotNull();
+        assertThat(resultado).hasSize(3);
+
+        // Verifica ordenação DESC (mais recente primeiro)
+        assertThat(resultado.get(0).id()).isEqualTo(1L); // -2 dias
+        assertThat(resultado.get(1).id()).isEqualTo(2L); // -7 dias
+        assertThat(resultado.get(2).id()).isEqualTo(3L); // -30 dias
+
+        // Verifica que o status é preservado
+        assertThat(resultado.get(0).status()).isEqualTo(StatusAgendamento.CONCLUIDO);
+        assertThat(resultado.get(2).status()).isEqualTo(StatusAgendamento.CANCELADO);
+
+        // Verifica que o repository foi chamado com parâmetros corretos
+        verify(agendamentoRepository, times(1))
+                .findHistoricoByClienteId(eq(clienteId), any(LocalDateTime.class));
+    }
+
+    @Test
+    @DisplayName("Deve retornar lista vazia quando cliente não tem histórico")
+    void deveRetornarListaVaziaQuandoClienteNaoTemHistorico() {
+        // Arrange
+        when(agendamentoRepository.findHistoricoByClienteId(eq(clienteId), any(LocalDateTime.class)))
+                .thenReturn(Collections.emptyList());
+
+        // Act
+        List<AgendamentoBriefDto> resultado = agendamentoService.listarHistoricoCliente(clienteId);
+
+        // Assert
+        assertThat(resultado).isNotNull();
+        assertThat(resultado).isEmpty();
+
+        verify(agendamentoRepository, times(1))
+                .findHistoricoByClienteId(eq(clienteId), any(LocalDateTime.class));
+    }
+
+    @Test
+    @DisplayName("Deve filtrar apenas agendamentos passados, não futuros")
+    void deveFiltrarApenasAgendamentosPassados() {
+        // Arrange
+        JpaAgendamento passado1 = criarJpaAgendamento(1L, now.minusDays(5), StatusAgendamento.CONCLUIDO);
+        JpaAgendamento passado2 = criarJpaAgendamento(2L, now.minusDays(10), StatusAgendamento.CONCLUIDO);
+        // Agendamentos futuros não devem ser retornados pelo repository
+
+        List<JpaAgendamento> apenasPassados = Arrays.asList(passado1, passado2);
+
+        when(agendamentoRepository.findHistoricoByClienteId(eq(clienteId), any(LocalDateTime.class)))
+                .thenReturn(apenasPassados);
+
+        // Act
+        List<AgendamentoBriefDto> resultado = agendamentoService.listarHistoricoCliente(clienteId);
+
+        // Assert
+        assertThat(resultado).hasSize(2);
+        assertThat(resultado.get(0).dataHora()).isBefore(LocalDateTime.now());
+        assertThat(resultado.get(1).dataHora()).isBefore(LocalDateTime.now());
+
+        verify(agendamentoRepository, times(1))
+                .findHistoricoByClienteId(eq(clienteId), any(LocalDateTime.class));
+    }
+
+    @Test
+    @DisplayName("Deve isolar agendamentos por cliente (não retornar de outros clientes)")
+    void deveIsolarAgendamentosPorCliente() {
+        // Arrange
+        Long outroClienteId = 99L;
+        JpaAgendamento agendamentoCliente1 = criarJpaAgendamento(1L, now.minusDays(3), StatusAgendamento.CONCLUIDO);
+
+        when(agendamentoRepository.findHistoricoByClienteId(eq(clienteId), any(LocalDateTime.class)))
+                .thenReturn(Arrays.asList(agendamentoCliente1));
+
+        when(agendamentoRepository.findHistoricoByClienteId(eq(outroClienteId), any(LocalDateTime.class)))
+                .thenReturn(Collections.emptyList());
+
+        // Act
+        List<AgendamentoBriefDto> resultadoCliente1 = agendamentoService.listarHistoricoCliente(clienteId);
+        List<AgendamentoBriefDto> resultadoOutroCliente = agendamentoService.listarHistoricoCliente(outroClienteId);
+
+        // Assert
+        assertThat(resultadoCliente1).hasSize(1);
+        assertThat(resultadoOutroCliente).isEmpty();
+
+        // Cada cliente teve sua própria consulta
+        verify(agendamentoRepository, times(1))
+                .findHistoricoByClienteId(eq(clienteId), any(LocalDateTime.class));
+        verify(agendamentoRepository, times(1))
+                .findHistoricoByClienteId(eq(outroClienteId), any(LocalDateTime.class));
+    }
+
+    @Test
+    @DisplayName("Deve lançar exceção quando clienteId for nulo")
+    void deveLancarExcecaoQuandoClienteIdForNulo() {
+        // Act & Assert
+        assertThatThrownBy(() -> agendamentoService.listarHistoricoCliente(null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("ID do cliente não pode ser nulo");
+
+        // Verifica que o repository nunca foi chamado
+        verify(agendamentoRepository, never())
+                .findHistoricoByClienteId(any(), any());
+    }
+
+    @Test
+    @DisplayName("Deve retornar DTOs com todos os campos preenchidos")
+    void deveRetornarDtosComTodosCamposPreenchidos() {
+        // Arrange
+        JpaAgendamento agendamento = criarJpaAgendamento(10L, now.minusDays(1), StatusAgendamento.CONCLUIDO);
+        agendamento.setObservacoes("Cliente chegou 10 minutos antes");
+
+        when(agendamentoRepository.findHistoricoByClienteId(eq(clienteId), any(LocalDateTime.class)))
+                .thenReturn(Arrays.asList(agendamento));
+
+        // Act
+        List<AgendamentoBriefDto> resultado = agendamentoService.listarHistoricoCliente(clienteId);
+
+        // Assert
+        assertThat(resultado).hasSize(1);
+        AgendamentoBriefDto dto = resultado.get(0);
+
+        assertThat(dto.id()).isEqualTo(10L);
+        assertThat(dto.dataHora()).isNotNull();
+        assertThat(dto.status()).isEqualTo(StatusAgendamento.CONCLUIDO);
+        assertThat(dto.nomeBarbearia()).isNotNull();
+        assertThat(dto.nomeServico()).isNotNull();
+        assertThat(dto.observacoes()).isEqualTo("Cliente chegou 10 minutos antes");
+    }
+
+    @Test
+    @DisplayName("Deve listar agendamentos futuros do cliente")
+    void deveListarAgendamentosFuturos() {
+        // Arrange
+        JpaAgendamento futuro1 = criarJpaAgendamento(20L, now.plusDays(3), StatusAgendamento.CONFIRMADO);
+        JpaAgendamento futuro2 = criarJpaAgendamento(21L, now.plusDays(7), StatusAgendamento.PENDENTE);
+
+        when(agendamentoRepository.findAgendamentosFuturosByClienteId(eq(clienteId), any(LocalDateTime.class)))
+                .thenReturn(Arrays.asList(futuro1, futuro2));
+
+        // Act
+        List<AgendamentoBriefDto> resultado = agendamentoService.listarAgendamentosFuturos(clienteId);
+
+        // Assert
+        assertThat(resultado).hasSize(2);
+        assertThat(resultado.get(0).status()).isEqualTo(StatusAgendamento.CONFIRMADO);
+        assertThat(resultado.get(1).status()).isEqualTo(StatusAgendamento.PENDENTE);
+
+        verify(agendamentoRepository, times(1))
+                .findAgendamentosFuturosByClienteId(eq(clienteId), any(LocalDateTime.class));
+    }
+
+    @Test
+    @DisplayName("Deve listar todos os agendamentos do cliente (passados e futuros)")
+    void deveListarTodosAgendamentosDoCliente() {
+        // Arrange
+        JpaAgendamento passado = criarJpaAgendamento(30L, now.minusDays(5), StatusAgendamento.CONCLUIDO);
+        JpaAgendamento futuro = criarJpaAgendamento(31L, now.plusDays(5), StatusAgendamento.CONFIRMADO);
+
+        when(agendamentoRepository.findByClienteIdOrderByDataHoraDesc(clienteId))
+                .thenReturn(Arrays.asList(futuro, passado)); // Ordenado DESC
+
+        // Act
+        List<AgendamentoBriefDto> resultado = agendamentoService.listarTodosAgendamentosCliente(clienteId);
+
+        // Assert
+        assertThat(resultado).hasSize(2);
+        assertThat(resultado.get(0).id()).isEqualTo(31L); // Futuro primeiro (DESC)
+        assertThat(resultado.get(1).id()).isEqualTo(30L); // Passado depois
+
+        verify(agendamentoRepository, times(1))
+                .findByClienteIdOrderByDataHoraDesc(clienteId);
+    }
+
+    // ==================== MÉTODOS AUXILIARES ====================
+
+    /**
+     * Cria um JpaAgendamento de teste com dados básicos.
+     */
+    private JpaAgendamento criarJpaAgendamento(Long id, LocalDateTime dataHora, StatusAgendamento status) {
+        JpaAgendamento agendamento = new JpaAgendamento();
+        agendamento.setId(id);
+        agendamento.setClienteId(clienteId);
+        agendamento.setBarbeariaId(1L);
+        agendamento.setBarbeiroId(1L);
+        agendamento.setServicoId(1L);
+        agendamento.setDataHora(dataHora);
+        agendamento.setStatus(status);
+        agendamento.setDataCriacao(LocalDateTime.now());
+        agendamento.setDataAtualizacao(LocalDateTime.now());
+        return agendamento;
+    }
+}
