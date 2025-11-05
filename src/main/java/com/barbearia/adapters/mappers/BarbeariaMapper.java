@@ -1,6 +1,7 @@
 package com.barbearia.adapters.mappers;
 
 import com.barbearia.application.dto.BarbeariaResponseDto;
+import com.barbearia.application.dto.BarbeariaListItemDto;
 import com.barbearia.domain.entities.Barbearia;
 import com.barbearia.infrastructure.persistence.entities.JpaBarbearia;
 
@@ -142,6 +143,32 @@ public class BarbeariaMapper {
         dto.setAtivo(jpaBarbearia.isAtivo());
         dto.setDataCriacao(jpaBarbearia.getDataCriacao());
         // Nota: senha não é incluída por segurança
+        
+        return dto;
+    }
+    
+    /**
+     * Converte JpaBarbearia para BarbeariaListItemDto
+     * 
+     * Usado para retornar barbearias em listas com informações resumidas
+     * 
+     * @param jpaBarbearia JpaBarbearia vinda do banco
+     * @return BarbeariaListItemDto com informações da barbearia
+     */
+    public static BarbeariaListItemDto toListItemDto(JpaBarbearia jpaBarbearia) {
+        if (jpaBarbearia == null) {
+            return null;
+        }
+        
+        BarbeariaListItemDto dto = new BarbeariaListItemDto();
+        dto.setId(jpaBarbearia.getId());
+        dto.setNome(jpaBarbearia.getNome());
+        dto.setNomeFantasia(jpaBarbearia.getNomeFantasia());
+        dto.setEndereco(jpaBarbearia.getEndereco());
+        dto.setTelefone(jpaBarbearia.getTelefone());
+        dto.setEmail(jpaBarbearia.getEmail());
+        // Para futuro: adicionar cálculo de avaliação média
+        dto.setAvaliacaoMedia(0.0);
         
         return dto;
     }
