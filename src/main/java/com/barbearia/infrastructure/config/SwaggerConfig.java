@@ -9,6 +9,8 @@ import io.swagger.v3.oas.models.media.*;
 import io.swagger.v3.oas.models.parameters.RequestBody;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
 import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.Operation;
@@ -25,6 +27,13 @@ public class SwaggerConfig {
         return new OpenAPI()
                 .info(apiInfo())
                 .servers(apiServers())
+                .addSecurityItem(new SecurityRequirement().addList("Bearer"))
+                .components(new io.swagger.v3.oas.models.Components()
+                        .addSecuritySchemes("Bearer", new SecurityScheme()
+                                .type(SecurityScheme.Type.HTTP)
+                                .scheme("bearer")
+                                .bearerFormat("JWT")
+                                .description("JWT Bearer token para autenticação")))
                 .paths(new io.swagger.v3.oas.models.Paths()
                         // Clientes
                         .addPathItem("/api/auth/cliente/registrar", registrarClientePath())
@@ -525,13 +534,7 @@ public class SwaggerConfig {
                         .tags(List.of("Clientes"))
                         .summary("Listar histórico de agendamentos")
                         .description("Lista todos os agendamentos passados do cliente autenticado (dataHora < agora)")
-                        .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
-                                .name("Authorization")
-                                .in("header")
-                                .required(true)
-                                .description("Token JWT no formato 'Bearer <token>'")
-                                .schema(new StringSchema()
-                                        .example("Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")))
+                        .security(List.of(new SecurityRequirement().addList("Bearer")))
                         .responses(new ApiResponses()
                                 .addApiResponse("200", new ApiResponse()
                                         .description("Lista de agendamentos passados obtida com sucesso")
@@ -618,6 +621,7 @@ public class SwaggerConfig {
                         .tags(List.of("Agendamentos"))
                         .summary("Buscar detalhes de um agendamento")
                         .description("Retorna os detalhes completos de um agendamento específico. Cliente só pode ver seus próprios agendamentos.")
+                        .security(List.of(new SecurityRequirement().addList("Bearer")))
                         .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
                                 .name("id")
                                 .in("path")
@@ -626,13 +630,6 @@ public class SwaggerConfig {
                                 .schema(new IntegerSchema()
                                         .format("int64")
                                         .example(1)))
-                        .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
-                                .name("Authorization")
-                                .in("header")
-                                .required(true)
-                                .description("Token JWT no formato 'Bearer <token>'")
-                                .schema(new StringSchema()
-                                        .example("Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")))
                         .responses(new ApiResponses()
                                 .addApiResponse("200", new ApiResponse()
                                         .description("Agendamento encontrado com sucesso")
