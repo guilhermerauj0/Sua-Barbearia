@@ -289,4 +289,53 @@ public class BarbeariaService {
                 .map(ServicoMapper::toDto)
                 .toList();
     }
+    
+    /**
+     * Cria um novo serviço para uma barbearia.
+     * 
+     * Apenas a própria barbearia pode criar seus serviços.
+     * 
+     * Validações:
+     * - Barbearia deve existir e estar ativa
+     * - Nome do serviço é obrigatório
+     * - Preço deve ser maior que zero
+     * - Duração deve ser maior que zero
+     * 
+     * @param barbeariaId ID da barbearia proprietária do serviço
+     * @param requestDto Dados do serviço a ser criado
+     * @return DTO com dados do serviço criado
+     * @throws IllegalArgumentException se dados inválidos ou barbearia não encontrada
+     */
+    @Transactional
+    public ServicoDto criarServico(Long barbeariaId, com.barbearia.application.dto.ServicoRequestDto requestDto) {
+        // Valida campos obrigatórios
+        if (!requestDto.isValid()) {
+            throw new IllegalArgumentException("Dados do serviço inválidos. Verifique nome, preço e duração.");
+        }
+        
+        // Verifica se a barbearia existe e está ativa
+        @SuppressWarnings("null")
+        JpaBarbearia barbearia = barbeariaRepository.findById(barbeariaId)
+                .orElseThrow(() -> new IllegalArgumentException("Barbearia não encontrada"));
+        
+        if (!barbearia.isAtivo()) {
+            throw new IllegalArgumentException("Barbearia está inativa e não pode criar serviços");
+        }
+        
+        // Cria entidade JPA do serviço
+        JpaServico servico = new JpaServico();
+        servico.setBarbeariaId(barbeariaId);
+        servico.setNome(requestDto.getNome().trim());
+        servico.setDescricao(requestDto.getDescricao() != null ? requestDto.getDescricao().trim() : null);
+        servico.setPreco(requestDto.getPreco());
+        servico.setDuracao(requestDto.getDuracao());
+        servico.setAtivo(true);
+        
+        // Salva no banco
+        @SuppressWarnings("null")
+        JpaServico servicoSalvo = servicoRepository.save(servico);
+        
+        // Retorna DTO
+        return ServicoMapper.toDto(servicoSalvo);
+    }
 }
