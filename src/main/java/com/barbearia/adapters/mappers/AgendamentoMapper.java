@@ -1,6 +1,7 @@
 package com.barbearia.adapters.mappers;
 
 import com.barbearia.application.dto.AgendamentoBriefDto;
+import com.barbearia.application.dto.AgendamentoDetailDto;
 import com.barbearia.domain.entities.Agendamento;
 import com.barbearia.infrastructure.persistence.entities.JpaAgendamento;
 
@@ -96,6 +97,50 @@ public class AgendamentoMapper {
                 domain.getBarbeiroId() != null ? "Barbeiro #" + domain.getBarbeiroId() : null,
                 "Serviço #" + domain.getServicoId(), // Placeholder
                 domain.getObservacoes()
+        );
+    }
+    
+    /**
+     * Converte entidade JPA para DTO detalhado.
+     * 
+     * NOTA: Por enquanto, os dados de Cliente, Barbearia, Barbeiro e Serviço são placeholders.
+     * Quando implementarmos as entidades correspondentes com relacionamentos JPA,
+     * faremos joins ou buscas para preencher esses dados reais.
+     */
+    public static AgendamentoDetailDto toDetailDto(JpaAgendamento jpa) {
+        if (jpa == null) return null;
+        
+        return new AgendamentoDetailDto(
+                // Dados do agendamento
+                jpa.getId(),
+                jpa.getDataHora(),
+                jpa.getStatus(),
+                jpa.getObservacoes(),
+                jpa.getDataCriacao(),
+                jpa.getDataAtualizacao(),
+                
+                // Dados do cliente (placeholders)
+                jpa.getClienteId(),
+                "Cliente #" + jpa.getClienteId(),
+                "email@cliente.com",
+                "(00) 0000-0000",
+                "00000000000",
+                
+                // Dados da barbearia (placeholders)
+                jpa.getBarbeariaId(),
+                "Barbearia #" + jpa.getBarbeariaId(),
+                "Rua Exemplo, 123",
+                "(00) 0000-0000",
+                
+                // Dados do barbeiro (pode ser null)
+                jpa.getBarbeiroId(),
+                jpa.getBarbeiroId() != null ? "Barbeiro #" + jpa.getBarbeiroId() : null,
+                
+                // Dados do serviço (placeholders)
+                jpa.getServicoId(),
+                "Serviço #" + jpa.getServicoId(),
+                "Descrição do serviço",
+                0.0
         );
     }
 }

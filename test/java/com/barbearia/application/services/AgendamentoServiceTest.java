@@ -1,7 +1,10 @@
 package com.barbearia.application.services;
 
 import com.barbearia.application.dto.AgendamentoBriefDto;
+import com.barbearia.application.dto.AgendamentoDetailDto;
 import com.barbearia.domain.enums.StatusAgendamento;
+import com.barbearia.domain.exceptions.AcessoNegadoException;
+import com.barbearia.domain.exceptions.AgendamentoNaoEncontradoException;
 import com.barbearia.infrastructure.persistence.entities.JpaAgendamento;
 import com.barbearia.infrastructure.persistence.repositories.AgendamentoRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +19,7 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -231,6 +235,178 @@ class AgendamentoServiceTest {
 
         verify(agendamentoRepository, times(1))
                 .findByClienteIdOrderByDataHoraDesc(clienteId);
+    }
+
+    // ==================== TESTES PARA BUSCAR AGENDAMENTO POR ID ====================
+
+    @Test
+    @DisplayName("Deve buscar agendamento por ID com sucesso quando cliente tem permissão")
+    void deveBuscarAgendamentoPorIdComSucesso() {
+        // Arrange
+        Long agendamentoId = 1L;
+        JpaAgendamento agendamento = criarJpaAgendamento(agendamentoId, now.plusDays(5), StatusAgendamento.CONFIRMADO);
+        
+        when(agendamentoRepository.findById(agendamentoId))
+                .thenReturn(Optional.of(agendamento));
+
+        // Act
+        AgendamentoDetailDto resultado = agendamentoService.buscarAgendamentoPorId(agendamentoId, clienteId, "CLIENTE");
+
+        // Assert
+        assertThat(resultado).isNotNull();
+        assertThat(resultado.id()).isEqualTo(agendamentoId);
+        assertThat(resultado.clienteId()).isEqualTo(clienteId);
+        assertThat(resultado.status()).isEqualTo(StatusAgendamento.CONFIRMADO);
+        
+        verify(agendamentoRepository, times(1)).findById(agendamentoId);
+    }
+
+    @Test
+    @DisplayName("Deve retornar 404 quando agendamento não existe")
+    void deveRetornar404QuandoAgendamentoNaoExiste() {
+        // Arrange
+        Long agendamentoId = 999L;
+        
+        when(agendamentoRepository.findById(agendamentoId))
+                .thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThatThrownBy(() -> agendamentoService.buscarAgendamentoPorId(agendamentoId, clienteId, "CLIENTE"))
+                .isInstanceOf(AgendamentoNaoEncontradoException.class)
+                .hasMessageContaining("não existe");
+
+        verify(agendamentoRepository, times(1)).findById(agendamentoId);
+    }
+
+    @Test
+    @DisplayName("Deve retornar 403 quando cliente tenta acessar agendamento de outro cliente")
+    void deveRetornar403QuandoClienteNaoTemPermissao() {
+        // Arrange
+        Long agendamentoId = 1L;
+        Long outroClienteId = 999L;
+        JpaAgendamento agendamento = criarJpaAgendamento(agendamentoId, now.plusDays(5), StatusAgendamento.CONFIRMADO);
+        // Agendamento pertence a clienteId, mas estamos tentando acessar com outro ID
+        
+        when(agendamentoRepository.findById(agendamentoId))
+                .thenReturn(Optional.of(agendamento));
+
+        // Act & Assert
+        assertThatThrownBy(() -> agendamentoService.buscarAgendamentoPorId(agendamentoId, outroClienteId, "CLIENTE"))
+                .isInstanceOf(AcessoNegadoException.class)
+                .hasMessageContaining("permissão");
+
+        verify(agendamentoRepository, times(1)).findById(agendamentoId);
+    }
+
+    @Test
+    @DisplayName("Deve lançar IllegalArgumentException quando agendamentoId é nulo")
+    void deveLancarExcecaoQuandoAgendamentoIdEhNulo() {
+        // Act & Assert
+        assertThatThrownBy(() -> agendamentoService.buscarAgendamentoPorId(null, clienteId, "CLIENTE"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("não pode ser nulo");
+    }
+
+    @Test
+    @DisplayName("Deve lançar IllegalArgumentException quando usuarioId é nulo")
+    void deveLancarExcecaoQuandoUsuarioIdEhNulo() {
+        // Act & Assert
+        assertThatThrownBy(() -> agendamentoService.buscarAgendamentoPorId(1L, null, "CLIENTE"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("usuário");
+    }
+
+    @Test
+    @DisplayName("Deve lançar IllegalArgumentException quando tipoUsuario é nulo")
+    void deveLancarExcecaoQuandoTipoUsuarioEhNulo() {
+        // Act & Assert
+        assertThatThrownBy(() -> agendamentoService.buscarAgendamentoPorId(1L, clienteId, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Tipo do usuário");
+    }
+
+    @Test
+    @DisplayName("Deve autorizar barbearia a acessar agendamentos da sua barbearia")
+    void deveAutorizarBarbeariaacessarAgendamentos() {
+        // Arrange
+        Long agendamentoId = 1L;
+        Long barbeariaId = 10L;
+        JpaAgendamento agendamento = criarJpaAgendamento(agendamentoId, now.plusDays(5), StatusAgendamento.CONFIRMADO);
+        agendamento.setBarbeariaId(barbeariaId); // Agendamento pertence à barbearia
+        
+        when(agendamentoRepository.findById(agendamentoId))
+                .thenReturn(Optional.of(agendamento));
+
+        // Act
+        AgendamentoDetailDto resultado = agendamentoService.buscarAgendamentoPorId(agendamentoId, barbeariaId, "BARBEARIA");
+
+        // Assert
+        assertThat(resultado).isNotNull();
+        assertThat(resultado.barbeariaId()).isEqualTo(barbeariaId);
+        
+        verify(agendamentoRepository, times(1)).findById(agendamentoId);
+    }
+
+    @Test
+    @DisplayName("Deve negar acesso quando barbearia tenta acessar agendamento de outra barbearia")
+    void deveNegarAcessoBarbeariaAoutrabarbearia() {
+        // Arrange
+        Long agendamentoId = 1L;
+        Long barbeariaId = 10L;
+        Long outraBarbeariaId = 20L;
+        JpaAgendamento agendamento = criarJpaAgendamento(agendamentoId, now.plusDays(5), StatusAgendamento.CONFIRMADO);
+        agendamento.setBarbeariaId(barbeariaId);
+        
+        when(agendamentoRepository.findById(agendamentoId))
+                .thenReturn(Optional.of(agendamento));
+
+        // Act & Assert
+        assertThatThrownBy(() -> agendamentoService.buscarAgendamentoPorId(agendamentoId, outraBarbeariaId, "BARBEARIA"))
+                .isInstanceOf(AcessoNegadoException.class);
+
+        verify(agendamentoRepository, times(1)).findById(agendamentoId);
+    }
+
+    @Test
+    @DisplayName("Deve autorizar barbeiro a acessar agendamentos onde ele é o prestador")
+    void deveAutorizarBarbeiroAcessarAgendamentos() {
+        // Arrange
+        Long agendamentoId = 1L;
+        Long barbeiroId = 20L;
+        JpaAgendamento agendamento = criarJpaAgendamento(agendamentoId, now.plusDays(5), StatusAgendamento.CONFIRMADO);
+        agendamento.setBarbeiroId(barbeiroId);
+        
+        when(agendamentoRepository.findById(agendamentoId))
+                .thenReturn(Optional.of(agendamento));
+
+        // Act
+        AgendamentoDetailDto resultado = agendamentoService.buscarAgendamentoPorId(agendamentoId, barbeiroId, "BARBEIRO");
+
+        // Assert
+        assertThat(resultado).isNotNull();
+        assertThat(resultado.barbeiroId()).isEqualTo(barbeiroId);
+        
+        verify(agendamentoRepository, times(1)).findById(agendamentoId);
+    }
+
+    @Test
+    @DisplayName("Deve negar acesso quando barbeiro não é o prestador do serviço")
+    void deveNegarAcessoBarbeiroNaoEhoPrestador() {
+        // Arrange
+        Long agendamentoId = 1L;
+        Long barbeiroId = 20L;
+        Long outroBarbeiroId = 30L;
+        JpaAgendamento agendamento = criarJpaAgendamento(agendamentoId, now.plusDays(5), StatusAgendamento.CONFIRMADO);
+        agendamento.setBarbeiroId(barbeiroId);
+        
+        when(agendamentoRepository.findById(agendamentoId))
+                .thenReturn(Optional.of(agendamento));
+
+        // Act & Assert
+        assertThatThrownBy(() -> agendamentoService.buscarAgendamentoPorId(agendamentoId, outroBarbeiroId, "BARBEIRO"))
+                .isInstanceOf(AcessoNegadoException.class);
+
+        verify(agendamentoRepository, times(1)).findById(agendamentoId);
     }
 
     // ==================== MÉTODOS AUXILIARES ====================

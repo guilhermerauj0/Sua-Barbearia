@@ -9,6 +9,8 @@ import io.swagger.v3.oas.models.media.*;
 import io.swagger.v3.oas.models.parameters.RequestBody;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
 import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.Operation;
@@ -25,11 +27,23 @@ public class SwaggerConfig {
         return new OpenAPI()
                 .info(apiInfo())
                 .servers(apiServers())
+                .addSecurityItem(new SecurityRequirement().addList("Bearer"))
+                .components(new io.swagger.v3.oas.models.Components()
+                        .addSecuritySchemes("Bearer", new SecurityScheme()
+                                .type(SecurityScheme.Type.HTTP)
+                                .scheme("bearer")
+                                .bearerFormat("JWT")
+                                .description("JWT Bearer token para autenticação")))
                 .paths(new io.swagger.v3.oas.models.Paths()
+                        // Clientes
                         .addPathItem("/api/auth/cliente/registrar", registrarClientePath())
                         .addPathItem("/api/auth/cliente/login", loginClientePath())
+                        .addPathItem("/api/clientes/meus-agendamentos/historico", listarHistoricoPath())
+                        // Barbearias
                         .addPathItem("/api/auth/barbearia/registrar", registrarBarbeariaPath())
-                        .addPathItem("/api/auth/barbearia/login", loginBarbeariaPath()));
+                        .addPathItem("/api/auth/barbearia/login", loginBarbeariaPath())
+                        // Agendamentos
+                        .addPathItem("/api/agendamentos/{id}", buscarPorIdPath()));
     }
 
     private Info apiInfo() {
@@ -62,7 +76,7 @@ public class SwaggerConfig {
         return new PathItem()
                 .post(new Operation()
                         .tags(List.of("Clientes"))
-                        .summary("Registrar novo cliente")
+                        .summary("Registrar cliente")
                         .description("Cadastra um novo cliente no sistema com os dados fornecidos")
                         .requestBody(new RequestBody()
                                 .description("Dados do cliente para registro")
@@ -94,7 +108,7 @@ public class SwaggerConfig {
         return new PathItem()
                 .post(new Operation()
                         .tags(List.of("Clientes"))
-                        .summary("Login de cliente")
+                        .summary("Login cliente")
                         .description("Autentica um cliente no sistema e retorna um token JWT")
                         .requestBody(new RequestBody()
                                 .description("Credenciais de login")
@@ -131,7 +145,7 @@ public class SwaggerConfig {
         return new PathItem()
                 .post(new Operation()
                         .tags(List.of("Barbearias"))
-                        .summary("Registrar nova barbearia")
+                        .summary("Registrar barbearia")
                         .description("Cadastra uma nova barbearia no sistema com validação de CPF/CNPJ. Aceita tanto CPF (pessoa física) quanto CNPJ (pessoa jurídica).")
                         .requestBody(new RequestBody()
                                 .description("Dados da barbearia para registro")
@@ -458,7 +472,7 @@ public class SwaggerConfig {
         return new PathItem()
                 .post(new Operation()
                         .tags(List.of("Barbearias"))
-                        .summary("Login de barbearia")
+                        .summary("Login barbearia")
                         .description("Autentica uma barbearia no sistema e retorna um token JWT com barbeariaId")
                         .requestBody(new RequestBody()
                                 .description("Credenciais de login")
@@ -510,6 +524,245 @@ public class SwaggerConfig {
                   "email": "maria.santos@email.com",
                   "role": "BARBEARIA",
                   "expiresIn": 3600000
+                }
+                """;
+    }
+
+    private PathItem listarHistoricoPath() {
+        return new PathItem()
+                .get(new Operation()
+                        .tags(List.of("Clientes"))
+                        .summary("Listar histórico de agendamentos")
+                        .description("Lista todos os agendamentos passados do cliente autenticado (dataHora < agora)")
+                        .security(List.of(new SecurityRequirement().addList("Bearer")))
+                        .responses(new ApiResponses()
+                                .addApiResponse("200", new ApiResponse()
+                                        .description("Lista de agendamentos passados obtida com sucesso")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(new ArraySchema()
+                                                                .items(agendamentoBriefSchema()))
+                                                        .example(listarHistoricoExample()))))
+                                .addApiResponse("400", new ApiResponse()
+                                        .description("ID do cliente inválido")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("ID do cliente não pode ser nulo"))))
+                                .addApiResponse("401", new ApiResponse()
+                                        .description("Token JWT inválido ou ausente")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Token JWT inválido ou clienteId não encontrado"))))
+                                .addApiResponse("500", new ApiResponse()
+                                        .description("Erro interno do servidor")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Erro ao buscar histórico"))))));
+    }
+
+    private Schema<?> agendamentoBriefSchema() {
+        return new Schema<>()
+                .type("object")
+                .description("Dados resumidos de um agendamento")
+                .addProperty("id", new IntegerSchema()
+                        .description("ID único do agendamento")
+                        .format("int64")
+                        .example(1))
+                .addProperty("dataHora", new StringSchema()
+                        .description("Data e hora do agendamento")
+                        .format("date-time")
+                        .example("2025-11-10T14:30:00"))
+                .addProperty("status", new StringSchema()
+                        .description("Status do agendamento")
+                        .example("CONCLUIDO"))
+                .addProperty("nomeBarbearia", new StringSchema()
+                        .description("Nome da barbearia")
+                        .example("Barbearia #1"))
+                .addProperty("nomeBarbeiro", new StringSchema()
+                        .description("Nome do barbeiro (pode ser null)")
+                        .nullable(true)
+                        .example(null))
+                .addProperty("nomeServico", new StringSchema()
+                        .description("Nome do serviço")
+                        .example("Serviço #1"))
+                .addProperty("observacoes", new StringSchema()
+                        .description("Observações do agendamento")
+                        .example("Corte + barba"));
+    }
+
+    private Object listarHistoricoExample() {
+        return """
+                [
+                  {
+                    "id": 1,
+                    "dataHora": "2025-10-03T14:30:00",
+                    "status": "CONCLUIDO",
+                    "nomeBarbearia": "Barbearia #1",
+                    "nomeBarbeiro": null,
+                    "nomeServico": "Serviço #1",
+                    "observacoes": "Corte + barba"
+                  },
+                  {
+                    "id": 2,
+                    "dataHora": "2025-10-19T14:30:00",
+                    "status": "CONCLUIDO",
+                    "nomeBarbearia": "Barbearia #1",
+                    "nomeBarbeiro": null,
+                    "nomeServico": "Serviço #1",
+                    "observacoes": "Corte simples, cliente satisfeito"
+                  }
+                ]
+                """;
+    }
+
+    private PathItem buscarPorIdPath() {
+        return new PathItem()
+                .get(new Operation()
+                        .tags(List.of("Agendamentos"))
+                        .summary("Buscar detalhes de um agendamento")
+                        .description("Retorna os detalhes completos de um agendamento específico. Cliente só pode ver seus próprios agendamentos.")
+                        .security(List.of(new SecurityRequirement().addList("Bearer")))
+                        .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
+                                .name("id")
+                                .in("path")
+                                .required(true)
+                                .description("ID do agendamento")
+                                .schema(new IntegerSchema()
+                                        .format("int64")
+                                        .example(1)))
+                        .responses(new ApiResponses()
+                                .addApiResponse("200", new ApiResponse()
+                                        .description("Agendamento encontrado com sucesso")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(agendamentoDetailSchema())
+                                                        .example(agendamentoDetailExample()))))
+                                .addApiResponse("401", new ApiResponse()
+                                        .description("Token JWT inválido ou ausente")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Token JWT inválido ou userId não encontrado"))))
+                                .addApiResponse("403", new ApiResponse()
+                                        .description("Acesso negado - cliente não pode acessar este agendamento")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Você não tem permissão para acessar este agendamento"))))
+                                .addApiResponse("404", new ApiResponse()
+                                        .description("Agendamento não encontrado")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Agendamento com ID 999 não existe"))))
+                                .addApiResponse("500", new ApiResponse()
+                                        .description("Erro interno do servidor")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Erro ao buscar agendamento"))))));
+    }
+
+    private Schema<?> agendamentoDetailSchema() {
+        return new Schema<>()
+                .type("object")
+                .description("Dados completos de um agendamento")
+                .addProperty("id", new IntegerSchema()
+                        .description("ID único do agendamento")
+                        .format("int64")
+                        .example(1))
+                .addProperty("dataHora", new StringSchema()
+                        .description("Data e hora do agendamento")
+                        .format("date-time")
+                        .example("2025-11-10T14:30:00"))
+                .addProperty("status", new StringSchema()
+                        .description("Status do agendamento (PENDENTE, CONFIRMADO, CONCLUIDO, CANCELADO)")
+                        .example("CONCLUIDO"))
+                .addProperty("observacoes", new StringSchema()
+                        .description("Observações do agendamento")
+                        .example("Corte + barba"))
+                .addProperty("dataCriacao", new StringSchema()
+                        .description("Data e hora da criação")
+                        .format("date-time")
+                        .example("2025-11-03T12:00:00"))
+                .addProperty("dataAtualizacao", new StringSchema()
+                        .description("Data e hora da última atualização")
+                        .format("date-time")
+                        .example("2025-11-03T14:30:00"))
+                .addProperty("clienteId", new IntegerSchema()
+                        .description("ID do cliente")
+                        .format("int64")
+                        .example(1))
+                .addProperty("nomeCliente", new StringSchema()
+                        .description("Nome do cliente")
+                        .example("João Silva"))
+                .addProperty("emailCliente", new StringSchema()
+                        .description("Email do cliente")
+                        .example("joao.silva@example.com"))
+                .addProperty("telefoneCliente", new StringSchema()
+                        .description("Telefone do cliente")
+                        .example("(11) 98765-4321"))
+                .addProperty("documentoCliente", new StringSchema()
+                        .description("Documento do cliente")
+                        .example("12345678901"))
+                .addProperty("barbeariaId", new IntegerSchema()
+                        .description("ID da barbearia")
+                        .format("int64")
+                        .example(1))
+                .addProperty("nomeBarbearia", new StringSchema()
+                        .description("Nome da barbearia")
+                        .example("Barbearia #1"))
+                .addProperty("enderecoBarbearia", new StringSchema()
+                        .description("Endereço da barbearia")
+                        .example("Rua Exemplo, 123"))
+                .addProperty("telefoneBarbearia", new StringSchema()
+                        .description("Telefone da barbearia")
+                        .example("(00) 0000-0000"))
+                .addProperty("barbeiroId", new IntegerSchema()
+                        .description("ID do barbeiro (pode ser null)")
+                        .format("int64")
+                        .nullable(true)
+                        .example(null))
+                .addProperty("nomeBarbeiro", new StringSchema()
+                        .description("Nome do barbeiro (pode ser null)")
+                        .nullable(true)
+                        .example(null))
+                .addProperty("servicoId", new IntegerSchema()
+                        .description("ID do serviço")
+                        .format("int64")
+                        .example(1))
+                .addProperty("nomeServico", new StringSchema()
+                        .description("Nome do serviço")
+                        .example("Serviço #1"))
+                .addProperty("descricaoServico", new StringSchema()
+                        .description("Descrição do serviço")
+                        .example("Descrição do serviço"))
+                .addProperty("valorServico", new NumberSchema()
+                        .description("Valor do serviço")
+                        .format("double")
+                        .example(0.0));
+    }
+
+    private Object agendamentoDetailExample() {
+        return """
+                {
+                  "id": 1,
+                  "dataHora": "2025-11-10T14:30:00",
+                  "status": "CONCLUIDO",
+                  "observacoes": "Corte + barba",
+                  "dataCriacao": "2025-11-03T12:00:00",
+                  "dataAtualizacao": "2025-11-03T14:30:00",
+                  "clienteId": 1,
+                  "nomeCliente": "João Silva",
+                  "emailCliente": "joao.silva@example.com",
+                  "telefoneCliente": "(11) 98765-4321",
+                  "documentoCliente": "12345678901",
+                  "barbeariaId": 1,
+                  "nomeBarbearia": "Barbearia #1",
+                  "enderecoBarbearia": "Rua Exemplo, 123",
+                  "telefoneBarbearia": "(00) 0000-0000",
+                  "barbeiroId": null,
+                  "nomeBarbeiro": null,
+                  "servicoId": 1,
+                  "nomeServico": "Serviço #1",
+                  "descricaoServico": "Descrição do serviço",
+                  "valorServico": 0.0
                 }
                 """;
     }
