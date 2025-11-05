@@ -26,12 +26,15 @@ public class SwaggerConfig {
                 .info(apiInfo())
                 .servers(apiServers())
                 .paths(new io.swagger.v3.oas.models.Paths()
+                        // Clientes
                         .addPathItem("/api/auth/cliente/registrar", registrarClientePath())
                         .addPathItem("/api/auth/cliente/login", loginClientePath())
+                        .addPathItem("/api/clientes/meus-agendamentos/historico", listarHistoricoPath())
+                        // Barbearias
                         .addPathItem("/api/auth/barbearia/registrar", registrarBarbeariaPath())
                         .addPathItem("/api/auth/barbearia/login", loginBarbeariaPath())
-                        .addPathItem("/api/agendamentos/{id}", buscarPorIdPath())
-                        .addPathItem("/api/clientes/meus-agendamentos/historico", listarHistoricoPath()));
+                        // Agendamentos
+                        .addPathItem("/api/agendamentos/{id}", buscarPorIdPath()));
     }
 
     private Info apiInfo() {
