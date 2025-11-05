@@ -70,8 +70,8 @@ public class SwaggerConfig {
                 .description("Servidor de Desenvolvimento");
         
         Server prodServer = new Server()
-                .url("https://api.suabarbearia.com")
-                .description("Servidor de Produção");
+                .url("https://sua-barbearia.onrender.com")
+                .description("Servidor de Produção (Render)");
         
         return List.of(devServer, prodServer);
     }
