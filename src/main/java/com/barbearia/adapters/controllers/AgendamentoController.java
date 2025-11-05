@@ -45,7 +45,8 @@ public class AgendamentoController {
      * Segurança:
      * - Requer autenticação JWT
      * - Cliente só acessa seus próprios agendamentos
-     * - ID do cliente é extraído do token JWT
+     * - Barbearia acessa agendamentos da sua barbearia
+     * - ID do usuário e tipo são extraídos do token JWT
      * - Lógica de autorização centralizada no service
      * 
      * @param id ID do agendamento
@@ -57,16 +58,22 @@ public class AgendamentoController {
             @PathVariable Long id,
             HttpServletRequest request) {
         try {
-            // Extrai o ID do usuário (cliente) do token JWT
+            // Extrai o ID do usuário do token JWT
             Long usuarioId = extrairUsuarioIdDoToken(request);
             
             if (usuarioId == null) {
                 return ResponseEntity.status(401).body("Token JWT inválido ou userId não encontrado");
             }
             
+            // Extrai o tipo de usuário (CLIENTE, BARBEARIA, BARBEIRO) do token JWT
+            String tipoUsuario = extrairTipoUsuarioDoToken(request);
+            
+            if (tipoUsuario == null) {
+                return ResponseEntity.status(401).body("Token JWT inválido ou role não encontrado");
+            }
+            
             // Busca o agendamento com verificação de autorização
-            // Por enquanto, o tipo de usuário é fixo como CLIENTE, mas pode ser estendido
-            AgendamentoDetailDto agendamento = agendamentoService.buscarAgendamentoPorId(id, usuarioId, "CLIENTE");
+            AgendamentoDetailDto agendamento = agendamentoService.buscarAgendamentoPorId(id, usuarioId, tipoUsuario);
             
             return ResponseEntity.ok(agendamento);
             
@@ -87,7 +94,7 @@ public class AgendamentoController {
     }
     
     /**
-     * Extrai o ID do usuário (cliente) do token JWT presente no header Authorization.
+     * Extrai o ID do usuário do token JWT presente no header Authorization.
      * 
      * @param request Requisição HTTP
      * @return ID do usuário ou null se não encontrado
@@ -112,6 +119,31 @@ public class AgendamentoController {
             } catch (NumberFormatException e) {
                 return null;
             }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Extrai o tipo de usuário (role) do token JWT presente no header Authorization.
+     * 
+     * @param request Requisição HTTP
+     * @return Tipo de usuário (CLIENTE, BARBEARIA, BARBEIRO) ou null se não encontrado
+     */
+    private String extrairTipoUsuarioDoToken(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return null;
+        }
+        
+        String token = authHeader.substring(7);
+        
+        // Extrai o claim "role" do token
+        Object roleClaim = jwtService.extractClaim(token, "role");
+        
+        if (roleClaim != null) {
+            return roleClaim.toString();
         }
         
         return null;

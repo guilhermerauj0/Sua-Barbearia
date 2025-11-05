@@ -159,8 +159,8 @@ public class AgendamentoService {
      * 
      * Lógica centralizada de autorização:
      * - Cliente pode acessar apenas seus próprios agendamentos
-     * - Barbearia pode acessar agendamentos da sua barbearia (futuro)
-     * - Barbeiro pode acessar agendamentos onde é o prestador (futuro)
+     * - Barbearia pode acessar agendamentos da sua barbearia
+     * - Barbeiro pode acessar agendamentos onde é o prestador
      * 
      * @param jpaAgendamento Agendamento a ser verificado
      * @param usuarioId ID do usuário autenticado
@@ -173,12 +173,12 @@ public class AgendamentoService {
             return jpaAgendamento.getClienteId().equals(usuarioId);
         }
         
-        // Barbearia pode ver agendamentos associados a ela (futuro)
+        // Barbearia pode ver agendamentos associados a ela
         if ("BARBEARIA".equalsIgnoreCase(tipoUsuario)) {
             return jpaAgendamento.getBarbeariaId().equals(usuarioId);
         }
         
-        // Barbeiro pode ver agendamentos onde é o prestador (futuro)
+        // Barbeiro pode ver agendamentos onde é o prestador
         if ("BARBEIRO".equalsIgnoreCase(tipoUsuario)) {
             return jpaAgendamento.getBarbeiroId() != null && jpaAgendamento.getBarbeiroId().equals(usuarioId);
         }
