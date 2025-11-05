@@ -2,12 +2,16 @@ package com.barbearia.application.services;
 
 import com.barbearia.adapters.mappers.AgendamentoMapper;
 import com.barbearia.application.dto.AgendamentoBriefDto;
+import com.barbearia.application.dto.AgendamentoDetailDto;
+import com.barbearia.domain.exceptions.AcessoNegadoException;
+import com.barbearia.domain.exceptions.AgendamentoNaoEncontradoException;
 import com.barbearia.infrastructure.persistence.entities.JpaAgendamento;
 import com.barbearia.infrastructure.persistence.repositories.AgendamentoRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -97,5 +101,89 @@ public class AgendamentoService {
         return agendamentos.stream()
                 .map(AgendamentoMapper::toBriefDto)
                 .collect(Collectors.toList());
+    }
+    
+    /**
+     * Busca um agendamento específico por ID com verificação de autorização.
+     * 
+     * Implementa a lógica centralizada de autorização:
+     * - Cliente só pode ver seus próprios agendamentos
+     * - Barbearia pode ver agendamentos associados a ela (futuro)
+     * - Barbeiro pode ver agendamentos onde ele é o prestador (futuro)
+     * 
+     * Regras de negócio:
+     * - Retorna 404 se o agendamento não existe
+     * - Retorna 403 se o usuário não tem permissão (não é proprietário)
+     * 
+     * @param agendamentoId ID do agendamento a ser buscado
+     * @param usuarioId ID do usuário autenticado (cliente)
+     * @param tipoUsuario Tipo do usuário (CLIENTE, BARBEARIA, BARBEIRO)
+     * @return DTO detalhado do agendamento
+     * @throws IllegalArgumentException se usuarioId é nulo
+     * @throws RuntimeException se agendamento não existe (404) ou sem permissão (403)
+     */
+    public AgendamentoDetailDto buscarAgendamentoPorId(Long agendamentoId, Long usuarioId, String tipoUsuario) {
+        if (agendamentoId == null) {
+            throw new IllegalArgumentException("ID do agendamento não pode ser nulo");
+        }
+        
+        if (usuarioId == null) {
+            throw new IllegalArgumentException("ID do usuário não pode ser nulo");
+        }
+        
+        if (tipoUsuario == null || tipoUsuario.isBlank()) {
+            throw new IllegalArgumentException("Tipo do usuário não pode ser nulo");
+        }
+        
+        // Busca o agendamento no banco de dados
+        Optional<JpaAgendamento> agendamento = agendamentoRepository.findById(agendamentoId);
+        
+        // Se não existe, retorna 404
+        if (agendamento.isEmpty()) {
+            throw new AgendamentoNaoEncontradoException("Agendamento com ID " + agendamentoId + " não existe");
+        }
+        
+        JpaAgendamento jpaAgendamento = agendamento.get();
+        
+        // Verifica autorização
+        if (!verificarAutorizacaoAcesso(jpaAgendamento, usuarioId, tipoUsuario)) {
+            throw new AcessoNegadoException("Você não tem permissão para acessar este agendamento");
+        }
+        
+        // Retorna o DTO detalhado
+        return AgendamentoMapper.toDetailDto(jpaAgendamento);
+    }
+    
+    /**
+     * Verifica se o usuário tem autorização para acessar um agendamento.
+     * 
+     * Lógica centralizada de autorização:
+     * - Cliente pode acessar apenas seus próprios agendamentos
+     * - Barbearia pode acessar agendamentos da sua barbearia (futuro)
+     * - Barbeiro pode acessar agendamentos onde é o prestador (futuro)
+     * 
+     * @param jpaAgendamento Agendamento a ser verificado
+     * @param usuarioId ID do usuário autenticado
+     * @param tipoUsuario Tipo do usuário (CLIENTE, BARBEARIA, BARBEIRO)
+     * @return true se tem autorização, false caso contrário
+     */
+    private boolean verificarAutorizacaoAcesso(JpaAgendamento jpaAgendamento, Long usuarioId, String tipoUsuario) {
+        // Cliente só pode ver seus próprios agendamentos
+        if ("CLIENTE".equalsIgnoreCase(tipoUsuario)) {
+            return jpaAgendamento.getClienteId().equals(usuarioId);
+        }
+        
+        // Barbearia pode ver agendamentos associados a ela (futuro)
+        if ("BARBEARIA".equalsIgnoreCase(tipoUsuario)) {
+            return jpaAgendamento.getBarbeariaId().equals(usuarioId);
+        }
+        
+        // Barbeiro pode ver agendamentos onde é o prestador (futuro)
+        if ("BARBEIRO".equalsIgnoreCase(tipoUsuario)) {
+            return jpaAgendamento.getBarbeiroId() != null && jpaAgendamento.getBarbeiroId().equals(usuarioId);
+        }
+        
+        // Tipo de usuário desconhecido
+        return false;
     }
 }
