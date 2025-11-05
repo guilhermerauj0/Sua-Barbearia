@@ -771,28 +771,6 @@ public class SwaggerConfig {
                 """;
     }
 
-    private PathItem buscarPerfilPath() {
-        return new PathItem()
-                .get(new Operation()
-                        .tags(List.of("Clientes"))
-                        .summary("Buscar meu perfil")
-                        .description("Retorna os dados completos do cliente autenticado")
-                        .security(List.of(new SecurityRequirement().addList("Bearer")))
-                        .responses(new ApiResponses()
-                                .addApiResponse("200", new ApiResponse()
-                                        .description("Perfil do cliente retornado com sucesso")
-                                        .content(new Content()
-                                                .addMediaType("application/json", new MediaType()
-                                                        .schema(clienteProfileSchema())
-                                                        .example(clienteProfileExample()))))
-                                .addApiResponse("401", new ApiResponse()
-                                        .description("Token JWT inválido ou ausente"))
-                                .addApiResponse("404", new ApiResponse()
-                                        .description("Cliente não encontrado"))
-                                .addApiResponse("500", new ApiResponse()
-                                        .description("Erro interno do servidor"))));
-    }
-
     private PathItem atualizarPerfilPath() {
         return new PathItem()
                 .put(new Operation()
