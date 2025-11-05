@@ -2,9 +2,13 @@ package com.barbearia.application.services;
 
 import com.barbearia.application.dto.BarbeariaRequestDto;
 import com.barbearia.application.dto.BarbeariaResponseDto;
+import com.barbearia.application.dto.BarbeariaListItemDto;
+import com.barbearia.application.dto.ServicoDto;
 import com.barbearia.domain.enums.TipoDocumento;
 import com.barbearia.infrastructure.persistence.entities.JpaBarbearia;
+import com.barbearia.infrastructure.persistence.entities.JpaServico;
 import com.barbearia.infrastructure.persistence.repositories.BarbeariaRepository;
+import com.barbearia.infrastructure.persistence.repositories.ServicoRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,6 +17,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+
+import java.math.BigDecimal;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -31,6 +40,9 @@ class BarbeariaServiceTest {
 
     @Mock
     private BarbeariaRepository barbeariaRepository;
+
+    @Mock
+    private ServicoRepository servicoRepository;
 
     @Mock
     private BCryptPasswordEncoder passwordEncoder;
@@ -285,5 +297,169 @@ class BarbeariaServiceTest {
 
         // Assert
         verify(barbeariaRepository).save(any(JpaBarbearia.class));
+    }
+
+    @Test
+    @DisplayName("Deve listar barbearias ativas com sucesso")
+    void deveListarBarbeariasAtivasComSucesso() {
+        // Arrange
+        JpaBarbearia barbearia1 = new JpaBarbearia();
+        barbearia1.setId(1L);
+        barbearia1.setNome("Barbearia Premium");
+        barbearia1.setNomeFantasia("Premium Cuts");
+        barbearia1.setEndereco("Rua A, 100");
+        barbearia1.setTelefone("11987654321");
+        barbearia1.setEmail("premium@email.com");
+        barbearia1.setAtivo(true);
+
+        JpaBarbearia barbearia2 = new JpaBarbearia();
+        barbearia2.setId(2L);
+        barbearia2.setNome("Barbearia Central");
+        barbearia2.setNomeFantasia("Central Barber");
+        barbearia2.setEndereco("Rua B, 200");
+        barbearia2.setTelefone("11987654322");
+        barbearia2.setEmail("central@email.com");
+        barbearia2.setAtivo(true);
+
+        when(barbeariaRepository.findByAtivoTrue()).thenReturn(Arrays.asList(barbearia1, barbearia2));
+
+        // Act
+        List<BarbeariaListItemDto> resultado = barbeariaService.listarBarbearias();
+
+        // Assert
+        assertNotNull(resultado);
+        assertEquals(2, resultado.size());
+        assertEquals("Barbearia Premium", resultado.get(0).getNome());
+        assertEquals("Premium Cuts", resultado.get(0).getNomeFantasia());
+        assertEquals(0.0, resultado.get(0).getAvaliacaoMedia());
+        assertEquals("Barbearia Central", resultado.get(1).getNome());
+        
+        verify(barbeariaRepository, times(1)).findByAtivoTrue();
+    }
+
+    @Test
+    @DisplayName("Deve retornar lista vazia quando não há barbearias ativas")
+    void deveRetornarListaVaziaQuandoNaoHaBarbeariasAtivas() {
+        // Arrange
+        when(barbeariaRepository.findByAtivoTrue()).thenReturn(Collections.emptyList());
+
+        // Act
+        List<BarbeariaListItemDto> resultado = barbeariaService.listarBarbearias();
+
+        // Assert
+        assertNotNull(resultado);
+        assertTrue(resultado.isEmpty());
+        verify(barbeariaRepository, times(1)).findByAtivoTrue();
+    }
+
+    @Test
+    @DisplayName("Deve listar serviços de uma barbearia ativa com sucesso")
+    void deveListarServicosDeUmaBarbeariaAtivaComSucesso() {
+        // Arrange
+        Long barbeariaId = 1L;
+        
+        JpaBarbearia barbearia = new JpaBarbearia();
+        barbearia.setId(barbeariaId);
+        barbearia.setNome("Barbearia Premium");
+        barbearia.setAtivo(true);
+
+        JpaServico servico1 = new JpaServico();
+        servico1.setId(1L);
+        servico1.setNome("Corte de Cabelo");
+        servico1.setDescricao("Corte clássico");
+        servico1.setPreco(BigDecimal.valueOf(50.00));
+        servico1.setDuracao(30);
+        servico1.setAtivo(true);
+
+        JpaServico servico2 = new JpaServico();
+        servico2.setId(2L);
+        servico2.setNome("Corte + Barba");
+        servico2.setDescricao("Combo completo");
+        servico2.setPreco(BigDecimal.valueOf(80.00));
+        servico2.setDuracao(45);
+        servico2.setAtivo(true);
+
+        when(barbeariaRepository.findById(barbeariaId)).thenReturn(java.util.Optional.of(barbearia));
+        when(servicoRepository.findByBarbeariaIdAndAtivoTrue(barbeariaId))
+                .thenReturn(Arrays.asList(servico1, servico2));
+
+        // Act
+        List<ServicoDto> resultado = barbeariaService.listarServicosPorBarbearia(barbeariaId);
+
+        // Assert
+        assertNotNull(resultado);
+        assertEquals(2, resultado.size());
+        assertEquals("Corte de Cabelo", resultado.get(0).getNome());
+        assertEquals(BigDecimal.valueOf(50.00), resultado.get(0).getPreco());
+        assertEquals("Corte + Barba", resultado.get(1).getNome());
+        
+        verify(barbeariaRepository, times(1)).findById(barbeariaId);
+        verify(servicoRepository, times(1)).findByBarbeariaIdAndAtivoTrue(barbeariaId);
+    }
+
+    @Test
+    @DisplayName("Deve lançar exceção quando barbearia não encontrada")
+    void deveLancarExcecaoQuandoBarbeariaEhNaoEncontrada() {
+        // Arrange
+        Long barbeariaId = 999L;
+        when(barbeariaRepository.findById(barbeariaId)).thenReturn(java.util.Optional.empty());
+
+        // Act & Assert
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> barbeariaService.listarServicosPorBarbearia(barbeariaId)
+        );
+        
+        assertEquals("Barbearia não encontrada", exception.getMessage());
+        verify(barbeariaRepository, times(1)).findById(barbeariaId);
+        verify(servicoRepository, never()).findByBarbeariaIdAndAtivoTrue(any());
+    }
+
+    @Test
+    @DisplayName("Deve lançar exceção quando barbearia está inativa")
+    void deveLancarExcecaoQuandoBarbeariaEstaInativa() {
+        // Arrange
+        Long barbeariaId = 1L;
+        
+        JpaBarbearia barbearia = new JpaBarbearia();
+        barbearia.setId(barbeariaId);
+        barbearia.setNome("Barbearia Inativa");
+        barbearia.setAtivo(false);
+
+        when(barbeariaRepository.findById(barbeariaId)).thenReturn(java.util.Optional.of(barbearia));
+
+        // Act & Assert
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> barbeariaService.listarServicosPorBarbearia(barbeariaId)
+        );
+        
+        assertEquals("Barbearia está inativa", exception.getMessage());
+        verify(barbeariaRepository, times(1)).findById(barbeariaId);
+        verify(servicoRepository, never()).findByBarbeariaIdAndAtivoTrue(any());
+    }
+
+    @Test
+    @DisplayName("Deve retornar lista vazia quando barbearia não tem serviços ativos")
+    void deveRetornarListaVaziaQuandoBarbeariaEhSemServicosAtivos() {
+        // Arrange
+        Long barbeariaId = 1L;
+        
+        JpaBarbearia barbearia = new JpaBarbearia();
+        barbearia.setId(barbeariaId);
+        barbearia.setNome("Barbearia Sem Serviços");
+        barbearia.setAtivo(true);
+
+        when(barbeariaRepository.findById(barbeariaId)).thenReturn(java.util.Optional.of(barbearia));
+        when(servicoRepository.findByBarbeariaIdAndAtivoTrue(barbeariaId))
+                .thenReturn(Collections.emptyList());
+
+        // Act
+        List<ServicoDto> resultado = barbeariaService.listarServicosPorBarbearia(barbeariaId);
+
+        // Assert
+        assertNotNull(resultado);
+        assertTrue(resultado.isEmpty());
+        verify(servicoRepository, times(1)).findByBarbeariaIdAndAtivoTrue(barbeariaId);
     }
 }
