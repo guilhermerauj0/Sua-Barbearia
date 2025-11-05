@@ -39,6 +39,8 @@ public class SwaggerConfig {
                         .addPathItem("/api/auth/cliente/registrar", registrarClientePath())
                         .addPathItem("/api/auth/cliente/login", loginClientePath())
                         .addPathItem("/api/clientes/meus-agendamentos/historico", listarHistoricoPath())
+                        .addPathItem("/api/clientes/meu-perfil", buscarPerfilPath())
+                        .addPathItem("/api/clientes/meu-perfil", atualizarPerfilPath())
                         // Barbearias
                         .addPathItem("/api/auth/barbearia/registrar", registrarBarbeariaPath())
                         .addPathItem("/api/auth/barbearia/login", loginBarbeariaPath())
@@ -763,6 +765,106 @@ public class SwaggerConfig {
                   "nomeServico": "Serviço #1",
                   "descricaoServico": "Descrição do serviço",
                   "valorServico": 0.0
+                }
+                """;
+    }
+
+    private PathItem buscarPerfilPath() {
+        return new PathItem()
+                .get(new Operation()
+                        .tags(List.of("Clientes"))
+                        .summary("Buscar meu perfil")
+                        .description("Retorna os dados completos do cliente autenticado")
+                        .security(List.of(new SecurityRequirement().addList("Bearer")))
+                        .responses(new ApiResponses()
+                                .addApiResponse("200", new ApiResponse()
+                                        .description("Perfil do cliente retornado com sucesso")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(clienteProfileSchema())
+                                                        .example(clienteProfileExample()))))
+                                .addApiResponse("401", new ApiResponse()
+                                        .description("Token JWT inválido ou ausente"))
+                                .addApiResponse("404", new ApiResponse()
+                                        .description("Cliente não encontrado"))
+                                .addApiResponse("500", new ApiResponse()
+                                        .description("Erro interno do servidor"))));
+    }
+
+    private PathItem atualizarPerfilPath() {
+        return new PathItem()
+                .put(new Operation()
+                        .tags(List.of("Clientes"))
+                        .summary("Atualizar meu perfil")
+                        .description("Atualiza dados do cliente autenticado. Permite atualização parcial - apenas campos fornecidos são atualizados")
+                        .security(List.of(new SecurityRequirement().addList("Bearer")))
+                        .requestBody(new RequestBody()
+                                .description("Dados a serem atualizados (todos opcionais)")
+                                .required(true)
+                                .content(new Content()
+                                        .addMediaType("application/json", new MediaType()
+                                                .schema(clienteUpdateSchema())
+                                                .example(clienteUpdateExample()))))
+                        .responses(new ApiResponses()
+                                .addApiResponse("200", new ApiResponse()
+                                        .description("Perfil atualizado com sucesso")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(clienteProfileSchema())
+                                                        .example(clienteProfileExample()))))
+                                .addApiResponse("400", new ApiResponse()
+                                        .description("Dados inválidos ou nenhum campo para atualizar")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Email já cadastrado por outro usuário"))))
+                                .addApiResponse("401", new ApiResponse()
+                                        .description("Token JWT inválido ou ausente"))
+                                .addApiResponse("404", new ApiResponse()
+                                        .description("Cliente não encontrado"))
+                                .addApiResponse("500", new ApiResponse()
+                                        .description("Erro interno do servidor"))));
+    }
+
+    private Schema<?> clienteProfileSchema() {
+        return new ObjectSchema()
+                .addProperty("id", new NumberSchema().format("int64"))
+                .addProperty("nome", new StringSchema())
+                .addProperty("email", new StringSchema())
+                .addProperty("telefone", new StringSchema())
+                .addProperty("role", new StringSchema())
+                .addProperty("ativo", new BooleanSchema())
+                .addProperty("dataCriacao", new StringSchema().format("date-time"))
+                .addProperty("dataAtualizacao", new StringSchema().format("date-time"));
+    }
+
+    private String clienteProfileExample() {
+        return """
+                {
+                  "id": 1,
+                  "nome": "João Silva",
+                  "email": "joao.silva@example.com",
+                  "telefone": "(11) 98765-4321",
+                  "role": "CLIENTE",
+                  "ativo": true,
+                  "dataCriacao": "2025-11-01T10:00:00",
+                  "dataAtualizacao": "2025-11-05T14:30:00"
+                }
+                """;
+    }
+
+    private Schema<?> clienteUpdateSchema() {
+        return new ObjectSchema()
+                .addProperty("nome", new StringSchema())
+                .addProperty("email", new StringSchema())
+                .addProperty("telefone", new StringSchema());
+    }
+
+    private String clienteUpdateExample() {
+        return """
+                {
+                  "nome": "João Silva Atualizado",
+                  "email": "joao.novo@example.com",
+                  "telefone": "(11) 99999-8888"
                 }
                 """;
     }
