@@ -18,15 +18,15 @@ class DocumentoValidatorTest {
     @Test
     @DisplayName("Deve validar CPF válido com formatação")
     void deveValidarCPFValidoComFormatacao() {
-        // CPF: 191.000.000-01 = 19100000001
-        String cpf = "191.000.000-01".replaceAll("[^0-9]", "");
+        // CPF: 191.000.000-00 = 19100000000
+        String cpf = "191.000.000-00".replaceAll("[^0-9]", "");
         assertTrue(DocumentoValidator.validarCPF(cpf));
     }
 
     @Test
     @DisplayName("Deve validar CPF válido sem formatação")
     void deveValidarCPFValidoSemFormatacao() {
-        assertTrue(DocumentoValidator.validarCPF("19100000001"));
+        assertTrue(DocumentoValidator.validarCPF("19100000000"));
     }
 
     @ParameterizedTest
@@ -131,7 +131,7 @@ class DocumentoValidatorTest {
     @DisplayName("Deve validar múltiplos CPFs válidos conhecidos")
     void deveValidarMultiplosCPFsValidosConhecidos() {
         // CPFs válidos (sem formatação)
-        assertTrue(DocumentoValidator.validarCPF("19100000001"));
+        assertTrue(DocumentoValidator.validarCPF("19100000000"));
         assertTrue(DocumentoValidator.validarCPF("00000000191"));
         assertTrue(DocumentoValidator.validarCPF("11144477735"));
     }

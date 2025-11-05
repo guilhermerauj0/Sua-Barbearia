@@ -45,6 +45,7 @@ class BarbeariaRepositoryTest {
         barbeariaCPF.setDocumento("12345678909");
         barbeariaCPF.setEndereco("Rua das Flores, 123 - São Paulo/SP");
         barbeariaCPF.setAtivo(true);
+        barbeariaCPF.setRole("BARBEARIA");
 
         // Barbearia com CNPJ
         barbeariaCNPJ = new JpaBarbearia();
@@ -57,6 +58,7 @@ class BarbeariaRepositoryTest {
         barbeariaCNPJ.setDocumento("11222333000181");
         barbeariaCNPJ.setEndereco("Av. Principal, 500 - Rio de Janeiro/RJ");
         barbeariaCNPJ.setAtivo(true);
+        barbeariaCNPJ.setRole("BARBEARIA");
     }
 
     @Test
@@ -223,6 +225,7 @@ class BarbeariaRepositoryTest {
         duplicada.setDocumento("12345678909"); // Mesmo CPF
         duplicada.setEndereco("Outro Endereço");
         duplicada.setAtivo(true);
+        duplicada.setRole("BARBEARIA");
 
         // Act & Assert
         assertThrows(Exception.class, () -> {
@@ -247,6 +250,7 @@ class BarbeariaRepositoryTest {
         outra.setDocumento("12345678909"); // Mesmo número mas tipo diferente
         outra.setEndereco("Outro Endereço");
         outra.setAtivo(true);
+        outra.setRole("BARBEARIA");
 
         // Act & Assert - Não deve lançar exceção
         assertDoesNotThrow(() -> {
