@@ -1,6 +1,7 @@
 package com.barbearia.adapters.mappers;
 
 import com.barbearia.application.dto.ClienteResponseDto;
+import com.barbearia.application.dto.ClienteProfileDto;
 import com.barbearia.domain.entities.Cliente;
 import com.barbearia.infrastructure.persistence.entities.JpaCliente;
 
@@ -125,6 +126,34 @@ public class ClienteMapper {
         dto.setRole(jpaCliente.getRole());
         dto.setAtivo(jpaCliente.isAtivo());
         dto.setDataCriacao(jpaCliente.getDataCriacao());
+        // Nota: senha não é incluída por segurança
+        
+        return dto;
+    }
+    
+    /**
+     * Converte JpaCliente para ClienteProfileDto
+     * 
+     * Usado para retornar o perfil completo do cliente incluindo data de atualização
+     * Não inclui a senha por segurança
+     * 
+     * @param jpaCliente JpaCliente vindo do banco
+     * @return ClienteProfileDto com perfil do cliente
+     */
+    public static ClienteProfileDto toProfileDto(JpaCliente jpaCliente) {
+        if (jpaCliente == null) {
+            return null;
+        }
+        
+        ClienteProfileDto dto = new ClienteProfileDto();
+        dto.setId(jpaCliente.getId());
+        dto.setNome(jpaCliente.getNome());
+        dto.setEmail(jpaCliente.getEmail());
+        dto.setTelefone(jpaCliente.getTelefone());
+        dto.setRole(jpaCliente.getRole());
+        dto.setAtivo(jpaCliente.isAtivo());
+        dto.setDataCriacao(jpaCliente.getDataCriacao());
+        dto.setDataAtualizacao(jpaCliente.getDataAtualizacao());
         // Nota: senha não é incluída por segurança
         
         return dto;
