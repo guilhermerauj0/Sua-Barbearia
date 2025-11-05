@@ -1,16 +1,23 @@
 package com.barbearia.application.services;
 
 import com.barbearia.adapters.mappers.BarbeariaMapper;
+import com.barbearia.adapters.mappers.ServicoMapper;
 import com.barbearia.application.dto.BarbeariaRequestDto;
 import com.barbearia.application.dto.BarbeariaResponseDto;
+import com.barbearia.application.dto.BarbeariaListItemDto;
+import com.barbearia.application.dto.ServicoDto;
 import com.barbearia.application.factories.UsuarioFactory;
 import com.barbearia.application.utils.DocumentoValidator;
 import com.barbearia.domain.entities.Barbearia;
 import com.barbearia.infrastructure.persistence.entities.JpaBarbearia;
+import com.barbearia.infrastructure.persistence.entities.JpaServico;
 import com.barbearia.infrastructure.persistence.repositories.BarbeariaRepository;
+import com.barbearia.infrastructure.persistence.repositories.ServicoRepository;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 /**
  * Service responsável pela lógica de negócio de Barbearia.
@@ -43,6 +50,11 @@ public class BarbeariaService {
     private final BarbeariaRepository barbeariaRepository;
     
     /**
+     * Repository para acesso a dados de serviços
+     */
+    private final ServicoRepository servicoRepository;
+    
+    /**
      * Encoder para fazer hash de senhas usando BCrypt
      * BCrypt é um algoritmo robusto e recomendado para senhas
      */
@@ -53,9 +65,11 @@ public class BarbeariaService {
      * Spring injeta automaticamente quando há apenas um construtor
      * 
      * @param barbeariaRepository Repository de barbearias
+     * @param servicoRepository Repository de serviços
      */
-    public BarbeariaService(BarbeariaRepository barbeariaRepository) {
+    public BarbeariaService(BarbeariaRepository barbeariaRepository, ServicoRepository servicoRepository) {
         this.barbeariaRepository = barbeariaRepository;
+        this.servicoRepository = servicoRepository;
         this.passwordEncoder = new BCryptPasswordEncoder();
     }
     
@@ -237,5 +251,42 @@ public class BarbeariaService {
         return barbeariaRepository.existsByTipoDocumentoAndDocumento(
             com.barbearia.domain.enums.TipoDocumento.valueOf(tipoDocumento), documentoLimpo
         );
+    }
+    
+    /**
+     * Lista todas as barbearias ativas do sistema.
+     * 
+     * @return Lista de DTOs com informações resumidas das barbearias
+     */
+    public List<BarbeariaListItemDto> listarBarbearias() {
+        List<JpaBarbearia> barbearias = barbeariaRepository.findByAtivoTrue();
+        return barbearias.stream()
+                .map(BarbeariaMapper::toListItemDto)
+                .toList();
+    }
+    
+    /**
+     * Lista todos os serviços ativos de uma barbearia específica.
+     * 
+     * @param barbeariaId ID da barbearia
+     * @return Lista de DTOs com serviços da barbearia
+     * @throws IllegalArgumentException se barbearia não existe ou está inativa
+     */
+    public List<ServicoDto> listarServicosPorBarbearia(Long barbeariaId) {
+        // Verifica se barbearia existe e está ativa
+        @SuppressWarnings("null")
+        JpaBarbearia barbearia = barbeariaRepository.findById(barbeariaId)
+                .orElseThrow(() -> new IllegalArgumentException("Barbearia não encontrada"));
+        
+        if (!barbearia.isAtivo()) {
+            throw new IllegalArgumentException("Barbearia está inativa");
+        }
+        
+        // Busca serviços ativos da barbearia
+        List<JpaServico> servicos = servicoRepository.findByBarbeariaIdAndAtivoTrue(barbeariaId);
+        
+        return servicos.stream()
+                .map(ServicoMapper::toDto)
+                .toList();
     }
 }
