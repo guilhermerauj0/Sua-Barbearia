@@ -39,11 +39,13 @@ public class SwaggerConfig {
                         .addPathItem("/api/auth/cliente/registrar", registrarClientePath())
                         .addPathItem("/api/auth/cliente/login", loginClientePath())
                         .addPathItem("/api/clientes/meus-agendamentos/historico", listarHistoricoPath())
-                        .addPathItem("/api/clientes/meu-perfil", buscarPerfilPath())
                         .addPathItem("/api/clientes/meu-perfil", atualizarPerfilPath())
                         // Barbearias
                         .addPathItem("/api/auth/barbearia/registrar", registrarBarbeariaPath())
                         .addPathItem("/api/auth/barbearia/login", loginBarbeariaPath())
+                        .addPathItem("/api/barbearias", listarBarbeariaPath())
+                        .addPathItem("/api/barbearias/{id}/servicos", listarServicosPath())
+                        .addPathItem("/api/barbearias/servicos", criarServicoPath())
                         // Agendamentos
                         .addPathItem("/api/agendamentos/{id}", buscarPorIdPath()));
     }
@@ -68,8 +70,8 @@ public class SwaggerConfig {
                 .description("Servidor de Desenvolvimento");
         
         Server prodServer = new Server()
-                .url("https://api.suabarbearia.com")
-                .description("Servidor de Produção");
+                .url("https://sua-barbearia.onrender.com")
+                .description("Servidor de Produção (Render)");
         
         return List.of(devServer, prodServer);
     }
@@ -769,28 +771,6 @@ public class SwaggerConfig {
                 """;
     }
 
-    private PathItem buscarPerfilPath() {
-        return new PathItem()
-                .get(new Operation()
-                        .tags(List.of("Clientes"))
-                        .summary("Buscar meu perfil")
-                        .description("Retorna os dados completos do cliente autenticado")
-                        .security(List.of(new SecurityRequirement().addList("Bearer")))
-                        .responses(new ApiResponses()
-                                .addApiResponse("200", new ApiResponse()
-                                        .description("Perfil do cliente retornado com sucesso")
-                                        .content(new Content()
-                                                .addMediaType("application/json", new MediaType()
-                                                        .schema(clienteProfileSchema())
-                                                        .example(clienteProfileExample()))))
-                                .addApiResponse("401", new ApiResponse()
-                                        .description("Token JWT inválido ou ausente"))
-                                .addApiResponse("404", new ApiResponse()
-                                        .description("Cliente não encontrado"))
-                                .addApiResponse("500", new ApiResponse()
-                                        .description("Erro interno do servidor"))));
-    }
-
     private PathItem atualizarPerfilPath() {
         return new PathItem()
                 .put(new Operation()
@@ -865,6 +845,197 @@ public class SwaggerConfig {
                   "nome": "João Silva Atualizado",
                   "email": "joao.novo@example.com",
                   "telefone": "(11) 99999-8888"
+                }
+                """;
+    }
+
+    private PathItem listarBarbeariaPath() {
+        return new PathItem()
+                .get(new Operation()
+                        .tags(List.of("Barbearias"))
+                        .summary("Listar barbearias")
+                        .description("Retorna lista de todas as barbearias ativas do sistema")
+                        .responses(new ApiResponses()
+                                .addApiResponse("200", new ApiResponse()
+                                        .description("Lista de barbearias retornada com sucesso")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(new ArraySchema()
+                                                                .items(barbeariaListItemSchema()))
+                                                        .example(barbeariaListExample()))))
+                                .addApiResponse("500", new ApiResponse()
+                                        .description("Erro interno do servidor"))));
+    }
+
+    private PathItem listarServicosPath() {
+        return new PathItem()
+                .get(new Operation()
+                        .tags(List.of("Barbearias"))
+                        .summary("Listar serviços de uma barbearia")
+                        .description("Retorna lista de serviços ativos de uma barbearia específica")
+                        .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
+                                .name("id")
+                                .in("path")
+                                .description("ID da barbearia")
+                                .required(true)
+                                .schema(new NumberSchema().format("int64")))
+                        .responses(new ApiResponses()
+                                .addApiResponse("200", new ApiResponse()
+                                        .description("Lista de serviços retornada com sucesso")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(new ArraySchema()
+                                                                .items(servicoSchema()))
+                                                        .example(servicoListExample()))))
+                                .addApiResponse("404", new ApiResponse()
+                                        .description("Barbearia não encontrada"))
+                                .addApiResponse("400", new ApiResponse()
+                                        .description("Barbearia inativa"))
+                                .addApiResponse("500", new ApiResponse()
+                                        .description("Erro interno do servidor"))));
+    }
+
+    private Schema<?> barbeariaListItemSchema() {
+        return new ObjectSchema()
+                .addProperty("id", new NumberSchema().format("int64"))
+                .addProperty("nome", new StringSchema())
+                .addProperty("nomeFantasia", new StringSchema())
+                .addProperty("endereco", new StringSchema())
+                .addProperty("telefone", new StringSchema())
+                .addProperty("email", new StringSchema())
+                .addProperty("avaliacaoMedia", new NumberSchema().format("double"));
+    }
+
+    private String barbeariaListExample() {
+        return """
+                [
+                  {
+                    "id": 1,
+                    "nome": "Barbearia Premium",
+                    "nomeFantasia": "Premium Barber",
+                    "endereco": "Rua Exemplo, 123",
+                    "telefone": "(11) 3000-0000",
+                    "email": "premium@barbearia.com",
+                    "avaliacaoMedia": 4.5
+                  },
+                  {
+                    "id": 4,
+                    "nome": "Maria Santos",
+                    "nomeFantasia": "Maria Barber",
+                    "endereco": "Av. Paulista, 1000",
+                    "telefone": "(11) 4000-0000",
+                    "email": "maria.santos@email.com",
+                    "avaliacaoMedia": 0.0
+                  }
+                ]
+                """;
+    }
+
+    private Schema<?> servicoSchema() {
+        return new ObjectSchema()
+                .addProperty("id", new NumberSchema().format("int64"))
+                .addProperty("nome", new StringSchema())
+                .addProperty("descricao", new StringSchema())
+                .addProperty("preco", new NumberSchema().format("double"))
+                .addProperty("duracao", new NumberSchema().format("int32"))
+                .addProperty("barbeariaId", new NumberSchema().format("int64"))
+                .addProperty("ativo", new BooleanSchema());
+    }
+
+    private String servicoListExample() {
+        return """
+                [
+                  {
+                    "id": 1,
+                    "nome": "Corte de Cabelo",
+                    "descricao": "Corte clássico",
+                    "preco": 50.0,
+                    "duracao": 30,
+                    "barbeariaId": 1,
+                    "ativo": true
+                  },
+                  {
+                    "id": 2,
+                    "nome": "Barba",
+                    "descricao": "Aparelho de barba",
+                    "preco": 40.0,
+                    "duracao": 20,
+                    "barbeariaId": 1,
+                    "ativo": true
+                  },
+                  {
+                    "id": 3,
+                    "nome": "Corte + Barba",
+                    "descricao": "Corte e aparelho de barba",
+                    "preco": 80.0,
+                    "duracao": 50,
+                    "barbeariaId": 1,
+                    "ativo": true
+                  }
+                ]
+                """;
+    }
+
+    private PathItem criarServicoPath() {
+        return new PathItem()
+                .post(new Operation()
+                        .tags(List.of("Barbearias"))
+                        .summary("Criar serviço")
+                        .description("Cria um novo serviço para a barbearia autenticada")
+                        .security(List.of(new SecurityRequirement().addList("Bearer")))
+                        .requestBody(new RequestBody()
+                                .description("Dados do serviço a ser criado")
+                                .required(true)
+                                .content(new Content()
+                                        .addMediaType("application/json", new MediaType()
+                                                .schema(servicoRequestSchema())
+                                                .example(servicoRequestExample()))))
+                        .responses(new ApiResponses()
+                                .addApiResponse("201", new ApiResponse()
+                                        .description("Serviço criado com sucesso")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(servicoSchema())
+                                                        .example(servicoResponseExample()))))
+                                .addApiResponse("400", new ApiResponse()
+                                        .description("Dados inválidos"))
+                                .addApiResponse("401", new ApiResponse()
+                                        .description("Não autenticado"))
+                                .addApiResponse("403", new ApiResponse()
+                                        .description("Não autorizado (role BARBEARIA necessário)"))
+                                .addApiResponse("500", new ApiResponse()
+                                        .description("Erro interno do servidor"))));
+    }
+
+    private Schema<?> servicoRequestSchema() {
+        return new ObjectSchema()
+                .addProperty("nome", new StringSchema().description("Nome do serviço"))
+                .addProperty("descricao", new StringSchema().description("Descrição detalhada do serviço"))
+                .addProperty("preco", new NumberSchema().format("double").description("Preço em reais"))
+                .addProperty("duracao", new NumberSchema().format("int32").description("Duração em minutos"));
+    }
+
+    private String servicoRequestExample() {
+        return """
+                {
+                  "nome": "Corte de Cabelo",
+                  "descricao": "Corte clássico masculino",
+                  "preco": 50.00,
+                  "duracao": 30
+                }
+                """;
+    }
+
+    private String servicoResponseExample() {
+        return """
+                {
+                  "id": 1,
+                  "nome": "Corte de Cabelo",
+                  "descricao": "Corte clássico masculino",
+                  "preco": 50.0,
+                  "duracao": 30,
+                  "barbeariaId": 1,
+                  "ativo": true
                 }
                 """;
     }

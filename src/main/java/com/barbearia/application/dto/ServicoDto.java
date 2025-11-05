@@ -1,17 +1,16 @@
-package com.barbearia.domain.entities;
+package com.barbearia.application.dto;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 /**
- * Entidade de domínio que representa um Serviço oferecido.
+ * DTO para exibição de serviços em listagens.
  * 
- * Um serviço é um procedimento disponível em uma barbearia,
- * como corte de cabelo, barba, etc.
+ * Contém informações do serviço necessárias para que clientes
+ * possam escolher e agendar.
  * 
  * @author Sua Barbearia Team
  */
-public class Servico {
+public class ServicoDto {
     
     private Long id;
     private String nome;
@@ -20,15 +19,12 @@ public class Servico {
     private Integer duracao; // em minutos
     private Long barbeariaId;
     private boolean ativo;
-    private LocalDateTime dataCriacao;
-    private LocalDateTime dataAtualizacao;
     
-    public Servico() {
+    public ServicoDto() {
     }
     
-    public Servico(Long id, String nome, String descricao, BigDecimal preco, 
-                   Integer duracao, Long barbeariaId, boolean ativo, 
-                   LocalDateTime dataCriacao, LocalDateTime dataAtualizacao) {
+    public ServicoDto(Long id, String nome, String descricao, BigDecimal preco, 
+                     Integer duracao, Long barbeariaId, boolean ativo) {
         this.id = id;
         this.nome = nome;
         this.descricao = descricao;
@@ -36,8 +32,6 @@ public class Servico {
         this.duracao = duracao;
         this.barbeariaId = barbeariaId;
         this.ativo = ativo;
-        this.dataCriacao = dataCriacao;
-        this.dataAtualizacao = dataAtualizacao;
     }
     
     // Getters e Setters
@@ -97,25 +91,9 @@ public class Servico {
         this.ativo = ativo;
     }
     
-    public LocalDateTime getDataCriacao() {
-        return dataCriacao;
-    }
-    
-    public void setDataCriacao(LocalDateTime dataCriacao) {
-        this.dataCriacao = dataCriacao;
-    }
-    
-    public LocalDateTime getDataAtualizacao() {
-        return dataAtualizacao;
-    }
-    
-    public void setDataAtualizacao(LocalDateTime dataAtualizacao) {
-        this.dataAtualizacao = dataAtualizacao;
-    }
-    
     @Override
     public String toString() {
-        return "Servico{" +
+        return "ServicoDto{" +
                 "id=" + id +
                 ", nome='" + nome + '\'' +
                 ", descricao='" + descricao + '\'' +
@@ -123,8 +101,6 @@ public class Servico {
                 ", duracao=" + duracao +
                 ", barbeariaId=" + barbeariaId +
                 ", ativo=" + ativo +
-                ", dataCriacao=" + dataCriacao +
-                ", dataAtualizacao=" + dataAtualizacao +
                 '}';
     }
 }

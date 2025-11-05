@@ -90,6 +90,7 @@ public class ClienteController {
      * @param request Requisição HTTP contendo o token JWT
      * @return Dados completos do cliente
      */
+    @io.swagger.v3.oas.annotations.Hidden
     @GetMapping("/meu-perfil")
     public ResponseEntity<?> buscarMeuPerfil(HttpServletRequest request) {
         try {

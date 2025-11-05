@@ -5,6 +5,7 @@ import com.barbearia.infrastructure.persistence.entities.JpaBarbearia;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -107,4 +108,11 @@ public interface BarbeariaRepository extends JpaRepository<JpaBarbearia, Long> {
      * @return Optional contendo a barbearia ativa se encontrada, ou vazio caso contrário
      */
     Optional<JpaBarbearia> findByTipoDocumentoAndDocumentoAndAtivoTrue(TipoDocumento tipoDocumento, String documento);
+    
+    /**
+     * Lista todas as barbearias ativas
+     * 
+     * @return Lista de barbearias ativas
+     */
+    List<JpaBarbearia> findByAtivoTrue();
 }
