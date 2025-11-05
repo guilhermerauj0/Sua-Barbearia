@@ -332,7 +332,6 @@ public class BarbeariaService {
         servico.setAtivo(true);
         
         // Salva no banco
-        @SuppressWarnings("null")
         JpaServico servicoSalvo = servicoRepository.save(servico);
         
         // Retorna DTO
