@@ -19,12 +19,13 @@ public class ServicoDto {
     private Integer duracao; // em minutos
     private Long barbeariaId;
     private boolean ativo;
+    private String tipoServico;
     
     public ServicoDto() {
     }
     
     public ServicoDto(Long id, String nome, String descricao, BigDecimal preco, 
-                     Integer duracao, Long barbeariaId, boolean ativo) {
+                     Integer duracao, Long barbeariaId, boolean ativo, String tipoServico) {
         this.id = id;
         this.nome = nome;
         this.descricao = descricao;
@@ -32,6 +33,7 @@ public class ServicoDto {
         this.duracao = duracao;
         this.barbeariaId = barbeariaId;
         this.ativo = ativo;
+        this.tipoServico = tipoServico;
     }
     
     // Getters e Setters
@@ -91,6 +93,14 @@ public class ServicoDto {
         this.ativo = ativo;
     }
     
+    public String getTipoServico() {
+        return tipoServico;
+    }
+    
+    public void setTipoServico(String tipoServico) {
+        this.tipoServico = tipoServico;
+    }
+    
     @Override
     public String toString() {
         return "ServicoDto{" +
@@ -101,6 +111,7 @@ public class ServicoDto {
                 ", duracao=" + duracao +
                 ", barbeariaId=" + barbeariaId +
                 ", ativo=" + ativo +
+                ", tipoServico='" + tipoServico + '\'' +
                 '}';
     }
 }

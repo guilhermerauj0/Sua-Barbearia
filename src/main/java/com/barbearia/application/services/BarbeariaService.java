@@ -7,6 +7,7 @@ import com.barbearia.application.dto.BarbeariaResponseDto;
 import com.barbearia.application.dto.BarbeariaListItemDto;
 import com.barbearia.application.dto.ServicoDto;
 import com.barbearia.application.factories.UsuarioFactory;
+import com.barbearia.application.factories.JpaServicoFactory;
 import com.barbearia.application.utils.DocumentoValidator;
 import com.barbearia.domain.entities.Barbearia;
 import com.barbearia.infrastructure.persistence.entities.JpaBarbearia;
@@ -310,7 +311,10 @@ public class BarbeariaService {
     public ServicoDto criarServico(Long barbeariaId, com.barbearia.application.dto.ServicoRequestDto requestDto) {
         // Valida campos obrigatórios
         if (!requestDto.isValid()) {
-            throw new IllegalArgumentException("Dados do serviço inválidos. Verifique nome, preço e duração.");
+            throw new IllegalArgumentException(
+                    "Dados do serviço inválidos. Verifique se todos os campos obrigatórios foram preenchidos: " +
+                    "nome, preço, duração e tipoServico. " +
+                    "Tipos permitidos: CORTE, BARBA, MANICURE, SOBRANCELHA, COLORACAO, TRATAMENTO_CAPILAR");
         }
         
         // Verifica se a barbearia existe e está ativa
@@ -322,8 +326,10 @@ public class BarbeariaService {
             throw new IllegalArgumentException("Barbearia está inativa e não pode criar serviços");
         }
         
-        // Cria entidade JPA do serviço
-        JpaServico servico = new JpaServico();
+        // Cria entidade JPA do serviço usando Factory Pattern
+        // A factory cria a subclasse correta (JpaServicoCorte, JpaServicoBarba, etc.)
+        // O tipoServico é obrigatório e deve ser um dos valores permitidos
+        JpaServico servico = JpaServicoFactory.criar(requestDto.getTipoServico());
         servico.setBarbeariaId(barbeariaId);
         servico.setNome(requestDto.getNome().trim());
         servico.setDescricao(requestDto.getDescricao() != null ? requestDto.getDescricao().trim() : null);
