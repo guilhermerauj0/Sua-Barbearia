@@ -872,7 +872,8 @@ public class SwaggerConfig {
                 .get(new Operation()
                         .tags(List.of("Barbearias"))
                         .summary("Listar serviços de uma barbearia")
-                        .description("Retorna lista de serviços ativos de uma barbearia específica")
+                        .description("Retorna lista de serviços ativos de uma barbearia específica. " +
+                                "Suporta múltiplos tipos de serviços: CORTE, BARBA, MANICURE, SOBRANCELHA, COLORACAO e TRATAMENTO_CAPILAR")
                         .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
                                 .name("id")
                                 .in("path")
@@ -888,9 +889,15 @@ public class SwaggerConfig {
                                                                 .items(servicoSchema()))
                                                         .example(servicoListExample()))))
                                 .addApiResponse("404", new ApiResponse()
-                                        .description("Barbearia não encontrada"))
+                                        .description("Barbearia não encontrada")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Barbearia não encontrada"))))
                                 .addApiResponse("400", new ApiResponse()
-                                        .description("Barbearia inativa"))
+                                        .description("Barbearia inativa")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Barbearia está inativa"))))
                                 .addApiResponse("500", new ApiResponse()
                                         .description("Erro interno do servidor"))));
     }
@@ -933,13 +940,23 @@ public class SwaggerConfig {
 
     private Schema<?> servicoSchema() {
         return new ObjectSchema()
-                .addProperty("id", new NumberSchema().format("int64"))
-                .addProperty("nome", new StringSchema())
-                .addProperty("descricao", new StringSchema())
-                .addProperty("preco", new NumberSchema().format("double"))
-                .addProperty("duracao", new NumberSchema().format("int32"))
-                .addProperty("barbeariaId", new NumberSchema().format("int64"))
-                .addProperty("ativo", new BooleanSchema());
+                .addProperty("id", new NumberSchema().format("int64").description("Identificador único do serviço"))
+                .addProperty("nome", new StringSchema().description("Nome do serviço"))
+                .addProperty("descricao", new StringSchema().description("Descrição detalhada do serviço"))
+                .addProperty("preco", new NumberSchema().format("double").description("Preço em reais"))
+                .addProperty("duracao", new NumberSchema().format("int32").description("Duração em minutos"))
+                .addProperty("barbeariaId", new NumberSchema().format("int64").description("ID da barbearia que oferece o serviço"))
+                .addProperty("ativo", new BooleanSchema().description("Status de ativação do serviço"))
+                .addProperty("tipoServico", buildTipoServicoSchema());
+    }
+
+    private Schema<?> buildTipoServicoSchema() {
+        StringSchema schema = new StringSchema();
+        schema.setDescription("Tipo de serviço ofertado (obrigatório). " +
+                "Valores permitidos: CORTE, BARBA, MANICURE, SOBRANCELHA, COLORACAO, TRATAMENTO_CAPILAR");
+        schema.setEnum(List.of("CORTE", "BARBA", "MANICURE", "SOBRANCELHA", "COLORACAO", "TRATAMENTO_CAPILAR"));
+        schema.setExample("CORTE");
+        return schema;
     }
 
     private String servicoListExample() {
@@ -952,7 +969,8 @@ public class SwaggerConfig {
                     "preco": 50.0,
                     "duracao": 30,
                     "barbeariaId": 1,
-                    "ativo": true
+                    "ativo": true,
+                    "tipoServico": "CORTE"
                   },
                   {
                     "id": 2,
@@ -961,16 +979,60 @@ public class SwaggerConfig {
                     "preco": 40.0,
                     "duracao": 20,
                     "barbeariaId": 1,
-                    "ativo": true
+                    "ativo": true,
+                    "tipoServico": "BARBA"
                   },
                   {
                     "id": 3,
                     "nome": "Corte + Barba",
                     "descricao": "Corte e aparelho de barba",
                     "preco": 80.0,
+                    "descricao": "Combo completo",
+                    "preco": 80.0,
                     "duracao": 50,
                     "barbeariaId": 1,
-                    "ativo": true
+                    "ativo": true,
+                    "tipoServico": "CORTE"
+                  },
+                  {
+                    "id": 4,
+                    "nome": "Manicure",
+                    "descricao": "Manicure com esmaltação",
+                    "preco": 40.0,
+                    "duracao": 45,
+                    "barbeariaId": 1,
+                    "ativo": true,
+                    "tipoServico": "MANICURE"
+                  },
+                  {
+                    "id": 5,
+                    "nome": "Design de Sobrancelha",
+                    "descricao": "Sobrancelha com design",
+                    "preco": 25.0,
+                    "duracao": 15,
+                    "barbeariaId": 1,
+                    "ativo": true,
+                    "tipoServico": "SOBRANCELHA"
+                  },
+                  {
+                    "id": 6,
+                    "nome": "Coloração Premium",
+                    "descricao": "Coloração com produtos importados",
+                    "preco": 120.0,
+                    "duracao": 90,
+                    "barbeariaId": 1,
+                    "ativo": true,
+                    "tipoServico": "COLORACAO"
+                  },
+                  {
+                    "id": 7,
+                    "nome": "Hidratação Profunda",
+                    "descricao": "Hidratação com mask premium",
+                    "preco": 60.0,
+                    "duracao": 60,
+                    "barbeariaId": 1,
+                    "ativo": true,
+                    "tipoServico": "TRATAMENTO_CAPILAR"
                   }
                 ]
                 """;
@@ -981,10 +1043,20 @@ public class SwaggerConfig {
                 .post(new Operation()
                         .tags(List.of("Barbearias"))
                         .summary("Criar serviço")
-                        .description("Cria um novo serviço para a barbearia autenticada")
+                        .description("Cria um novo serviço para a barbearia autenticada.\n\n" +
+                                "**IMPORTANTE:** O campo 'tipoServico' é OBRIGATÓRIO e deve ser um dos seguintes valores:\n" +
+                                "- **CORTE**: Cortes de cabelo em geral\n" +
+                                "- **BARBA**: Aparagem e design de barba\n" +
+                                "- **MANICURE**: Serviços de manicure/unhas\n" +
+                                "- **SOBRANCELHA**: Design e coloração de sobrancelhas\n" +
+                                "- **COLORACAO**: Serviços de coloração capilar\n" +
+                                "- **TRATAMENTO_CAPILAR**: Hidratação, alinhamento, etc\n\n" +
+                                "É possível criar múltiplos serviços do mesmo tipo com nomes e preços diferentes " +
+                                "(ex: 'Corte Clássico' e 'Corte Degradê' ambos do tipo CORTE).\n\n" +
+                                "Todos os campos são obrigatórios: nome, preço, duração e tipoServico.")
                         .security(List.of(new SecurityRequirement().addList("Bearer")))
                         .requestBody(new RequestBody()
-                                .description("Dados do serviço a ser criado")
+                                .description("Dados do serviço a ser criado - TODOS OS CAMPOS SÃO OBRIGATÓRIOS")
                                 .required(true)
                                 .content(new Content()
                                         .addMediaType("application/json", new MediaType()
@@ -998,30 +1070,44 @@ public class SwaggerConfig {
                                                         .schema(servicoSchema())
                                                         .example(servicoResponseExample()))))
                                 .addApiResponse("400", new ApiResponse()
-                                        .description("Dados inválidos"))
+                                        .description("Dados inválidos. Verifique se:\n" +
+                                                "- nome não está vazio\n" +
+                                                "- preço é maior que zero\n" +
+                                                "- duração é maior que zero\n" +
+                                                "- tipoServico está preenchido e é um dos valores permitidos"))
                                 .addApiResponse("401", new ApiResponse()
-                                        .description("Não autenticado"))
+                                        .description("Não autenticado - Token JWT inválido ou expirado"))
                                 .addApiResponse("403", new ApiResponse()
-                                        .description("Não autorizado (role BARBEARIA necessário)"))
+                                        .description("Não autorizado - Role BARBEARIA necessário"))
                                 .addApiResponse("500", new ApiResponse()
                                         .description("Erro interno do servidor"))));
     }
 
     private Schema<?> servicoRequestSchema() {
         return new ObjectSchema()
-                .addProperty("nome", new StringSchema().description("Nome do serviço"))
-                .addProperty("descricao", new StringSchema().description("Descrição detalhada do serviço"))
-                .addProperty("preco", new NumberSchema().format("double").description("Preço em reais"))
-                .addProperty("duracao", new NumberSchema().format("int32").description("Duração em minutos"));
+                .addProperty("nome", new StringSchema()
+                        .description("Nome do serviço (obrigatório, não pode estar vazio)")
+                        .example("Corte Degradê"))
+                .addProperty("descricao", new StringSchema()
+                        .description("Descrição detalhada do serviço (opcional)")
+                        .example("Corte com degradê total, máquina 0 nas laterais"))
+                .addProperty("preco", new NumberSchema().format("double")
+                        .description("Preço do serviço em reais (obrigatório, deve ser > 0)")
+                        .example(60.00))
+                .addProperty("duracao", new NumberSchema().format("int32")
+                        .description("Duração do serviço em minutos (obrigatório, deve ser > 0)")
+                        .example(40))
+                .addProperty("tipoServico", buildTipoServicoSchema());
     }
 
     private String servicoRequestExample() {
         return """
                 {
-                  "nome": "Corte de Cabelo",
-                  "descricao": "Corte clássico masculino",
-                  "preco": 50.00,
-                  "duracao": 30
+                  "nome": "Corte Degradê",
+                  "descricao": "Corte com degradê total, máquina 0 nas laterais",
+                  "preco": 60.00,
+                  "duracao": 40,
+                  "tipoServico": "CORTE"
                 }
                 """;
     }
@@ -1029,13 +1115,14 @@ public class SwaggerConfig {
     private String servicoResponseExample() {
         return """
                 {
-                  "id": 1,
-                  "nome": "Corte de Cabelo",
-                  "descricao": "Corte clássico masculino",
-                  "preco": 50.0,
-                  "duracao": 30,
+                  "id": 3,
+                  "nome": "Corte Degradê",
+                  "descricao": "Corte com degradê total, máquina 0 nas laterais",
+                  "preco": 60.0,
+                  "duracao": 40,
                   "barbeariaId": 1,
-                  "ativo": true
+                  "ativo": true,
+                  "tipoServico": "CORTE"
                 }
                 """;
     }
