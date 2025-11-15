@@ -525,8 +525,6 @@ class BarbeariaServiceTest {
         requestDto.setDuracao(30);
         // tipoServico NÃO foi definido
 
-        when(barbeariaRepository.findById(barbeariaId)).thenReturn(java.util.Optional.of(barbearia));
-
         // Act & Assert
         assertThrows(IllegalArgumentException.class,
                 () -> barbeariaService.criarServico(barbeariaId, requestDto),
@@ -540,18 +538,12 @@ class BarbeariaServiceTest {
         // Arrange
         Long barbeariaId = 1L;
         
-        JpaBarbearia barbearia = new JpaBarbearia();
-        barbearia.setId(barbeariaId);
-        barbearia.setAtivo(true);
-
         com.barbearia.application.dto.ServicoRequestDto requestDto = 
                 new com.barbearia.application.dto.ServicoRequestDto();
         requestDto.setNome("Serviço Estranho");
         requestDto.setPreco(BigDecimal.valueOf(50.00));
         requestDto.setDuracao(30);
         requestDto.setTipoServico("TIPO_INEXISTENTE"); // Tipo inválido
-
-        when(barbeariaRepository.findById(barbeariaId)).thenReturn(java.util.Optional.of(barbearia));
 
         // Act & Assert
         assertThrows(IllegalArgumentException.class,
