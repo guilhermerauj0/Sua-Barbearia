@@ -82,4 +82,23 @@ public interface AgendamentoRepository extends JpaRepository<JpaAgendamento, Lon
             @Param("dataInicio") LocalDateTime dataInicio,
             @Param("dataFim") LocalDateTime dataFim
     );
+    
+    /**
+     * Busca agendamentos de um funcionário (barbeiro) em um dia específico
+     * 
+     * @param barbeiroId ID do barbeiro/funcionário
+     * @param dataInicio Início do dia (00:00:00)
+     * @param dataFim Fim do dia (23:59:59)
+     * @return Lista de agendamentos do funcionário naquele dia
+     */
+    @Query("SELECT a FROM JpaAgendamento a " +
+           "WHERE a.barbeiroId = :barbeiroId " +
+           "AND a.dataHora >= :dataInicio " +
+           "AND a.dataHora < :dataFim " +
+           "ORDER BY a.dataHora ASC")
+    List<JpaAgendamento> findByBarbeiroIdAndDataBetween(
+            @Param("barbeiroId") Long barbeiroId,
+            @Param("dataInicio") LocalDateTime dataInicio,
+            @Param("dataFim") LocalDateTime dataFim
+    );
 }
