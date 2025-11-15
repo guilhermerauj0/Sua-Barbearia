@@ -8,12 +8,19 @@ import java.time.LocalDateTime;
  * Entidade JPA que mapeia a tabela 'servicos' do banco de dados.
  * 
  * Representa um serviço oferecido por uma barbearia.
+ * Usa herança do tipo JOINED para separar dados comuns em uma tabela base
+ * e dados específicos em tabelas filhas.
+ * 
+ * Herança: Estratégia JOINED - a tabela base contém os atributos comuns
+ * e cada subclasse tem sua própria tabela.
  * 
  * @author Sua Barbearia Team
  */
 @Entity
 @Table(name = "servicos")
-public class JpaServico {
+@Inheritance(strategy = InheritanceType.JOINED)
+@DiscriminatorColumn(name = "tipo_servico", discriminatorType = DiscriminatorType.STRING)
+public abstract class JpaServico {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -42,6 +49,9 @@ public class JpaServico {
     
     @Column(nullable = false, name = "data_atualizacao")
     private LocalDateTime dataAtualizacao;
+    
+    @Column(name = "tipo_servico", insertable = false, updatable = false)
+    private String tipoServico;
     
     @PrePersist
     protected void onCreate() {
@@ -139,6 +149,18 @@ public class JpaServico {
     public void setDataAtualizacao(LocalDateTime dataAtualizacao) {
         this.dataAtualizacao = dataAtualizacao;
     }
+    
+    public void setTipoServico(String tipoServico) {
+        this.tipoServico = tipoServico;
+    }
+    
+    /**
+     * Método abstrato que deve ser implementado pelas subclasses.
+     * Retorna o tipo específico de serviço.
+     * 
+     * @return O tipo de serviço (CORTE, BARBA, MANICURE, etc.)
+     */
+    public abstract String getTipoServico();
     
     @Override
     public String toString() {

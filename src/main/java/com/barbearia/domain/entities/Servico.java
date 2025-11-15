@@ -9,9 +9,14 @@ import java.time.LocalDateTime;
  * Um serviço é um procedimento disponível em uma barbearia,
  * como corte de cabelo, barba, etc.
  * 
+ * Conceitos de POO aplicados:
+ * - Abstração: Define a interface para todos os serviços
+ * - Encapsulamento: Atributos privados com getters/setters
+ * - Polimorfismo: Cada subclasse pode ter comportamento específico
+ * 
  * @author Sua Barbearia Team
  */
-public class Servico {
+public abstract class Servico {
     
     private Long id;
     private String nome;
@@ -112,6 +117,14 @@ public class Servico {
     public void setDataAtualizacao(LocalDateTime dataAtualizacao) {
         this.dataAtualizacao = dataAtualizacao;
     }
+    
+    /**
+     * Método abstrato que define o tipo de serviço.
+     * Cada subclasse implementará com seu tipo específico.
+     * 
+     * @return O tipo de serviço (CORTE, BARBA, MANICURE, etc.)
+     */
+    public abstract String getTipoServico();
     
     @Override
     public String toString() {
