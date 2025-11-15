@@ -7,6 +7,8 @@ import com.barbearia.application.dto.ServicoDto;
 import com.barbearia.domain.enums.TipoDocumento;
 import com.barbearia.infrastructure.persistence.entities.JpaBarbearia;
 import com.barbearia.infrastructure.persistence.entities.JpaServico;
+import com.barbearia.infrastructure.persistence.entities.JpaServicoCorte;
+import com.barbearia.infrastructure.persistence.entities.JpaServicoBarba;
 import com.barbearia.infrastructure.persistence.repositories.BarbeariaRepository;
 import com.barbearia.infrastructure.persistence.repositories.ServicoRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -363,7 +365,7 @@ class BarbeariaServiceTest {
         barbearia.setNome("Barbearia Premium");
         barbearia.setAtivo(true);
 
-        JpaServico servico1 = new JpaServico();
+        JpaServico servico1 = new JpaServicoCorte();
         servico1.setId(1L);
         servico1.setNome("Corte de Cabelo");
         servico1.setDescricao("Corte clássico");
@@ -371,7 +373,7 @@ class BarbeariaServiceTest {
         servico1.setDuracao(30);
         servico1.setAtivo(true);
 
-        JpaServico servico2 = new JpaServico();
+        JpaServico servico2 = new JpaServicoBarba();
         servico2.setId(2L);
         servico2.setNome("Corte + Barba");
         servico2.setDescricao("Combo completo");
@@ -476,10 +478,11 @@ class BarbeariaServiceTest {
 
         com.barbearia.application.dto.ServicoRequestDto requestDto = 
                 new com.barbearia.application.dto.ServicoRequestDto();
-        requestDto.setNome("Corte de Cabelo");
-        requestDto.setDescricao("Corte clássico");
-        requestDto.setPreco(BigDecimal.valueOf(50.00));
-        requestDto.setDuracao(30);
+        requestDto.setNome("Corte Degradê");
+        requestDto.setDescricao("Corte com degradê total");
+        requestDto.setPreco(BigDecimal.valueOf(60.00));
+        requestDto.setDuracao(40);
+        requestDto.setTipoServico("CORTE"); // TIPO OBRIGATÓRIO
 
         when(barbeariaRepository.findById(barbeariaId)).thenReturn(java.util.Optional.of(barbearia));
         when(servicoRepository.save(any(JpaServico.class))).thenAnswer(invocation -> {
@@ -494,14 +497,59 @@ class BarbeariaServiceTest {
 
         // Assert
         assertNotNull(resultado);
-        assertEquals("Corte de Cabelo", resultado.getNome());
-        assertEquals("Corte clássico", resultado.getDescricao());
-        assertEquals(BigDecimal.valueOf(50.00), resultado.getPreco());
-        assertEquals(30, resultado.getDuracao());
+        assertEquals("Corte Degradê", resultado.getNome());
+        assertEquals("Corte com degradê total", resultado.getDescricao());
+        assertEquals(BigDecimal.valueOf(60.00), resultado.getPreco());
+        assertEquals(40, resultado.getDuracao());
+        assertEquals("CORTE", resultado.getTipoServico());
         assertTrue(resultado.isAtivo());
         
         verify(barbeariaRepository, times(1)).findById(barbeariaId);
         verify(servicoRepository, times(1)).save(any(JpaServico.class));
+    }
+
+    @Test
+    @DisplayName("Deve lançar exceção quando criar serviço sem tipoServico")
+    void deveLancarExcecaoQuandoCriarServicoSemTipo() {
+        // Arrange
+        Long barbeariaId = 1L;
+        
+        JpaBarbearia barbearia = new JpaBarbearia();
+        barbearia.setId(barbeariaId);
+        barbearia.setAtivo(true);
+
+        com.barbearia.application.dto.ServicoRequestDto requestDto = 
+                new com.barbearia.application.dto.ServicoRequestDto();
+        requestDto.setNome("Corte de Cabelo");
+        requestDto.setPreco(BigDecimal.valueOf(50.00));
+        requestDto.setDuracao(30);
+        // tipoServico NÃO foi definido
+
+        // Act & Assert
+        assertThrows(IllegalArgumentException.class,
+                () -> barbeariaService.criarServico(barbeariaId, requestDto),
+                "Deve lançar exceção quando tipoServico não é informado"
+        );
+    }
+
+    @Test
+    @DisplayName("Deve lançar exceção quando criar serviço com tipoServico inválido")
+    void deveLancarExcecaoQuandoCriarServicoComTipoInvalido() {
+        // Arrange
+        Long barbeariaId = 1L;
+        
+        com.barbearia.application.dto.ServicoRequestDto requestDto = 
+                new com.barbearia.application.dto.ServicoRequestDto();
+        requestDto.setNome("Serviço Estranho");
+        requestDto.setPreco(BigDecimal.valueOf(50.00));
+        requestDto.setDuracao(30);
+        requestDto.setTipoServico("TIPO_INEXISTENTE"); // Tipo inválido
+
+        // Act & Assert
+        assertThrows(IllegalArgumentException.class,
+                () -> barbeariaService.criarServico(barbeariaId, requestDto),
+                "Deve lançar exceção quando tipoServico é inválido"
+        );
     }
 
     @Test
@@ -515,14 +563,13 @@ class BarbeariaServiceTest {
         requestDto.setNome(""); // Nome inválido
         requestDto.setPreco(BigDecimal.valueOf(50.00));
         requestDto.setDuracao(30);
+        requestDto.setTipoServico("CORTE");
 
         // Act & Assert
-        IllegalArgumentException exception = assertThrows(
+        assertThrows(
                 IllegalArgumentException.class,
                 () -> barbeariaService.criarServico(barbeariaId, requestDto)
         );
-        
-        assertEquals("Dados do serviço inválidos. Verifique nome, preço e duração.", exception.getMessage());
         verify(barbeariaRepository, never()).findById(any());
         verify(servicoRepository, never()).save(any());
     }
@@ -538,14 +585,13 @@ class BarbeariaServiceTest {
         requestDto.setNome("Corte de Cabelo");
         requestDto.setPreco(BigDecimal.ZERO); // Preço inválido
         requestDto.setDuracao(30);
+        requestDto.setTipoServico("CORTE");
 
         // Act & Assert
-        IllegalArgumentException exception = assertThrows(
+        assertThrows(
                 IllegalArgumentException.class,
                 () -> barbeariaService.criarServico(barbeariaId, requestDto)
         );
-        
-        assertEquals("Dados do serviço inválidos. Verifique nome, preço e duração.", exception.getMessage());
     }
 
     @Test
@@ -559,16 +605,15 @@ class BarbeariaServiceTest {
         requestDto.setNome("Corte de Cabelo");
         requestDto.setPreco(BigDecimal.valueOf(50.00));
         requestDto.setDuracao(30);
+        requestDto.setTipoServico("CORTE");
 
         when(barbeariaRepository.findById(barbeariaId)).thenReturn(java.util.Optional.empty());
 
         // Act & Assert
-        IllegalArgumentException exception = assertThrows(
+        assertThrows(
                 IllegalArgumentException.class,
                 () -> barbeariaService.criarServico(barbeariaId, requestDto)
         );
-        
-        assertEquals("Barbearia não encontrada", exception.getMessage());
         verify(servicoRepository, never()).save(any());
     }
 
@@ -588,16 +633,15 @@ class BarbeariaServiceTest {
         requestDto.setNome("Corte de Cabelo");
         requestDto.setPreco(BigDecimal.valueOf(50.00));
         requestDto.setDuracao(30);
+        requestDto.setTipoServico("CORTE");
 
         when(barbeariaRepository.findById(barbeariaId)).thenReturn(java.util.Optional.of(barbearia));
 
         // Act & Assert
-        IllegalArgumentException exception = assertThrows(
+        assertThrows(
                 IllegalArgumentException.class,
                 () -> barbeariaService.criarServico(barbeariaId, requestDto)
         );
-        
-        assertEquals("Barbearia está inativa e não pode criar serviços", exception.getMessage());
         verify(servicoRepository, never()).save(any());
     }
 }

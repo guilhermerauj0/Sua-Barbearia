@@ -2,6 +2,7 @@ package com.barbearia.adapters.controllers;
 
 import com.barbearia.application.dto.AgendamentoBriefDto;
 import com.barbearia.application.services.AgendamentoService;
+import com.barbearia.application.services.ClienteService;
 import com.barbearia.domain.enums.StatusAgendamento;
 import com.barbearia.application.security.JwtService;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,6 +44,9 @@ class ClienteControllerTest {
 
     @MockitoBean
     private JwtService jwtService;
+
+    @MockitoBean
+    private ClienteService clienteService;
 
     private String validJwtToken;
     private Long clienteId;
