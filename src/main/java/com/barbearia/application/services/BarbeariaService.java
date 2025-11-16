@@ -2,23 +2,29 @@ package com.barbearia.application.services;
 
 import com.barbearia.adapters.mappers.BarbeariaMapper;
 import com.barbearia.adapters.mappers.ServicoMapper;
+import com.barbearia.adapters.mappers.HorarioFuncionamentoMapper;
 import com.barbearia.application.dto.BarbeariaRequestDto;
 import com.barbearia.application.dto.BarbeariaResponseDto;
 import com.barbearia.application.dto.BarbeariaListItemDto;
 import com.barbearia.application.dto.ServicoDto;
+import com.barbearia.application.dto.HorarioFuncionamentoRequestDto;
+import com.barbearia.application.dto.HorarioFuncionamentoResponseDto;
 import com.barbearia.application.factories.UsuarioFactory;
 import com.barbearia.application.factories.JpaServicoFactory;
 import com.barbearia.application.utils.DocumentoValidator;
 import com.barbearia.domain.entities.Barbearia;
 import com.barbearia.infrastructure.persistence.entities.JpaBarbearia;
 import com.barbearia.infrastructure.persistence.entities.JpaServico;
+import com.barbearia.infrastructure.persistence.entities.JpaHorarioFuncionamento;
 import com.barbearia.infrastructure.persistence.repositories.BarbeariaRepository;
 import com.barbearia.infrastructure.persistence.repositories.ServicoRepository;
+import com.barbearia.infrastructure.persistence.repositories.HorarioFuncionamentoRepository;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Service responsável pela lógica de negócio de Barbearia.
@@ -56,6 +62,11 @@ public class BarbeariaService {
     private final ServicoRepository servicoRepository;
     
     /**
+     * Repository para acesso a dados de horários de funcionamento
+     */
+    private final HorarioFuncionamentoRepository horarioFuncionamentoRepository;
+    
+    /**
      * Encoder para fazer hash de senhas usando BCrypt
      * BCrypt é um algoritmo robusto e recomendado para senhas
      */
@@ -67,10 +78,14 @@ public class BarbeariaService {
      * 
      * @param barbeariaRepository Repository de barbearias
      * @param servicoRepository Repository de serviços
+     * @param horarioFuncionamentoRepository Repository de horários de funcionamento
      */
-    public BarbeariaService(BarbeariaRepository barbeariaRepository, ServicoRepository servicoRepository) {
+    public BarbeariaService(BarbeariaRepository barbeariaRepository, 
+                           ServicoRepository servicoRepository,
+                           HorarioFuncionamentoRepository horarioFuncionamentoRepository) {
         this.barbeariaRepository = barbeariaRepository;
         this.servicoRepository = servicoRepository;
+        this.horarioFuncionamentoRepository = horarioFuncionamentoRepository;
         this.passwordEncoder = new BCryptPasswordEncoder();
     }
     
@@ -343,4 +358,79 @@ public class BarbeariaService {
         // Retorna DTO
         return ServicoMapper.toDto(servicoSalvo);
     }
+    
+    /**
+     * Cria ou atualiza um horário de funcionamento para uma barbearia.
+     * 
+     * Apenas a própria barbearia pode criar seus horários de funcionamento.
+     * Se já existir um horário para o mesmo dia da semana, ele será atualizado.
+     * 
+     * Validações:
+     * - Barbearia deve existir e estar ativa
+     * - diaSemana deve estar entre 0 (domingo) e 6 (sábado)
+     * - horaAbertura e horaFechamento são obrigatórios
+     * - horaAbertura deve ser antes de horaFechamento
+     * 
+     * @param barbeariaId ID da barbearia proprietária do horário
+     * @param requestDto Dados do horário de funcionamento a ser criado
+     * @return DTO com dados do horário criado/atualizado
+     * @throws IllegalArgumentException se dados inválidos ou barbearia não encontrada
+     */
+    @Transactional
+    public HorarioFuncionamentoResponseDto criarHorarioFuncionamento(
+            Long barbeariaId, 
+            HorarioFuncionamentoRequestDto requestDto) {
+        
+        // Valida os dados do DTO
+        if (!requestDto.isValid()) {
+            throw new IllegalArgumentException(
+                "Dados do horário inválidos. Verifique se:\n" +
+                "- diaSemana está entre 0 (domingo) e 6 (sábado)\n" +
+                "- horaAbertura e horaFechamento estão preenchidos\n" +
+                "- horaAbertura é antes de horaFechamento"
+            );
+        }
+        
+        // Verifica se a barbearia existe e está ativa
+        @SuppressWarnings("null")
+        JpaBarbearia barbearia = barbeariaRepository.findById(barbeariaId)
+                .orElseThrow(() -> new IllegalArgumentException("Barbearia não encontrada"));
+        
+        if (!barbearia.isAtivo()) {
+            throw new IllegalArgumentException("Barbearia está inativa e não pode criar horários de funcionamento");
+        }
+        
+        // Verifica se já existe um horário para este dia da semana
+        Optional<JpaHorarioFuncionamento> horarioExistente = 
+            horarioFuncionamentoRepository.findByBarbeariaIdAndDiaSemana(
+                barbeariaId, 
+                requestDto.getDiaSemana()
+            );
+        
+        JpaHorarioFuncionamento horario;
+        
+        if (horarioExistente.isPresent()) {
+            // Atualiza o horário existente
+            horario = horarioExistente.get();
+            horario.setHoraAbertura(requestDto.getHoraAbertura());
+            horario.setHoraFechamento(requestDto.getHoraFechamento());
+            horario.setAtivo(true);
+        } else {
+            // Cria novo horário
+            horario = new JpaHorarioFuncionamento(
+                barbeariaId,
+                requestDto.getDiaSemana(),
+                requestDto.getHoraAbertura(),
+                requestDto.getHoraFechamento()
+            );
+            horario.setAtivo(true);
+        }
+        
+        // Salva no banco
+        JpaHorarioFuncionamento horarioSalvo = horarioFuncionamentoRepository.save(horario);
+        
+        // Retorna DTO
+        return HorarioFuncionamentoMapper.toResponseDto(horarioSalvo);
+    }
 }
+

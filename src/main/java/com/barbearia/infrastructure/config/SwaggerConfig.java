@@ -45,6 +45,7 @@ public class SwaggerConfig {
                         .addPathItem("/api/auth/barbearia/login", loginBarbeariaPath())
                         .addPathItem("/api/barbearias", listarBarbeariaPath())
                         .addPathItem("/api/barbearias/{id}/servicos", listarServicosPath())
+                        .addPathItem("/api/barbearias/{id}/horarios-disponiveis", obterHorariosDisponiveisPath())
                         .addPathItem("/api/barbearias/servicos", criarServicoPath())
                         // Agendamentos
                         .addPathItem("/api/agendamentos/{id}", buscarPorIdPath()));
@@ -1124,6 +1125,98 @@ public class SwaggerConfig {
                   "ativo": true,
                   "tipoServico": "CORTE"
                 }
+                """;
+    }
+
+    private PathItem obterHorariosDisponiveisPath() {
+        return new PathItem()
+                .get(new Operation()
+                        .tags(List.of("Barbearias"))
+                        .summary("Obter horários disponíveis para agendamento")
+                        .description("Retorna os horários disponíveis para um serviço em uma data específica. " +
+                                "Considera o horário de funcionamento da barbearia, profissionais qualificados, " +
+                                "duração do serviço e agendamentos existentes.")
+                        .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
+                                .name("id")
+                                .in("path")
+                                .description("ID da barbearia")
+                                .required(true)
+                                .schema(new Schema<>().type("integer").format("int64")))
+                        .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
+                                .name("servicoId")
+                                .in("query")
+                                .description("ID do serviço desejado")
+                                .required(true)
+                                .schema(new Schema<>().type("integer").format("int64")))
+                        .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
+                                .name("data")
+                                .in("query")
+                                .description("Data para consultar (formato: yyyy-MM-dd)")
+                                .required(true)
+                                .schema(new Schema<>().type("string").format("date")))
+                        .responses(new ApiResponses()
+                                .addApiResponse("200", new ApiResponse()
+                                        .description("Lista de horários disponíveis")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(new ArraySchema()
+                                                                .items(new ObjectSchema()
+                                                                        .addProperty("funcionarioId", new Schema<>().type("integer").format("int64"))
+                                                                        .addProperty("funcionarioNome", new Schema<>().type("string"))
+                                                                        .addProperty("profissao", new StringSchema()
+                                                                                .addEnumItem("BARBEIRO")
+                                                                                .addEnumItem("MANICURE")
+                                                                                .addEnumItem("ESTETICISTA")
+                                                                                .addEnumItem("COLORISTA"))
+                                                                        .addProperty("data", new Schema<>().type("string").format("date"))
+                                                                        .addProperty("horarioInicio", new Schema<>().type("string").format("time"))
+                                                                        .addProperty("horarioFim", new Schema<>().type("string").format("time"))))
+                                                        .example(obterHorariosDisponiveisExample()))))
+                                .addApiResponse("400", new ApiResponse()
+                                        .description("Parâmetros inválidos")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Parâmetro servicoId é obrigatório"))))
+                                .addApiResponse("404", new ApiResponse()
+                                        .description("Barbearia ou serviço não encontrado")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Barbearia não encontrada"))))
+                                .addApiResponse("500", new ApiResponse()
+                                        .description("Erro interno do servidor")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Erro ao obter horários disponíveis"))))));
+    }
+
+    private String obterHorariosDisponiveisExample() {
+        return """
+                [
+                  {
+                    "funcionarioId": 1,
+                    "funcionarioNome": "João Silva",
+                    "profissao": "BARBEIRO",
+                    "data": "2025-11-20",
+                    "horarioInicio": "09:00:00",
+                    "horarioFim": "09:30:00"
+                  },
+                  {
+                    "funcionarioId": 1,
+                    "funcionarioNome": "João Silva",
+                    "profissao": "BARBEIRO",
+                    "data": "2025-11-20",
+                    "horarioInicio": "09:30:00",
+                    "horarioFim": "10:00:00"
+                  },
+                  {
+                    "funcionarioId": 2,
+                    "funcionarioNome": "Maria Santos",
+                    "profissao": "MANICURE",
+                    "data": "2025-11-20",
+                    "horarioInicio": "09:00:00",
+                    "horarioFim": "09:30:00"
+                  }
+                ]
                 """;
     }
 }
