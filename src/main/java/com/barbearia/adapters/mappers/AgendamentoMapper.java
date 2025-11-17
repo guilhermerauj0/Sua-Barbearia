@@ -1,7 +1,7 @@
 package com.barbearia.adapters.mappers;
 
 import com.barbearia.application.dto.AgendamentoBriefDto;
-import com.barbearia.application.dto.AgendamentoDetailDto;
+import com.barbearia.application.dto.AgendamentoResponseDto;
 import com.barbearia.domain.entities.Agendamento;
 import com.barbearia.infrastructure.persistence.entities.JpaAgendamento;
 
@@ -11,7 +11,7 @@ import com.barbearia.infrastructure.persistence.entities.JpaAgendamento;
  * Responsabilidades:
  * - Converter entidade JPA para entidade de domínio
  * - Converter entidade de domínio para entidade JPA
- * - Converter para DTOs (brief, detalhado, etc)
+ * - Converter para DTOs (brief, response)
  * 
  * Por enquanto, apenas conversões básicas.
  * Conversão para AgendamentoBriefDto será enriquecida com dados de outras entidades
@@ -101,46 +101,25 @@ public class AgendamentoMapper {
     }
     
     /**
-     * Converte entidade JPA para DTO detalhado.
+     * Converte entidade JPA para DTO de resposta.
      * 
-     * NOTA: Por enquanto, os dados de Cliente, Barbearia, Barbeiro e Serviço são placeholders.
-     * Quando implementarmos as entidades correspondentes com relacionamentos JPA,
-     * faremos joins ou buscas para preencher esses dados reais.
+     * Retorna dados completos do agendamento com IDs das entidades relacionadas.
+     * Usado tanto para criar quanto para consultar agendamentos.
      */
-    public static AgendamentoDetailDto toDetailDto(JpaAgendamento jpa) {
+    public static AgendamentoResponseDto toResponseDto(JpaAgendamento jpa) {
         if (jpa == null) return null;
         
-        return new AgendamentoDetailDto(
-                // Dados do agendamento
+        return new AgendamentoResponseDto(
                 jpa.getId(),
+                jpa.getClienteId(),
+                jpa.getBarbeariaId(),
+                jpa.getServicoId(),
+                jpa.getBarbeiroId(),
                 jpa.getDataHora(),
                 jpa.getStatus(),
                 jpa.getObservacoes(),
                 jpa.getDataCriacao(),
-                jpa.getDataAtualizacao(),
-                
-                // Dados do cliente (placeholders)
-                jpa.getClienteId(),
-                "Cliente #" + jpa.getClienteId(),
-                "email@cliente.com",
-                "(00) 0000-0000",
-                "00000000000",
-                
-                // Dados da barbearia (placeholders)
-                jpa.getBarbeariaId(),
-                "Barbearia #" + jpa.getBarbeariaId(),
-                "Rua Exemplo, 123",
-                "(00) 0000-0000",
-                
-                // Dados do barbeiro (pode ser null)
-                jpa.getBarbeiroId(),
-                jpa.getBarbeiroId() != null ? "Barbeiro #" + jpa.getBarbeiroId() : null,
-                
-                // Dados do serviço (placeholders)
-                jpa.getServicoId(),
-                "Serviço #" + jpa.getServicoId(),
-                "Descrição do serviço",
-                0.0
+                jpa.getDataAtualizacao()
         );
     }
 }

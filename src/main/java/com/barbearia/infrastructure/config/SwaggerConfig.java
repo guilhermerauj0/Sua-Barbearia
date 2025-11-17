@@ -48,6 +48,7 @@ public class SwaggerConfig {
                         .addPathItem("/api/barbearias/{id}/horarios-disponiveis", obterHorariosDisponiveisPath())
                         .addPathItem("/api/barbearias/servicos", criarServicoPath())
                         // Agendamentos
+                        .addPathItem("/api/agendamentos", criarAgendamentoPath())
                         .addPathItem("/api/agendamentos/{id}", buscarPorIdPath()));
     }
 
@@ -233,11 +234,11 @@ public class SwaggerConfig {
     private Object barbeariaRequestCPFExample() {
         return """
                 {
-                  "nome": "Maria Santos",
-                  "email": "maria.santos@email.com",
-                  "senha": "SenhaForte@123",
-                  "confirmarSenha": "SenhaForte@123",
-                  "telefone": "(11) 98765-4321",
+                  "nome": "Ana Costa",
+                  "email": "ana.costa@email.com",
+                  "senha": "MinhaSenha@789",
+                  "confirmarSenha": "MinhaSenha@789",
+                  "telefone": "(11) 97654-3210",
                   "nomeFantasia": "Barbearia Elegance",
                   "tipoDocumento": "CPF",
                   "documento": "123.456.789-09",
@@ -251,8 +252,8 @@ public class SwaggerConfig {
                 {
                   "nome": "Carlos Oliveira",
                   "email": "carlos.oliveira@email.com",
-                  "senha": "SenhaForte@123",
-                  "confirmarSenha": "SenhaForte@123",
+                  "senha": "OutraSenha@456",
+                  "confirmarSenha": "OutraSenha@456",
                   "telefone": "(21) 99876-5432",
                   "nomeFantasia": "Barbearia Premium",
                   "tipoDocumento": "CNPJ",
@@ -269,16 +270,16 @@ public class SwaggerConfig {
                 .addProperty("id", new IntegerSchema()
                         .description("ID único da barbearia")
                         .format("int64")
-                        .example(1))
+                        .example(2))
                 .addProperty("nome", new StringSchema()
                         .description("Nome do proprietário")
-                        .example("Maria Santos"))
+                        .example("Ana Costa"))
                 .addProperty("email", new StringSchema()
                         .description("Email da barbearia")
-                        .example("maria.santos@email.com"))
+                        .example("ana.costa@email.com"))
                 .addProperty("telefone", new StringSchema()
                         .description("Telefone de contato (apenas números)")
-                        .example("11987654321"))
+                        .example("11976543210"))
                 .addProperty("nomeFantasia", new StringSchema()
                         .description("Nome fantasia da barbearia")
                         .example("Barbearia Elegance"))
@@ -300,23 +301,23 @@ public class SwaggerConfig {
                 .addProperty("dataCriacao", new StringSchema()
                         .description("Data e hora do registro")
                         .format("date-time")
-                        .example("2025-11-03T12:59:22.680365557"));
+                        .example("2025-11-17T11:30:00"));
     }
 
     private Object barbeariaResponseExample() {
         return """
                 {
-                  "id": 1,
-                  "nome": "Maria Santos",
-                  "email": "maria.santos@email.com",
-                  "telefone": "11987654321",
+                  "id": 2,
+                  "nome": "Ana Costa",
+                  "email": "ana.costa@email.com",
+                  "telefone": "11976543210",
                   "nomeFantasia": "Barbearia Elegance",
                   "tipoDocumento": "CPF",
                   "documento": "12345678909",
                   "endereco": "Rua das Flores, 123 - São Paulo/SP",
                   "role": "BARBEARIA",
                   "ativo": true,
-                  "dataCriacao": "2025-11-03T12:59:22.680365557"
+                  "dataCriacao": "2025-11-17T11:30:00"
                 }
                 """;
     }
@@ -340,8 +341,8 @@ public class SwaggerConfig {
     private Object loginRequestExample() {
         return """
                 {
-                  "email": "joao.silva@email.com",
-                  "senha": "SenhaForte@123"
+                  "email": "pedro.santos@email.com",
+                  "senha": "MinhaSenha@456"
                 }
                 """;
     }
@@ -352,20 +353,20 @@ public class SwaggerConfig {
                 .description("Resposta do login contendo token JWT e dados do usuário")
                 .addProperty("token", new StringSchema()
                         .description("Token JWT para autenticação")
-                        .example("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2FvLnNpbHZhQGVtYWlsLmNvbSIsInVzZXJJZCI6MSwiYmFyYmVpYSI6ZmFsc2UsIm5vbWUiOiJKb8OjbyBTaWx2YSIsInJvbGUiOiJDTElFTlRFIiwiaWF0IjoxNzMwNDk5NjAwLCJleHAiOjE3MzA1MDMyMDB9.abc123xyz"))
+                        .example("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJwZWRyby5zYW50b3NAZW1haWwuY29tIiwidXNlcklkIjoyLCJub21lIjoiUGVkcm8gU2FudG9zIiwicm9sZSI6IkNMSUVOVEUiLCJpYXQiOjE3MzE4MTcyMDAsImV4cCI6MTczMTgyMDgwMH0.abc123xyz"))
                 .addProperty("tipo", new StringSchema()
                         .description("Tipo do token")
                         .example("Bearer"))
                 .addProperty("userId", new IntegerSchema()
                         .description("ID do usuário autenticado")
                         .format("int64")
-                        .example(1))
+                        .example(2))
                 .addProperty("nome", new StringSchema()
                         .description("Nome do usuário")
-                        .example("João Silva"))
+                        .example("Pedro Santos"))
                 .addProperty("email", new StringSchema()
                         .description("Email do usuário")
-                        .example("joao.silva@email.com"))
+                        .example("pedro.santos@email.com"))
                 .addProperty("role", new StringSchema()
                         .description("Papel do usuário no sistema")
                         .example("CLIENTE"))
@@ -378,11 +379,11 @@ public class SwaggerConfig {
     private Object loginResponseExample() {
         return """
                 {
-                  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJqb2FvLnNpbHZhQGVtYWlsLmNvbSIsInVzZXJJZCI6MSwiYmFyYmVpYSI6ZmFsc2UsIm5vbWUiOiJKb8OjbyBTaWx2YSIsInJvbGUiOiJDTElFTlRFIiwiaWF0IjoxNzMwNDk5NjAwLCJleHAiOjE3MzA1MDMyMDB9.abc123xyz",
+                  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJwZWRyby5zYW50b3NAZW1haWwuY29tIiwidXNlcklkIjoyLCJub21lIjoiUGVkcm8gU2FudG9zIiwicm9sZSI6IkNMSUVOVEUiLCJpYXQiOjE3MzE4MTcyMDAsImV4cCI6MTczMTgyMDgwMH0.abc123xyz",
                   "tipo": "Bearer",
-                  "userId": 1,
-                  "nome": "João Silva",
-                  "email": "joao.silva@email.com",
+                  "userId": 2,
+                  "nome": "Pedro Santos",
+                  "email": "pedro.santos@email.com",
                   "role": "CLIENTE",
                   "expiresIn": 3600000
                 }
@@ -421,11 +422,11 @@ public class SwaggerConfig {
     private Object clienteRequestExample() {
         return """
                 {
-                  "nome": "João Silva",
-                  "email": "joao.silva@email.com",
-                  "senha": "SenhaForte@123",
-                  "confirmarSenha": "SenhaForte@123",
-                  "telefone": "(11) 98765-4321"
+                  "nome": "Pedro Santos",
+                  "email": "pedro.santos@email.com",
+                  "senha": "MinhaSenha@456",
+                  "confirmarSenha": "MinhaSenha@456",
+                  "telefone": "(11) 91234-5678"
                 }
                 """;
     }
@@ -437,16 +438,16 @@ public class SwaggerConfig {
                 .addProperty("id", new IntegerSchema()
                         .description("ID único do cliente")
                         .format("int64")
-                        .example(1))
+                        .example(2))
                 .addProperty("nome", new StringSchema()
                         .description("Nome completo do cliente")
-                        .example("João Silva"))
+                        .example("Pedro Santos"))
                 .addProperty("email", new StringSchema()
                         .description("Email do cliente")
-                        .example("joao.silva@email.com"))
+                        .example("pedro.santos@email.com"))
                 .addProperty("telefone", new StringSchema()
                         .description("Telefone do cliente")
-                        .example("11987654321"))
+                        .example("11912345678"))
                 .addProperty("role", new StringSchema()
                         .description("Papel do usuário no sistema")
                         .example("CLIENTE"))
@@ -456,19 +457,19 @@ public class SwaggerConfig {
                 .addProperty("dataCriacao", new StringSchema()
                         .description("Data e hora do registro")
                         .format("date-time")
-                        .example("2025-10-29T14:30:00"));
+                        .example("2025-11-17T10:30:00"));
     }
 
     private Object clienteResponseExample() {
         return """
                 {
-                  "id": 1,
-                  "nome": "João Silva",
-                  "email": "joao.silva@email.com",
-                  "telefone": "11987654321",
+                  "id": 2,
+                  "nome": "Pedro Santos",
+                  "email": "pedro.santos@email.com",
+                  "telefone": "11912345678",
                   "role": "CLIENTE",
                   "ativo": true,
-                  "dataCriacao": "2025-10-29T14:30:00"
+                  "dataCriacao": "2025-11-17T10:30:00"
                 }
                 """;
     }
@@ -1217,6 +1218,143 @@ public class SwaggerConfig {
                     "horarioFim": "09:30:00"
                   }
                 ]
+                """;
+    }
+
+    private PathItem criarAgendamentoPath() {
+        return new PathItem()
+                .post(new Operation()
+                        .tags(List.of("Agendamentos"))
+                        .summary("Criar agendamento")
+                        .description("Cria um novo agendamento para o cliente autenticado. Valida a disponibilidade do profissional e se ele executa o serviço solicitado.")
+                        .security(List.of(new SecurityRequirement().addList("Bearer")))
+                        .requestBody(new RequestBody()
+                                .description("Dados do agendamento a criar")
+                                .required(true)
+                                .content(new Content()
+                                        .addMediaType("application/json", new MediaType()
+                                                .schema(agendamentoRequestSchema())
+                                                .example(agendamentoRequestExample()))))
+                        .responses(new ApiResponses()
+                                .addApiResponse("201", new ApiResponse()
+                                        .description("Agendamento criado com sucesso")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(agendamentoResponseSchema())
+                                                        .example(agendamentoResponseExample()))))
+                                .addApiResponse("400", new ApiResponse()
+                                        .description("Dados inválidos ou recurso não encontrado")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Serviço com ID 999 não existe"))))
+                                .addApiResponse("401", new ApiResponse()
+                                        .description("Token JWT inválido ou não fornecido")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Token JWT inválido ou userId não encontrado"))))
+                                .addApiResponse("403", new ApiResponse()
+                                        .description("Acesso negado (apenas clientes podem criar agendamentos)")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Apenas clientes podem criar agendamentos"))))
+                                .addApiResponse("422", new ApiResponse()
+                                        .description("Validação de negócio falhou (conflito de horário, etc)")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Horário não disponível para este funcionário"))))
+                                .addApiResponse("500", new ApiResponse()
+                                        .description("Erro interno do servidor")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Erro ao criar agendamento"))))));
+    }
+
+    private Schema<?> agendamentoRequestSchema() {
+        Schema<?> schema = new Schema<>();
+        schema.setType("object");
+        schema.setDescription("Dados para criação de novo agendamento");
+        schema.addProperty("servicoId", new NumberSchema()
+                .description("ID do serviço desejado")
+                .example(1L));
+        schema.addProperty("funcionarioId", new NumberSchema()
+                .description("ID do profissional que executará o serviço")
+                .example(1L));
+        schema.addProperty("dataHora", new StringSchema()
+                .format("date-time")
+                .description("Data e hora do agendamento (formato ISO 8601)")
+                .example("2025-11-20T14:30:00"));
+        schema.addProperty("observacoes", new StringSchema()
+                .description("Observações adicionais (opcional)")
+                .example("Preferência de corte com máquina 2"));
+        schema.setRequired(List.of("servicoId", "funcionarioId", "dataHora"));
+        return schema;
+    }
+
+    private Object agendamentoRequestExample() {
+        return """
+                {
+                  "servicoId": 1,
+                  "funcionarioId": 1,
+                  "dataHora": "2025-11-20T14:30:00",
+                  "observacoes": "Corte normal com máquina 2"
+                }
+                """;
+    }
+
+    private Schema<?> agendamentoResponseSchema() {
+        Schema<?> schema = new Schema<>();
+        schema.setType("object");
+        schema.setDescription("Dados do agendamento criado");
+        schema.addProperty("id", new NumberSchema()
+                .description("ID do agendamento criado")
+                .example(123L));
+        schema.addProperty("clienteId", new NumberSchema()
+                .description("ID do cliente proprietário do agendamento")
+                .example(5L));
+        schema.addProperty("barbeariaId", new NumberSchema()
+                .description("ID da barbearia")
+                .example(1L));
+        schema.addProperty("servicoId", new NumberSchema()
+                .description("ID do serviço")
+                .example(1L));
+        schema.addProperty("funcionarioId", new NumberSchema()
+                .description("ID do profissional")
+                .example(1L));
+        schema.addProperty("dataHora", new StringSchema()
+                .format("date-time")
+                .description("Data e hora do agendamento")
+                .example("2025-11-20T14:30:00"));
+        schema.addProperty("status", new StringSchema()
+                .description("Status do agendamento")
+                .example("PENDENTE"));
+        schema.addProperty("observacoes", new StringSchema()
+                .description("Observações do agendamento")
+                .example("Corte normal com máquina 2"));
+        schema.addProperty("dataCriacao", new StringSchema()
+                .format("date-time")
+                .description("Data e hora de criação")
+                .example("2025-11-17T10:15:30"));
+        schema.addProperty("dataAtualizacao", new StringSchema()
+                .format("date-time")
+                .description("Data e hora da última atualização")
+                .example("2025-11-17T10:15:30"));
+        return schema;
+    }
+
+    private Object agendamentoResponseExample() {
+        return """
+                {
+                  "id": 123,
+                  "clienteId": 5,
+                  "barbeariaId": 1,
+                  "servicoId": 1,
+                  "funcionarioId": 1,
+                  "dataHora": "2025-11-20T14:30:00",
+                  "status": "PENDENTE",
+                  "observacoes": "Corte normal com máquina 2",
+                  "dataCriacao": "2025-11-17T10:15:30",
+                  "dataAtualizacao": "2025-11-17T10:15:30"
+                }
                 """;
     }
 }
