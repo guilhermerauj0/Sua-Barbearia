@@ -5,12 +5,17 @@ import com.barbearia.application.dto.ServicoDto;
 import com.barbearia.application.dto.HorarioDisponivelDto;
 import com.barbearia.application.dto.HorarioFuncionamentoRequestDto;
 import com.barbearia.application.dto.HorarioFuncionamentoResponseDto;
+import com.barbearia.application.dto.FuncionarioRequestDto;
+import com.barbearia.application.dto.FuncionarioResponseDto;
 import com.barbearia.application.services.BarbeariaService;
 import com.barbearia.application.services.HorarioService;
+import com.barbearia.application.services.FuncionarioService;
 import com.barbearia.application.security.JwtService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -34,13 +39,16 @@ public class BarbeariaController {
     
     private final BarbeariaService barbeariaService;
     private final HorarioService horarioService;
+    private final FuncionarioService funcionarioService;
     private final JwtService jwtService;
     
     public BarbeariaController(BarbeariaService barbeariaService, 
                               HorarioService horarioService,
+                              FuncionarioService funcionarioService,
                               JwtService jwtService) {
         this.barbeariaService = barbeariaService;
         this.horarioService = horarioService;
+        this.funcionarioService = funcionarioService;
         this.jwtService = jwtService;
     }
     
@@ -226,6 +234,125 @@ public class BarbeariaController {
         } catch (Exception e) {
             return ResponseEntity.internalServerError()
                     .body("Erro ao criar horário de funcionamento: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Lista todos os funcionários ativos da barbearia autenticada.
+     * 
+     * Segurança:
+     * - Requer autenticação JWT (Bearer token)
+     * - Apenas role BARBEARIA pode acessar
+     * - BarbeariaId é extraído do token (não pode listar funcionários de outras barbearias)
+     * 
+     * Retorna:
+     * - 200 (OK) com lista de funcionários ativos
+     * - 401 (Unauthorized) se token inválido/ausente
+     * - 403 (Forbidden) se não for role BARBEARIA
+     * - 500 (Internal Server Error) em caso de erro
+     * 
+     * Informações retornadas para cada funcionário:
+     * - id, barbeariaId, nome, email, telefone, profissao, ativo, dataCriacao, dataAtualizacao
+     * 
+     * @param request Requisição HTTP (para extrair token JWT)
+     * @return Lista de funcionários ativos da barbearia
+     */
+    @GetMapping("/meus-funcionarios")
+    @PreAuthorize("hasRole('BARBEARIA')")
+    public ResponseEntity<?> listarMeusFuncionarios(HttpServletRequest request) {
+        try {
+            // Extrai token do cabeçalho Authorization
+            String token = request.getHeader("Authorization");
+            if (token == null || !token.startsWith("Bearer ")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("Token JWT não fornecido ou inválido");
+            }
+            
+            // Remove prefixo "Bearer " do token
+            token = token.substring(7);
+            
+            // Extrai ID da barbearia do token
+            Object userIdObj = jwtService.extractClaim(token, "userId");
+            if (userIdObj == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("Token JWT inválido: userId não encontrado");
+            }
+            
+            Long barbeariaId = ((Number) userIdObj).longValue();
+            
+            // Lista funcionários ativos da barbearia
+            List<FuncionarioResponseDto> funcionarios = 
+                funcionarioService.listarFuncionariosDaBarbearia(barbeariaId);
+            
+            return ResponseEntity.ok(funcionarios);
+            
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body("Erro ao listar funcionários: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Cria um novo funcionário para a barbearia autenticada.
+     * 
+     * Segurança:
+     * - Requer autenticação JWT (Bearer token)
+     * - Apenas role BARBEARIA pode acessar
+     * - BarbeariaId é extraído do token (não pode criar funcionários para outras barbearias)
+     * 
+     * Validações:
+     * - nome: obrigatório, 3-100 caracteres
+     * - email: obrigatório, formato válido, único por barbearia
+     * - telefone: obrigatório, 10-20 caracteres
+     * - profissao: obrigatório, valores permitidos: BARBEIRO, MANICURE, ESTETICISTA, COLORISTA
+     * 
+     * Retorna:
+     * - 201 (Created) com dados do funcionário criado
+     * - 400 (Bad Request) se dados inválidos ou email duplicado
+     * - 401 (Unauthorized) se token inválido/ausente
+     * - 403 (Forbidden) se não for role BARBEARIA
+     * - 500 (Internal Server Error) em caso de erro
+     * 
+     * @param requestDto Dados do funcionário a ser criado
+     * @param request Requisição HTTP (para extrair token JWT)
+     * @return DTO com dados do funcionário criado
+     */
+    @PostMapping("/meus-funcionarios")
+    @PreAuthorize("hasRole('BARBEARIA')")
+    public ResponseEntity<?> criarFuncionario(
+            @Valid @RequestBody FuncionarioRequestDto requestDto,
+            HttpServletRequest request) {
+        try {
+            // Extrai token do cabeçalho Authorization
+            String token = request.getHeader("Authorization");
+            if (token == null || !token.startsWith("Bearer ")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("Token JWT não fornecido ou inválido");
+            }
+            
+            // Remove prefixo "Bearer " do token
+            token = token.substring(7);
+            
+            // Extrai ID da barbearia do token
+            Object userIdObj = jwtService.extractClaim(token, "userId");
+            if (userIdObj == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("Token JWT inválido: userId não encontrado");
+            }
+            
+            Long barbeariaId = ((Number) userIdObj).longValue();
+            
+            // Cria o funcionário
+            FuncionarioResponseDto funcionarioCriado = 
+                funcionarioService.criarFuncionario(requestDto, barbeariaId);
+            
+            return ResponseEntity.status(HttpStatus.CREATED).body(funcionarioCriado);
+            
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body("Erro ao criar funcionário: " + e.getMessage());
         }
     }
 }
