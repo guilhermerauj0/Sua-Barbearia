@@ -44,4 +44,14 @@ public interface FuncionarioRepository extends JpaRepository<JpaFuncionario, Lon
      */
     @Query("SELECT f FROM JpaFuncionario f WHERE f.telefone = :telefone AND f.ativo = true")
     Optional<JpaFuncionario> findByTelefoneAtivo(@Param("telefone") String telefone);
+    
+    /**
+     * Verifica se existe funcionário com email específico na barbearia.
+     */
+    boolean existsByEmailAndBarbeariaId(String email, Long barbeariaId);
+    
+    /**
+     * Encontra funcionários ativos de uma barbearia (método alternativo).
+     */
+    List<JpaFuncionario> findByBarbeariaIdAndAtivoTrue(Long barbeariaId);
 }
