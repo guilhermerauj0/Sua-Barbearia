@@ -2,7 +2,6 @@ package com.barbearia.application.services;
 
 import com.barbearia.adapters.mappers.AgendamentoMapper;
 import com.barbearia.application.dto.AgendamentoBriefDto;
-import com.barbearia.application.dto.AgendamentoDetailDto;
 import com.barbearia.application.dto.AgendamentoRequestDto;
 import com.barbearia.application.dto.AgendamentoResponseDto;
 import com.barbearia.domain.enums.StatusAgendamento;
@@ -28,7 +27,8 @@ import java.util.stream.Collectors;
  * Responsabilidades:
  * - Buscar histórico de agendamentos de um cliente
  * - Buscar agendamentos futuros de um cliente
- * - Criar novos agendamentos (futuro - T7)
+ * - Criar novos agendamentos
+ * - Buscar agendamento por ID com verificação de autorização
  * - Atualizar status de agendamentos (futuro)
  * 
  * Regras de negócio:
@@ -135,11 +135,12 @@ public class AgendamentoService {
      * @param agendamentoId ID do agendamento a ser buscado
      * @param usuarioId ID do usuário autenticado (cliente)
      * @param tipoUsuario Tipo do usuário (CLIENTE, BARBEARIA, BARBEIRO)
-     * @return DTO detalhado do agendamento
+     * @return DTO com dados completos do agendamento
      * @throws IllegalArgumentException se usuarioId é nulo
-     * @throws RuntimeException se agendamento não existe (404) ou sem permissão (403)
+     * @throws AgendamentoNaoEncontradoException se agendamento não existe (404)
+     * @throws AcessoNegadoException se sem permissão (403)
      */
-    public AgendamentoDetailDto buscarAgendamentoPorId(Long agendamentoId, Long usuarioId, String tipoUsuario) {
+    public AgendamentoResponseDto buscarAgendamentoPorId(Long agendamentoId, Long usuarioId, String tipoUsuario) {
         if (agendamentoId == null) {
             throw new IllegalArgumentException("ID do agendamento não pode ser nulo");
         }
@@ -167,8 +168,8 @@ public class AgendamentoService {
             throw new AcessoNegadoException("Você não tem permissão para acessar este agendamento");
         }
         
-        // Retorna o DTO detalhado
-        return AgendamentoMapper.toDetailDto(jpaAgendamento);
+        // Retorna o DTO
+        return AgendamentoMapper.toResponseDto(jpaAgendamento);
     }
     
     /**
@@ -262,18 +263,7 @@ public class AgendamentoService {
         JpaAgendamento agendamentoSalvo = agendamentoRepository.save(novoAgendamento);
         
         // Retorna DTO de resposta
-        return new AgendamentoResponseDto(
-                agendamentoSalvo.getId(),
-                agendamentoSalvo.getClienteId(),
-                agendamentoSalvo.getBarbeariaId(),
-                agendamentoSalvo.getServicoId(),
-                agendamentoSalvo.getBarbeiroId(),
-                agendamentoSalvo.getDataHora(),
-                agendamentoSalvo.getStatus().toString(),
-                agendamentoSalvo.getObservacoes(),
-                agendamentoSalvo.getDataCriacao(),
-                agendamentoSalvo.getDataAtualizacao()
-        );
+        return AgendamentoMapper.toResponseDto(agendamentoSalvo);
     }
     
     /**
