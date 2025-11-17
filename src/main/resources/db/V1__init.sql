@@ -48,6 +48,27 @@ CREATE TABLE IF NOT EXISTS funcionarios (
     CONSTRAINT fk_funcionarios_barbearia FOREIGN KEY (barbearia_id) REFERENCES barbearias(id) ON DELETE CASCADE
 );
 
+-- Tabelas de subclasses de Funcionário (herança JOINED)
+CREATE TABLE IF NOT EXISTS funcionarios_barbeiro (
+    id BIGINT PRIMARY KEY,
+    CONSTRAINT fk_funcionarios_barbeiro FOREIGN KEY (id) REFERENCES funcionarios(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS funcionarios_manicure (
+    id BIGINT PRIMARY KEY,
+    CONSTRAINT fk_funcionarios_manicure FOREIGN KEY (id) REFERENCES funcionarios(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS funcionarios_esteticista (
+    id BIGINT PRIMARY KEY,
+    CONSTRAINT fk_funcionarios_esteticista FOREIGN KEY (id) REFERENCES funcionarios(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS funcionarios_colorista (
+    id BIGINT PRIMARY KEY,
+    CONSTRAINT fk_funcionarios_colorista FOREIGN KEY (id) REFERENCES funcionarios(id) ON DELETE CASCADE
+);
+
 -- Tabela de Serviços
 CREATE TABLE IF NOT EXISTS servicos (
     id BIGSERIAL PRIMARY KEY,
@@ -56,10 +77,42 @@ CREATE TABLE IF NOT EXISTS servicos (
     descricao VARCHAR(500),
     preco DECIMAL(10, 2) NOT NULL,
     duracao INTEGER NOT NULL DEFAULT 30,
+    tipo_servico VARCHAR(50) NOT NULL DEFAULT 'GENERICO',
     ativo BOOLEAN NOT NULL DEFAULT TRUE,
     data_criacao TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     data_atualizacao TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_servicos_barbearia FOREIGN KEY (barbearia_id) REFERENCES barbearias(id) ON DELETE CASCADE
+);
+
+-- Tabelas de subclasses de Serviço (herança JOINED)
+CREATE TABLE IF NOT EXISTS servicos_corte (
+    id BIGINT PRIMARY KEY,
+    CONSTRAINT fk_servicos_corte FOREIGN KEY (id) REFERENCES servicos(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS servicos_barba (
+    id BIGINT PRIMARY KEY,
+    CONSTRAINT fk_servicos_barba FOREIGN KEY (id) REFERENCES servicos(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS servicos_sobrancelha (
+    id BIGINT PRIMARY KEY,
+    CONSTRAINT fk_servicos_sobrancelha FOREIGN KEY (id) REFERENCES servicos(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS servicos_coloracao (
+    id BIGINT PRIMARY KEY,
+    CONSTRAINT fk_servicos_coloracao FOREIGN KEY (id) REFERENCES servicos(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS servicos_manicure (
+    id BIGINT PRIMARY KEY,
+    CONSTRAINT fk_servicos_manicure FOREIGN KEY (id) REFERENCES servicos(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS servicos_tratamento_capilar (
+    id BIGINT PRIMARY KEY,
+    CONSTRAINT fk_servicos_tratamento_capilar FOREIGN KEY (id) REFERENCES servicos(id) ON DELETE CASCADE
 );
 
 -- Tabela de Profissional_Servicos (many-to-many entre Funcionario e Servico)
