@@ -125,7 +125,7 @@ class AgendamentoControllerTest {
                 servicoId,
                 funcionarioId,
                 dataHora,
-                StatusAgendamento.PENDENTE.toString(),
+                StatusAgendamento.PENDENTE,
                 "Corte normal com máquina 2",
                 LocalDateTime.now(),
                 LocalDateTime.now()
@@ -306,7 +306,7 @@ class AgendamentoControllerTest {
                 servicoId,
                 funcionarioId,
                 dataHora,
-                StatusAgendamento.PENDENTE.toString(),
+                StatusAgendamento.PENDENTE,
                 "",
                 LocalDateTime.now(),
                 LocalDateTime.now()
