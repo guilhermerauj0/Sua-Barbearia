@@ -1,6 +1,5 @@
 package com.barbearia.adapters.controllers;
 
-import com.barbearia.application.dto.AgendamentoDetailDto;
 import com.barbearia.application.dto.AgendamentoRequestDto;
 import com.barbearia.application.dto.AgendamentoResponseDto;
 import com.barbearia.application.security.JwtService;
@@ -15,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
  * Controller REST para operações de agendamentos.
  * 
  * Endpoints:
+ * - POST /api/agendamentos - Cria um novo agendamento
  * - GET /api/agendamentos/{id} - Busca detalhes de um agendamento específico
  * 
  * Todos os endpoints exigem autenticação JWT.
@@ -75,7 +75,7 @@ public class AgendamentoController {
             }
             
             // Busca o agendamento com verificação de autorização
-            AgendamentoDetailDto agendamento = agendamentoService.buscarAgendamentoPorId(id, usuarioId, tipoUsuario);
+            AgendamentoResponseDto agendamento = agendamentoService.buscarAgendamentoPorId(id, usuarioId, tipoUsuario);
             
             return ResponseEntity.ok(agendamento);
             
