@@ -1,5 +1,7 @@
 package com.barbearia.adapters.mappers;
 
+import com.barbearia.application.dto.FuncionarioRequestDto;
+import com.barbearia.application.dto.FuncionarioResponseDto;
 import com.barbearia.domain.entities.*;
 import com.barbearia.infrastructure.persistence.entities.*;
 import org.springframework.stereotype.Component;
@@ -114,5 +116,58 @@ public class FuncionarioMapper {
         }
         
         return jpaFuncionario;
+    }
+
+    /**
+     * Converte JpaFuncionario para FuncionarioResponseDto.
+     */
+    public FuncionarioResponseDto toResponseDto(JpaFuncionario jpaFuncionario) {
+        if (jpaFuncionario == null) {
+            return null;
+        }
+
+        return new FuncionarioResponseDto(
+            jpaFuncionario.getId(),
+            jpaFuncionario.getBarbeariaId(),
+            jpaFuncionario.getNome(),
+            jpaFuncionario.getEmail(),
+            jpaFuncionario.getTelefone(),
+            jpaFuncionario.getProfissao(),
+            jpaFuncionario.isAtivo(),
+            jpaFuncionario.getDataCriacao(),
+            jpaFuncionario.getDataAtualizacao()
+        );
+    }
+
+    /**
+     * Cria uma instância de JpaFuncionario baseada no tipo de profissão.
+     */
+    public JpaFuncionario toEntityFromDto(FuncionarioRequestDto dto, Long barbeariaId) {
+        if (dto == null) {
+            return null;
+        }
+
+        JpaFuncionario funcionario = createFuncionarioByProfissao(dto.profissao());
+        
+        funcionario.setBarbeariaId(barbeariaId);
+        funcionario.setNome(dto.nome());
+        funcionario.setEmail(dto.email());
+        funcionario.setTelefone(dto.telefone());
+        funcionario.setAtivo(true);
+
+        return funcionario;
+    }
+
+    /**
+     * Cria a instância correta de funcionário baseada na profissão.
+     */
+    private JpaFuncionario createFuncionarioByProfissao(String profissao) {
+        return switch (profissao.toUpperCase()) {
+            case "BARBEIRO" -> new JpaFuncionarioBarbeiro();
+            case "MANICURE" -> new JpaFuncionarioManicure();
+            case "ESTETICISTA" -> new JpaFuncionarioEsteticista();
+            case "COLORISTA" -> new JpaFuncionarioColorista();
+            default -> throw new IllegalArgumentException("Profissão inválida: " + profissao + ". Valores aceitos: BARBEIRO, MANICURE, ESTETICISTA, COLORISTA");
+        };
     }
 }
