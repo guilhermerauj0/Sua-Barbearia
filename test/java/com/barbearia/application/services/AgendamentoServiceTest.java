@@ -1,7 +1,7 @@
 package com.barbearia.application.services;
 
 import com.barbearia.application.dto.AgendamentoBriefDto;
-import com.barbearia.application.dto.AgendamentoDetailDto;
+import com.barbearia.application.dto.AgendamentoResponseDto;
 import com.barbearia.domain.enums.StatusAgendamento;
 import com.barbearia.domain.exceptions.AcessoNegadoException;
 import com.barbearia.domain.exceptions.AgendamentoNaoEncontradoException;
@@ -38,6 +38,15 @@ class AgendamentoServiceTest {
 
     @Mock
     private AgendamentoRepository agendamentoRepository;
+    
+    @Mock
+    private com.barbearia.infrastructure.persistence.repositories.FuncionarioRepository funcionarioRepository;
+    
+    @Mock
+    private com.barbearia.infrastructure.persistence.repositories.ServicoRepository servicoRepository;
+    
+    @Mock
+    private com.barbearia.infrastructure.persistence.repositories.ProfissionalServicoRepository profissionalServicoRepository;
 
     @InjectMocks
     private AgendamentoService agendamentoService;
@@ -251,7 +260,7 @@ class AgendamentoServiceTest {
                 .thenReturn(Optional.of(agendamento));
 
         // Act
-        AgendamentoDetailDto resultado = agendamentoService.buscarAgendamentoPorId(agendamentoId, clienteId, "CLIENTE");
+        AgendamentoResponseDto resultado = agendamentoService.buscarAgendamentoPorId(agendamentoId, clienteId, "CLIENTE");
 
         // Assert
         assertThat(resultado).isNotNull();
@@ -339,7 +348,7 @@ class AgendamentoServiceTest {
                 .thenReturn(Optional.of(agendamento));
 
         // Act
-        AgendamentoDetailDto resultado = agendamentoService.buscarAgendamentoPorId(agendamentoId, barbeariaId, "BARBEARIA");
+        AgendamentoResponseDto resultado = agendamentoService.buscarAgendamentoPorId(agendamentoId, barbeariaId, "BARBEARIA");
 
         // Assert
         assertThat(resultado).isNotNull();
@@ -381,11 +390,11 @@ class AgendamentoServiceTest {
                 .thenReturn(Optional.of(agendamento));
 
         // Act
-        AgendamentoDetailDto resultado = agendamentoService.buscarAgendamentoPorId(agendamentoId, barbeiroId, "BARBEIRO");
+        AgendamentoResponseDto resultado = agendamentoService.buscarAgendamentoPorId(agendamentoId, barbeiroId, "BARBEIRO");
 
         // Assert
         assertThat(resultado).isNotNull();
-        assertThat(resultado.barbeiroId()).isEqualTo(barbeiroId);
+        assertThat(resultado.funcionarioId()).isEqualTo(barbeiroId);
         
         verify(agendamentoRepository, times(1)).findById(agendamentoId);
     }
@@ -434,9 +443,23 @@ class AgendamentoServiceTest {
         agendamentoSalvo.setDataCriacao(now);
         agendamentoSalvo.setDataAtualizacao(now);
 
-        when(agendamentoRepository.save(any())).thenReturn(agendamentoSalvo);
+        // Mocks necessários
+        com.barbearia.infrastructure.persistence.entities.JpaServico servico = 
+                mock(com.barbearia.infrastructure.persistence.entities.JpaServico.class);
+        com.barbearia.infrastructure.persistence.entities.JpaFuncionarioBarbeiro barbeiro = 
+                new com.barbearia.infrastructure.persistence.entities.JpaFuncionarioBarbeiro();
+        barbeiro.setId(1L);
+        barbeiro.setBarbeariaId(1L);
+        
+        when(servicoRepository.findById(1L))
+                .thenReturn(java.util.Optional.of(servico));
+        when(funcionarioRepository.findById(1L))
+                .thenReturn(java.util.Optional.of(barbeiro));
+        when(profissionalServicoRepository.canPrestarServico(1L, 1L))
+                .thenReturn(true);
         when(agendamentoRepository.existsConflictByBarbeiroIdAndDataHora(1L, dataFutura))
                 .thenReturn(false);
+        when(agendamentoRepository.save(any())).thenReturn(agendamentoSalvo);
 
         // Act
         com.barbearia.application.dto.AgendamentoResponseDto resultado =
@@ -444,10 +467,10 @@ class AgendamentoServiceTest {
 
         // Assert
         assertThat(resultado).isNotNull();
-        assertThat(resultado.getId()).isEqualTo(123L);
-        assertThat(resultado.getClienteId()).isEqualTo(clienteId);
-        assertThat(resultado.getStatus()).isEqualTo(StatusAgendamento.PENDENTE.toString());
-        assertThat(resultado.getObservacoes()).isEqualTo("Corte normal");
+        assertThat(resultado.id()).isEqualTo(123L);
+        assertThat(resultado.clienteId()).isEqualTo(clienteId);
+        assertThat(resultado.status()).isEqualTo(StatusAgendamento.PENDENTE);
+        assertThat(resultado.observacoes()).isEqualTo("Corte normal");
 
         verify(agendamentoRepository, times(1)).save(any());
     }
@@ -515,6 +538,17 @@ class AgendamentoServiceTest {
         agendamentoSalvo.setDataCriacao(now);
         agendamentoSalvo.setDataAtualizacao(now);
 
+        // Mocks
+        com.barbearia.infrastructure.persistence.entities.JpaServico servico = 
+                mock(com.barbearia.infrastructure.persistence.entities.JpaServico.class);
+        com.barbearia.infrastructure.persistence.entities.JpaFuncionarioBarbeiro barbeiro = 
+                new com.barbearia.infrastructure.persistence.entities.JpaFuncionarioBarbeiro();
+        barbeiro.setId(1L);
+        barbeiro.setBarbeariaId(1L);
+        
+        when(servicoRepository.findById(1L)).thenReturn(java.util.Optional.of(servico));
+        when(funcionarioRepository.findById(1L)).thenReturn(java.util.Optional.of(barbeiro));
+        when(profissionalServicoRepository.canPrestarServico(1L, 1L)).thenReturn(true);
         when(agendamentoRepository.save(any())).thenReturn(agendamentoSalvo);
         when(agendamentoRepository.existsConflictByBarbeiroIdAndDataHora(1L, dataFutura))
                 .thenReturn(false);
@@ -524,7 +558,7 @@ class AgendamentoServiceTest {
                 agendamentoService.criarAgendamento(clienteId, request);
 
         // Assert
-        assertThat(resultado.getStatus()).isEqualTo("PENDENTE");
+        assertThat(resultado.status()).isEqualTo(StatusAgendamento.PENDENTE);
 
         verify(agendamentoRepository, times(1)).save(any());
     }
@@ -550,6 +584,17 @@ class AgendamentoServiceTest {
         agendamentoSalvo.setDataCriacao(now);
         agendamentoSalvo.setDataAtualizacao(now);
 
+        // Mocks
+        com.barbearia.infrastructure.persistence.entities.JpaServico servico = 
+                mock(com.barbearia.infrastructure.persistence.entities.JpaServico.class);
+        com.barbearia.infrastructure.persistence.entities.JpaFuncionarioBarbeiro barbeiro = 
+                new com.barbearia.infrastructure.persistence.entities.JpaFuncionarioBarbeiro();
+        barbeiro.setId(1L);
+        barbeiro.setBarbeariaId(1L);
+        
+        when(servicoRepository.findById(1L)).thenReturn(java.util.Optional.of(servico));
+        when(funcionarioRepository.findById(1L)).thenReturn(java.util.Optional.of(barbeiro));
+        when(profissionalServicoRepository.canPrestarServico(1L, 1L)).thenReturn(true);
         when(agendamentoRepository.save(any())).thenReturn(agendamentoSalvo);
         when(agendamentoRepository.existsConflictByBarbeiroIdAndDataHora(1L, dataFutura))
                 .thenReturn(false);
@@ -559,7 +604,7 @@ class AgendamentoServiceTest {
                 agendamentoService.criarAgendamento(clienteId, request);
 
         // Assert
-        assertThat(resultado.getObservacoes()).isEqualTo(observacoes);
+        assertThat(resultado.observacoes()).isEqualTo(observacoes);
 
         verify(agendamentoRepository, times(1)).save(any());
     }
