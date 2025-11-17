@@ -3,10 +3,18 @@ package com.barbearia.application.services;
 import com.barbearia.adapters.mappers.AgendamentoMapper;
 import com.barbearia.application.dto.AgendamentoBriefDto;
 import com.barbearia.application.dto.AgendamentoDetailDto;
+import com.barbearia.application.dto.AgendamentoRequestDto;
+import com.barbearia.application.dto.AgendamentoResponseDto;
+import com.barbearia.domain.enums.StatusAgendamento;
 import com.barbearia.domain.exceptions.AcessoNegadoException;
 import com.barbearia.domain.exceptions.AgendamentoNaoEncontradoException;
 import com.barbearia.infrastructure.persistence.entities.JpaAgendamento;
+import com.barbearia.infrastructure.persistence.entities.JpaFuncionario;
+import com.barbearia.infrastructure.persistence.entities.JpaServico;
 import com.barbearia.infrastructure.persistence.repositories.AgendamentoRepository;
+import com.barbearia.infrastructure.persistence.repositories.FuncionarioRepository;
+import com.barbearia.infrastructure.persistence.repositories.ProfissionalServicoRepository;
+import com.barbearia.infrastructure.persistence.repositories.ServicoRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -34,9 +42,18 @@ import java.util.stream.Collectors;
 public class AgendamentoService {
     
     private final AgendamentoRepository agendamentoRepository;
+    private final FuncionarioRepository funcionarioRepository;
+    private final ServicoRepository servicoRepository;
+    private final ProfissionalServicoRepository profissionalServicoRepository;
     
-    public AgendamentoService(AgendamentoRepository agendamentoRepository) {
+    public AgendamentoService(AgendamentoRepository agendamentoRepository,
+                             FuncionarioRepository funcionarioRepository,
+                             ServicoRepository servicoRepository,
+                             ProfissionalServicoRepository profissionalServicoRepository) {
         this.agendamentoRepository = agendamentoRepository;
+        this.funcionarioRepository = funcionarioRepository;
+        this.servicoRepository = servicoRepository;
+        this.profissionalServicoRepository = profissionalServicoRepository;
     }
     
     /**
@@ -152,6 +169,111 @@ public class AgendamentoService {
         
         // Retorna o DTO detalhado
         return AgendamentoMapper.toDetailDto(jpaAgendamento);
+    }
+    
+    /**
+     * Cria um novo agendamento.
+     * 
+     * Validações:
+     * - Serviço deve existir
+     * - Funcionário deve existir
+     * - Funcionário deve executar o serviço (ProfissionalServico)
+     * - Não deve haver conflito de horário
+     * - Data/hora não pode ser no passado
+     * 
+     * @param clienteId ID do cliente (proprietário do agendamento)
+     * @param requestDto Dados de requisição (servicoId, funcionarioId, dataHora, observacoes)
+     * @return DTO de resposta com os dados do agendamento criado
+     * @throws IllegalArgumentException se validações falharem
+     */
+    public AgendamentoResponseDto criarAgendamento(Long clienteId, AgendamentoRequestDto requestDto) {
+        // Validação básica
+        if (clienteId == null) {
+            throw new IllegalArgumentException("ID do cliente não pode ser nulo");
+        }
+        
+        if (requestDto == null) {
+            throw new IllegalArgumentException("Dados do agendamento não podem ser nulos");
+        }
+        
+        if (requestDto.getServicoId() == null) {
+            throw new IllegalArgumentException("ID do serviço não pode ser nulo");
+        }
+        
+        if (requestDto.getFuncionarioId() == null) {
+            throw new IllegalArgumentException("ID do funcionário não pode ser nulo");
+        }
+        
+        if (requestDto.getDataHora() == null) {
+            throw new IllegalArgumentException("Data/hora do agendamento não pode ser nula");
+        }
+        
+        // Validação: data/hora não pode ser no passado
+        if (requestDto.getDataHora().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Data/hora do agendamento não pode ser no passado");
+        }
+        
+        // Busca o serviço
+        @SuppressWarnings("null")
+        Optional<JpaServico> servicoOpt = servicoRepository.findById(requestDto.getServicoId());
+        if (servicoOpt.isEmpty()) {
+            throw new IllegalArgumentException("Serviço com ID " + requestDto.getServicoId() + " não existe");
+        }
+        
+        // Valida que o serviço existe (apenas verifica, não usa a referência)
+        servicoOpt.get();
+        
+        // Busca o funcionário
+        @SuppressWarnings("null")
+        Optional<JpaFuncionario> funcionarioOpt = funcionarioRepository.findById(requestDto.getFuncionarioId());
+        if (funcionarioOpt.isEmpty()) {
+            throw new IllegalArgumentException("Funcionário com ID " + requestDto.getFuncionarioId() + " não existe");
+        }
+        
+        JpaFuncionario funcionario = funcionarioOpt.get();
+        
+        // Validação: funcionário deve executar o serviço
+        if (!profissionalServicoRepository.canPrestarServico(
+                requestDto.getFuncionarioId(),
+                requestDto.getServicoId())) {
+            throw new IllegalArgumentException("Funcionário não executa este serviço");
+        }
+        
+        // Validação: verificar conflito de horário
+        if (agendamentoRepository.existsConflictByBarbeiroIdAndDataHora(
+                requestDto.getFuncionarioId(),
+                requestDto.getDataHora())) {
+            throw new IllegalArgumentException("Horário não disponível para este funcionário");
+        }
+        
+        // Cria novo agendamento
+        JpaAgendamento novoAgendamento = new JpaAgendamento();
+        novoAgendamento.setClienteId(clienteId);
+        novoAgendamento.setServicoId(requestDto.getServicoId());
+        novoAgendamento.setBarbeiroId(requestDto.getFuncionarioId());
+        novoAgendamento.setBarbeariaId(funcionario.getBarbeariaId());
+        novoAgendamento.setDataHora(requestDto.getDataHora());
+        novoAgendamento.setObservacoes(requestDto.getObservacoes() != null ? requestDto.getObservacoes() : "");
+        novoAgendamento.setStatus(StatusAgendamento.PENDENTE);
+        novoAgendamento.setDataCriacao(LocalDateTime.now());
+        novoAgendamento.setDataAtualizacao(LocalDateTime.now());
+        
+        // Salva no banco de dados
+        JpaAgendamento agendamentoSalvo = agendamentoRepository.save(novoAgendamento);
+        
+        // Retorna DTO de resposta
+        return new AgendamentoResponseDto(
+                agendamentoSalvo.getId(),
+                agendamentoSalvo.getClienteId(),
+                agendamentoSalvo.getBarbeariaId(),
+                agendamentoSalvo.getServicoId(),
+                agendamentoSalvo.getBarbeiroId(),
+                agendamentoSalvo.getDataHora(),
+                agendamentoSalvo.getStatus().toString(),
+                agendamentoSalvo.getObservacoes(),
+                agendamentoSalvo.getDataCriacao(),
+                agendamentoSalvo.getDataAtualizacao()
+        );
     }
     
     /**

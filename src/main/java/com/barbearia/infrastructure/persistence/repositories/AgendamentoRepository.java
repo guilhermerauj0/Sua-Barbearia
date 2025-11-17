@@ -101,4 +101,22 @@ public interface AgendamentoRepository extends JpaRepository<JpaAgendamento, Lon
             @Param("dataInicio") LocalDateTime dataInicio,
             @Param("dataFim") LocalDateTime dataFim
     );
+    
+    /**
+     * Verifica se há conflito de horário para um funcionário.
+     * 
+     * Busca agendamentos do funcionário na mesma data/hora.
+     * 
+     * @param barbeiroId ID do barbeiro/funcionário
+     * @param dataHora Data e hora do agendamento
+     * @return true se há conflito, false caso contrário
+     */
+    @Query("SELECT COUNT(a) > 0 FROM JpaAgendamento a " +
+           "WHERE a.barbeiroId = :barbeiroId " +
+           "AND a.dataHora = :dataHora " +
+           "AND a.status != 'CANCELADO'")
+    boolean existsConflictByBarbeiroIdAndDataHora(
+            @Param("barbeiroId") Long barbeiroId,
+            @Param("dataHora") LocalDateTime dataHora
+    );
 }

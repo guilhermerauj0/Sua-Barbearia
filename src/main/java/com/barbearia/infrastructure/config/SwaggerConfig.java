@@ -48,6 +48,7 @@ public class SwaggerConfig {
                         .addPathItem("/api/barbearias/{id}/horarios-disponiveis", obterHorariosDisponiveisPath())
                         .addPathItem("/api/barbearias/servicos", criarServicoPath())
                         // Agendamentos
+                        .addPathItem("/api/agendamentos", criarAgendamentoPath())
                         .addPathItem("/api/agendamentos/{id}", buscarPorIdPath()));
     }
 
@@ -1217,6 +1218,143 @@ public class SwaggerConfig {
                     "horarioFim": "09:30:00"
                   }
                 ]
+                """;
+    }
+
+    private PathItem criarAgendamentoPath() {
+        return new PathItem()
+                .post(new Operation()
+                        .tags(List.of("Agendamentos"))
+                        .summary("Criar agendamento")
+                        .description("Cria um novo agendamento para o cliente autenticado. Valida a disponibilidade do profissional e se ele executa o serviço solicitado.")
+                        .security(List.of(new SecurityRequirement().addList("Bearer")))
+                        .requestBody(new RequestBody()
+                                .description("Dados do agendamento a criar")
+                                .required(true)
+                                .content(new Content()
+                                        .addMediaType("application/json", new MediaType()
+                                                .schema(agendamentoRequestSchema())
+                                                .example(agendamentoRequestExample()))))
+                        .responses(new ApiResponses()
+                                .addApiResponse("201", new ApiResponse()
+                                        .description("Agendamento criado com sucesso")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(agendamentoResponseSchema())
+                                                        .example(agendamentoResponseExample()))))
+                                .addApiResponse("400", new ApiResponse()
+                                        .description("Dados inválidos ou recurso não encontrado")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Serviço com ID 999 não existe"))))
+                                .addApiResponse("401", new ApiResponse()
+                                        .description("Token JWT inválido ou não fornecido")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Token JWT inválido ou userId não encontrado"))))
+                                .addApiResponse("403", new ApiResponse()
+                                        .description("Acesso negado (apenas clientes podem criar agendamentos)")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Apenas clientes podem criar agendamentos"))))
+                                .addApiResponse("422", new ApiResponse()
+                                        .description("Validação de negócio falhou (conflito de horário, etc)")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Horário não disponível para este funcionário"))))
+                                .addApiResponse("500", new ApiResponse()
+                                        .description("Erro interno do servidor")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Erro ao criar agendamento"))))));
+    }
+
+    private Schema<?> agendamentoRequestSchema() {
+        Schema<?> schema = new Schema<>();
+        schema.setType("object");
+        schema.setDescription("Dados para criação de novo agendamento");
+        schema.addProperty("servicoId", new NumberSchema()
+                .description("ID do serviço desejado")
+                .example(1L));
+        schema.addProperty("funcionarioId", new NumberSchema()
+                .description("ID do profissional que executará o serviço")
+                .example(1L));
+        schema.addProperty("dataHora", new StringSchema()
+                .format("date-time")
+                .description("Data e hora do agendamento (formato ISO 8601)")
+                .example("2025-11-20T14:30:00"));
+        schema.addProperty("observacoes", new StringSchema()
+                .description("Observações adicionais (opcional)")
+                .example("Preferência de corte com máquina 2"));
+        schema.setRequired(List.of("servicoId", "funcionarioId", "dataHora"));
+        return schema;
+    }
+
+    private Object agendamentoRequestExample() {
+        return """
+                {
+                  "servicoId": 1,
+                  "funcionarioId": 1,
+                  "dataHora": "2025-11-20T14:30:00",
+                  "observacoes": "Corte normal com máquina 2"
+                }
+                """;
+    }
+
+    private Schema<?> agendamentoResponseSchema() {
+        Schema<?> schema = new Schema<>();
+        schema.setType("object");
+        schema.setDescription("Dados do agendamento criado");
+        schema.addProperty("id", new NumberSchema()
+                .description("ID do agendamento criado")
+                .example(123L));
+        schema.addProperty("clienteId", new NumberSchema()
+                .description("ID do cliente proprietário do agendamento")
+                .example(5L));
+        schema.addProperty("barbeariaId", new NumberSchema()
+                .description("ID da barbearia")
+                .example(1L));
+        schema.addProperty("servicoId", new NumberSchema()
+                .description("ID do serviço")
+                .example(1L));
+        schema.addProperty("funcionarioId", new NumberSchema()
+                .description("ID do profissional")
+                .example(1L));
+        schema.addProperty("dataHora", new StringSchema()
+                .format("date-time")
+                .description("Data e hora do agendamento")
+                .example("2025-11-20T14:30:00"));
+        schema.addProperty("status", new StringSchema()
+                .description("Status do agendamento")
+                .example("PENDENTE"));
+        schema.addProperty("observacoes", new StringSchema()
+                .description("Observações do agendamento")
+                .example("Corte normal com máquina 2"));
+        schema.addProperty("dataCriacao", new StringSchema()
+                .format("date-time")
+                .description("Data e hora de criação")
+                .example("2025-11-17T10:15:30"));
+        schema.addProperty("dataAtualizacao", new StringSchema()
+                .format("date-time")
+                .description("Data e hora da última atualização")
+                .example("2025-11-17T10:15:30"));
+        return schema;
+    }
+
+    private Object agendamentoResponseExample() {
+        return """
+                {
+                  "id": 123,
+                  "clienteId": 5,
+                  "barbeariaId": 1,
+                  "servicoId": 1,
+                  "funcionarioId": 1,
+                  "dataHora": "2025-11-20T14:30:00",
+                  "status": "PENDENTE",
+                  "observacoes": "Corte normal com máquina 2",
+                  "dataCriacao": "2025-11-17T10:15:30",
+                  "dataAtualizacao": "2025-11-17T10:15:30"
+                }
                 """;
     }
 }
