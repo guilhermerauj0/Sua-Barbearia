@@ -18,6 +18,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.List;
+import java.util.Map;
 
 @Configuration
 public class SwaggerConfig {
@@ -47,6 +48,8 @@ public class SwaggerConfig {
                         .addPathItem("/api/barbearias/{id}/servicos", listarServicosPath())
                         .addPathItem("/api/barbearias/{id}/horarios-disponiveis", obterHorariosDisponiveisPath())
                         .addPathItem("/api/barbearias/servicos", criarServicoPath())
+                        // Funcionários
+                        .addPathItem("/api/barbearias/meus-funcionarios", meusFuncionariosPath())
                         // Agendamentos
                         .addPathItem("/api/agendamentos", criarAgendamentoPath())
                         .addPathItem("/api/agendamentos/{id}", buscarPorIdPath()));
@@ -1355,6 +1358,255 @@ public class SwaggerConfig {
                   "dataCriacao": "2025-11-17T10:15:30",
                   "dataAtualizacao": "2025-11-17T10:15:30"
                 }
+                """;
+    }
+
+    private PathItem meusFuncionariosPath() {
+        return new PathItem()
+                .get(new Operation()
+                        .tags(List.of("Funcionários"))
+                        .summary("Listar meus funcionários")
+                        .description("Lista todos os funcionários ativos da barbearia autenticada.\n\n" +
+                                "**AUTENTICAÇÃO:** Endpoint protegido - requer token JWT.\n\n" +
+                                "**AUTORIZAÇÃO:** Apenas usuários com role BARBEARIA podem acessar.\n\n" +
+                                "**IDENTIFICAÇÃO:** O ID da barbearia é extraído automaticamente do token JWT (não precisa ser informado).\n\n" +
+                                "Retorna apenas funcionários ativos (campo 'ativo' = true).")
+                        .security(List.of(new SecurityRequirement().addList("Bearer")))
+                        .responses(new ApiResponses()
+                                .addApiResponse("200", new ApiResponse()
+                                        .description("Lista de funcionários retornada com sucesso")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(new ArraySchema()
+                                                                .items(funcionarioResponseSchema()))
+                                                        .example(funcionarioListResponseExample()))))
+                                .addApiResponse("401", new ApiResponse()
+                                        .description("Não autenticado - Token JWT inválido ou expirado"))
+                                .addApiResponse("403", new ApiResponse()
+                                        .description("Não autorizado - Role BARBEARIA necessário"))
+                                .addApiResponse("500", new ApiResponse()
+                                        .description("Erro interno do servidor"))))
+                .post(new Operation()
+                        .tags(List.of("Funcionários"))
+                        .summary("Criar funcionário")
+                        .description("Cria um novo funcionário para a barbearia autenticada.\n\n" +
+                                "**AUTENTICAÇÃO:** Endpoint protegido - requer token JWT.\n\n" +
+                                "**AUTORIZAÇÃO:** Apenas usuários com role BARBEARIA podem acessar.\n\n" +
+                                "**IDENTIFICAÇÃO:** O ID da barbearia é extraído automaticamente do token JWT.\n\n" +
+                                "**IMPORTANTE:** O campo 'profissao' é OBRIGATÓRIO e deve ser um dos seguintes valores:\n" +
+                                "- **BARBEIRO**: Profissional especializado em cortes de cabelo e barba\n" +
+                                "- **MANICURE**: Profissional especializado em serviços de unhas\n" +
+                                "- **ESTETICISTA**: Profissional especializado em estética (sobrancelhas, etc)\n" +
+                                "- **COLORISTA**: Profissional especializado em coloração capilar\n\n" +
+                                "**VALIDAÇÕES:**\n" +
+                                "- nome: obrigatório, 3-100 caracteres\n" +
+                                "- email: obrigatório, formato válido, único por barbearia\n" +
+                                "- telefone: obrigatório, 10-20 caracteres\n" +
+                                "- profissao: obrigatório, um dos valores acima\n\n" +
+                                "**OBSERVAÇÃO:** Funcionários não possuem login no sistema (não são usuários autenticáveis).")
+                        .security(List.of(new SecurityRequirement().addList("Bearer")))
+                        .requestBody(new RequestBody()
+                                .description("Dados do funcionário a ser criado - TODOS OS CAMPOS SÃO OBRIGATÓRIOS")
+                                .required(true)
+                                .content(new Content()
+                                        .addMediaType("application/json", new MediaType()
+                                                .schema(funcionarioRequestSchema())
+                                                .examples(Map.of(
+                                                        "barbeiro", new Example()
+                                                                .summary("Exemplo: Barbeiro")
+                                                                .value(funcionarioRequestExampleBarbeiro()),
+                                                        "manicure", new Example()
+                                                                .summary("Exemplo: Manicure")
+                                                                .value(funcionarioRequestExampleManicure()),
+                                                        "esteticista", new Example()
+                                                                .summary("Exemplo: Esteticista")
+                                                                .value(funcionarioRequestExampleEsteticista()),
+                                                        "colorista", new Example()
+                                                                .summary("Exemplo: Colorista")
+                                                                .value(funcionarioRequestExampleColorista())
+                                                )))))
+                        .responses(new ApiResponses()
+                                .addApiResponse("201", new ApiResponse()
+                                        .description("Funcionário criado com sucesso")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(funcionarioResponseSchema())
+                                                        .example(funcionarioResponseExample()))))
+                                .addApiResponse("400", new ApiResponse()
+                                        .description("Dados inválidos. Possíveis erros:\n" +
+                                                "- Nome vazio ou com menos de 3 caracteres\n" +
+                                                "- Email inválido ou já cadastrado para esta barbearia\n" +
+                                                "- Telefone vazio ou com formato inválido\n" +
+                                                "- Profissão vazia ou com valor não permitido"))
+                                .addApiResponse("401", new ApiResponse()
+                                        .description("Não autenticado - Token JWT inválido ou expirado"))
+                                .addApiResponse("403", new ApiResponse()
+                                        .description("Não autorizado - Role BARBEARIA necessário"))
+                                .addApiResponse("500", new ApiResponse()
+                                        .description("Erro interno do servidor"))));
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private Schema<?> funcionarioRequestSchema() {
+        Schema profissaoSchema = new StringSchema()
+                .description("Profissão do funcionário (obrigatório: BARBEIRO, MANICURE, ESTETICISTA, COLORISTA)")
+                .example("BARBEIRO");
+        profissaoSchema._enum(List.of("BARBEIRO", "MANICURE", "ESTETICISTA", "COLORISTA"));
+        
+        return new ObjectSchema()
+                .addProperty("nome", new StringSchema()
+                        .description("Nome completo do funcionário (obrigatório, 3-100 caracteres)")
+                        .example("Carlos Silva"))
+                .addProperty("email", new StringSchema()
+                        .description("Email do funcionário (obrigatório, formato válido, único por barbearia)")
+                        .example("carlos.silva@email.com"))
+                .addProperty("telefone", new StringSchema()
+                        .description("Telefone do funcionário (obrigatório, 10-20 caracteres)")
+                        .example("(11) 98765-4321"))
+                .addProperty("profissao", profissaoSchema);
+    }
+
+    private Schema<?> funcionarioResponseSchema() {
+        return new ObjectSchema()
+                .addProperty("id", new NumberSchema()
+                        .description("ID do funcionário")
+                        .example(1L))
+                .addProperty("barbeariaId", new NumberSchema()
+                        .description("ID da barbearia proprietária")
+                        .example(1L))
+                .addProperty("nome", new StringSchema()
+                        .description("Nome completo do funcionário")
+                        .example("Carlos Silva"))
+                .addProperty("email", new StringSchema()
+                        .description("Email do funcionário")
+                        .example("carlos.silva@email.com"))
+                .addProperty("telefone", new StringSchema()
+                        .description("Telefone do funcionário")
+                        .example("(11) 98765-4321"))
+                .addProperty("profissao", new StringSchema()
+                        .description("Profissão do funcionário")
+                        .example("BARBEIRO"))
+                .addProperty("ativo", new BooleanSchema()
+                        .description("Indica se o funcionário está ativo")
+                        .example(true))
+                .addProperty("dataCriacao", new StringSchema()
+                        .format("date-time")
+                        .description("Data e hora de criação do registro")
+                        .example("2025-01-20T10:30:00"))
+                .addProperty("dataAtualizacao", new StringSchema()
+                        .format("date-time")
+                        .description("Data e hora da última atualização")
+                        .example("2025-01-20T10:30:00"));
+    }
+
+    private Object funcionarioRequestExampleBarbeiro() {
+        return """
+                {
+                  "nome": "Carlos Silva",
+                  "email": "carlos.silva@email.com",
+                  "telefone": "(11) 98765-4321",
+                  "profissao": "BARBEIRO"
+                }
+                """;
+    }
+
+    private Object funcionarioRequestExampleManicure() {
+        return """
+                {
+                  "nome": "Juliana Costa",
+                  "email": "juliana.costa@email.com",
+                  "telefone": "(11) 98765-1234",
+                  "profissao": "MANICURE"
+                }
+                """;
+    }
+
+    private Object funcionarioRequestExampleEsteticista() {
+        return """
+                {
+                  "nome": "Fernanda Oliveira",
+                  "email": "fernanda.oliveira@email.com",
+                  "telefone": "(11) 98765-5678",
+                  "profissao": "ESTETICISTA"
+                }
+                """;
+    }
+
+    private Object funcionarioRequestExampleColorista() {
+        return """
+                {
+                  "nome": "Roberto Alves",
+                  "email": "roberto.alves@email.com",
+                  "telefone": "(11) 98765-9999",
+                  "profissao": "COLORISTA"
+                }
+                """;
+    }
+
+    private Object funcionarioResponseExample() {
+        return """
+                {
+                  "id": 1,
+                  "barbeariaId": 1,
+                  "nome": "Carlos Silva",
+                  "email": "carlos.silva@email.com",
+                  "telefone": "(11) 98765-4321",
+                  "profissao": "BARBEIRO",
+                  "ativo": true,
+                  "dataCriacao": "2025-01-20T10:30:00",
+                  "dataAtualizacao": "2025-01-20T10:30:00"
+                }
+                """;
+    }
+
+    private Object funcionarioListResponseExample() {
+        return """
+                [
+                  {
+                    "id": 1,
+                    "barbeariaId": 1,
+                    "nome": "Carlos Silva",
+                    "email": "carlos.silva@email.com",
+                    "telefone": "(11) 98765-4321",
+                    "profissao": "BARBEIRO",
+                    "ativo": true,
+                    "dataCriacao": "2025-01-20T10:30:00",
+                    "dataAtualizacao": "2025-01-20T10:30:00"
+                  },
+                  {
+                    "id": 2,
+                    "barbeariaId": 1,
+                    "nome": "Juliana Costa",
+                    "email": "juliana.costa@email.com",
+                    "telefone": "(11) 98765-1234",
+                    "profissao": "MANICURE",
+                    "ativo": true,
+                    "dataCriacao": "2025-01-20T11:15:00",
+                    "dataAtualizacao": "2025-01-20T11:15:00"
+                  },
+                  {
+                    "id": 3,
+                    "barbeariaId": 1,
+                    "nome": "Fernanda Oliveira",
+                    "email": "fernanda.oliveira@email.com",
+                    "telefone": "(11) 98765-5678",
+                    "profissao": "ESTETICISTA",
+                    "ativo": true,
+                    "dataCriacao": "2025-01-20T14:45:00",
+                    "dataAtualizacao": "2025-01-20T14:45:00"
+                  },
+                  {
+                    "id": 4,
+                    "barbeariaId": 1,
+                    "nome": "Roberto Alves",
+                    "email": "roberto.alves@email.com",
+                    "telefone": "(11) 98765-9999",
+                    "profissao": "COLORISTA",
+                    "ativo": true,
+                    "dataCriacao": "2025-01-20T16:20:00",
+                    "dataAtualizacao": "2025-01-20T16:20:00"
+                  }
+                ]
                 """;
     }
 }
