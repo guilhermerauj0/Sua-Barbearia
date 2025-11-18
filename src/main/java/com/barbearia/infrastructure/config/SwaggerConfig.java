@@ -53,6 +53,8 @@ public class SwaggerConfig {
                         // Agendamentos - Barbearia
                         .addPathItem("/api/barbearias/meus-agendamentos", meusAgendamentosPath())
                         .addPathItem("/api/barbearias/agendamentos/{id}", atualizarStatusAgendamentoPath())
+                        // Gestão Financeira
+                        .addPathItem("/api/barbearias/gestao-financeira", gestaoFinanceiraPath())
                         // Agendamentos - Cliente
                         .addPathItem("/api/agendamentos", criarAgendamentoPath())
                         .addPathItem("/api/agendamentos/{id}", buscarPorIdPath()));
@@ -1897,6 +1899,254 @@ public class SwaggerConfig {
                   "observacoes": "Corte degradê",
                   "dataCriacao": "2025-11-18T10:00:00",
                   "dataAtualizacao": "2025-11-18T13:30:00"
+                }
+                """;
+    }
+    
+    private PathItem gestaoFinanceiraPath() {
+        return new PathItem()
+                .get(new Operation()
+                        .tags(List.of("Gestão Financeira - Barbearia"))
+                        .summary("Obter relatório financeiro")
+                        .description("Retorna relatório financeiro completo da barbearia autenticada por período.\n\n" +
+                                "**AUTENTICAÇÃO:** Endpoint protegido - requer token JWT.\n\n" +
+                                "**AUTORIZAÇÃO:** Apenas usuários com role BARBEARIA podem acessar.\n\n" +
+                                "**SEGURANÇA:** Apenas a própria barbearia pode acessar seus dados financeiros.\n\n" +
+                                "**PERÍODOS SUPORTADOS:**\n" +
+                                "- **DIA:** Últimas 24 horas\n" +
+                                "- **SEMANA:** Últimos 7 dias (padrão)\n" +
+                                "- **MES:** Últimos 30 dias\n\n" +
+                                "**DADOS DO RELATÓRIO:**\n" +
+                                "- Faturamento total do período (apenas agendamentos concluídos)\n" +
+                                "- Total de agendamentos concluídos\n" +
+                                "- Ticket médio (valor médio por agendamento)\n" +
+                                "- Faturamento médio por dia\n" +
+                                "- Top 5 serviços mais rentáveis com percentuais\n\n" +
+                                "**CACHE:** Relatórios são cacheados para melhor performance.\n\n" +
+                                "**CÁLCULOS:**\n" +
+                                "- Ticket médio = Faturamento total / Total de agendamentos\n" +
+                                "- Faturamento por dia = Faturamento total / Dias do período\n" +
+                                "- Percentual de serviço = (Faturamento do serviço / Faturamento total) × 100")
+                        .security(List.of(new SecurityRequirement().addList("Bearer")))
+                        .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
+                                .name("periodo")
+                                .in("query")
+                                .required(false)
+                                .description("Período do relatório: DIA, SEMANA ou MES (padrão: MES)")
+                                .schema(new StringSchema()
+                                        ._enum(List.of("DIA", "SEMANA", "MES"))
+                                        ._default("MES")
+                                        .example("MES")))
+                        .responses(new ApiResponses()
+                                .addApiResponse("200", new ApiResponse()
+                                        .description("Relatório financeiro gerado com sucesso")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(relatorioFinanceiroSchema())
+                                                        .examples(Map.of(
+                                                                "mensal", new Example()
+                                                                        .summary("Relatório mensal")
+                                                                        .description("Relatório financeiro dos últimos 30 dias")
+                                                                        .value(relatorioFinanceiroMensalExample()),
+                                                                "semanal", new Example()
+                                                                        .summary("Relatório semanal")
+                                                                        .description("Relatório financeiro dos últimos 7 dias")
+                                                                        .value(relatorioFinanceiroSemanalExample()),
+                                                                "diario", new Example()
+                                                                        .summary("Relatório diário")
+                                                                        .description("Relatório financeiro das últimas 24 horas")
+                                                                        .value(relatorioFinanceiroDiarioExample())
+                                                        )))))
+                                .addApiResponse("400", new ApiResponse()
+                                        .description("Período inválido")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Período do relatório não pode ser nulo"))))
+                                .addApiResponse("401", new ApiResponse()
+                                        .description("Não autenticado - Token JWT inválido ou expirado"))
+                                .addApiResponse("403", new ApiResponse()
+                                        .description("Não autorizado - Role BARBEARIA necessário"))
+                                .addApiResponse("500", new ApiResponse()
+                                        .description("Erro interno do servidor"))));
+    }
+    
+    private Schema<?> relatorioFinanceiroSchema() {
+        Schema<?> schema = new Schema<>();
+        schema.setType("object");
+        schema.setDescription("Relatório financeiro completo da barbearia");
+        schema.addProperty("periodo", new StringSchema()
+                .description("Período do relatório")
+                .example("MES"));
+        schema.addProperty("dataInicio", new StringSchema()
+                .format("date-time")
+                .description("Data/hora de início do período")
+                .example("2025-10-19T00:51:00"));
+        schema.addProperty("dataFim", new StringSchema()
+                .format("date-time")
+                .description("Data/hora de fim do período")
+                .example("2025-11-18T00:51:00"));
+        schema.addProperty("faturamentoTotal", new NumberSchema()
+                .format("double")
+                .description("Faturamento total do período (R$)")
+                .example(15000.00));
+        schema.addProperty("totalAgendamentos", new NumberSchema()
+                .format("int64")
+                .description("Total de agendamentos concluídos")
+                .example(300));
+        schema.addProperty("ticketMedio", new NumberSchema()
+                .format("double")
+                .description("Valor médio por agendamento (R$)")
+                .example(50.00));
+        schema.addProperty("faturamentoPorDia", new NumberSchema()
+                .format("double")
+                .description("Faturamento médio por dia (R$)")
+                .example(500.00));
+        
+        Schema<?> servicoRentabilidadeSchema = new Schema<>();
+        servicoRentabilidadeSchema.setType("object");
+        servicoRentabilidadeSchema.addProperty("servicoId", new NumberSchema()
+                .format("int64")
+                .example(5));
+        servicoRentabilidadeSchema.addProperty("servicoNome", new StringSchema()
+                .example("Corte Degradê"));
+        servicoRentabilidadeSchema.addProperty("totalRealizacoes", new NumberSchema()
+                .format("int64")
+                .example(150));
+        servicoRentabilidadeSchema.addProperty("faturamentoTotal", new NumberSchema()
+                .format("double")
+                .example(7500.00));
+        servicoRentabilidadeSchema.addProperty("percentualFaturamento", new NumberSchema()
+                .format("double")
+                .example(50.00));
+        
+        schema.addProperty("servicosMaisRentaveis", new ArraySchema()
+                .items(servicoRentabilidadeSchema)
+                .description("Top 5 serviços mais rentáveis do período"));
+        
+        return schema;
+    }
+    
+    private Object relatorioFinanceiroMensalExample() {
+        return """
+                {
+                  "periodo": "MES",
+                  "dataInicio": "2025-10-19T00:51:00",
+                  "dataFim": "2025-11-18T00:51:00",
+                  "faturamentoTotal": 15000.00,
+                  "totalAgendamentos": 300,
+                  "ticketMedio": 50.00,
+                  "faturamentoPorDia": 500.00,
+                  "servicosMaisRentaveis": [
+                    {
+                      "servicoId": 5,
+                      "servicoNome": "Corte Degradê",
+                      "totalRealizacoes": 150,
+                      "faturamentoTotal": 7500.00,
+                      "percentualFaturamento": 50.00
+                    },
+                    {
+                      "servicoId": 3,
+                      "servicoNome": "Barba Completa",
+                      "totalRealizacoes": 80,
+                      "faturamentoTotal": 3200.00,
+                      "percentualFaturamento": 21.33
+                    },
+                    {
+                      "servicoId": 8,
+                      "servicoNome": "Manicure Premium",
+                      "totalRealizacoes": 50,
+                      "faturamentoTotal": 2000.00,
+                      "percentualFaturamento": 13.33
+                    },
+                    {
+                      "servicoId": 12,
+                      "servicoNome": "Sombrancelha",
+                      "totalRealizacoes": 60,
+                      "faturamentoTotal": 1800.00,
+                      "percentualFaturamento": 12.00
+                    },
+                    {
+                      "servicoId": 1,
+                      "servicoNome": "Corte Simples",
+                      "totalRealizacoes": 30,
+                      "faturamentoTotal": 900.00,
+                      "percentualFaturamento": 6.00
+                    }
+                  ]
+                }
+                """;
+    }
+    
+    private Object relatorioFinanceiroSemanalExample() {
+        return """
+                {
+                  "periodo": "SEMANA",
+                  "dataInicio": "2025-11-11T00:51:00",
+                  "dataFim": "2025-11-18T00:51:00",
+                  "faturamentoTotal": 3500.00,
+                  "totalAgendamentos": 70,
+                  "ticketMedio": 50.00,
+                  "faturamentoPorDia": 500.00,
+                  "servicosMaisRentaveis": [
+                    {
+                      "servicoId": 5,
+                      "servicoNome": "Corte Degradê",
+                      "totalRealizacoes": 35,
+                      "faturamentoTotal": 1750.00,
+                      "percentualFaturamento": 50.00
+                    },
+                    {
+                      "servicoId": 3,
+                      "servicoNome": "Barba Completa",
+                      "totalRealizacoes": 20,
+                      "faturamentoTotal": 800.00,
+                      "percentualFaturamento": 22.86
+                    },
+                    {
+                      "servicoId": 8,
+                      "servicoNome": "Manicure Premium",
+                      "totalRealizacoes": 15,
+                      "faturamentoTotal": 600.00,
+                      "percentualFaturamento": 17.14
+                    }
+                  ]
+                }
+                """;
+    }
+    
+    private Object relatorioFinanceiroDiarioExample() {
+        return """
+                {
+                  "periodo": "DIA",
+                  "dataInicio": "2025-11-17T00:51:00",
+                  "dataFim": "2025-11-18T00:51:00",
+                  "faturamentoTotal": 500.00,
+                  "totalAgendamentos": 10,
+                  "ticketMedio": 50.00,
+                  "faturamentoPorDia": 500.00,
+                  "servicosMaisRentaveis": [
+                    {
+                      "servicoId": 5,
+                      "servicoNome": "Corte Degradê",
+                      "totalRealizacoes": 5,
+                      "faturamentoTotal": 250.00,
+                      "percentualFaturamento": 50.00
+                    },
+                    {
+                      "servicoId": 3,
+                      "servicoNome": "Barba Completa",
+                      "totalRealizacoes": 3,
+                      "faturamentoTotal": 120.00,
+                      "percentualFaturamento": 24.00
+                    },
+                    {
+                      "servicoId": 8,
+                      "servicoNome": "Manicure Premium",
+                      "totalRealizacoes": 2,
+                      "faturamentoTotal": 80.00,
+                      "percentualFaturamento": 16.00
+                    }
+                  ]
                 }
                 """;
     }
