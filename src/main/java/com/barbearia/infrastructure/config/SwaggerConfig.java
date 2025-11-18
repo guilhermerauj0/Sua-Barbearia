@@ -50,7 +50,10 @@ public class SwaggerConfig {
                         .addPathItem("/api/barbearias/servicos", criarServicoPath())
                         // Funcionários
                         .addPathItem("/api/barbearias/meus-funcionarios", meusFuncionariosPath())
-                        // Agendamentos
+                        // Agendamentos - Barbearia
+                        .addPathItem("/api/barbearias/meus-agendamentos", meusAgendamentosPath())
+                        .addPathItem("/api/barbearias/agendamentos/{id}", atualizarStatusAgendamentoPath())
+                        // Agendamentos - Cliente
                         .addPathItem("/api/agendamentos", criarAgendamentoPath())
                         .addPathItem("/api/agendamentos/{id}", buscarPorIdPath()));
     }
@@ -1607,6 +1610,294 @@ public class SwaggerConfig {
                     "dataAtualizacao": "2025-01-20T16:20:00"
                   }
                 ]
+                """;
+    }
+    
+    private PathItem meusAgendamentosPath() {
+        return new PathItem()
+                .get(new Operation()
+                        .tags(List.of("Gestão de Agendamentos - Barbearia"))
+                        .summary("Listar meus agendamentos")
+                        .description("Lista agendamentos da barbearia autenticada com filtro opcional por data.\n\n" +
+                                "**AUTENTICAÇÃO:** Endpoint protegido - requer token JWT.\n\n" +
+                                "**AUTORIZAÇÃO:** Apenas usuários com role BARBEARIA podem acessar.\n\n" +
+                                "**FILTRO POR DATA:** Parâmetro opcional 'data' (formato yyyy-MM-dd).\n" +
+                                "- Se fornecido: retorna apenas agendamentos daquela data específica\n" +
+                                "- Se omitido: retorna todos os agendamentos da barbearia\n\n" +
+                                "**DADOS RETORNADOS:** Informações completas incluindo:\n" +
+                                "- Dados do agendamento (id, dataHora, status, observações)\n" +
+                                "- Dados do cliente (id, nome, telefone)\n" +
+                                "- Dados do serviço (id, nome, tipo, preço, duração)\n" +
+                                "- Dados do funcionário (id, nome, profissão)")
+                        .security(List.of(new SecurityRequirement().addList("Bearer")))
+                        .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
+                                .name("data")
+                                .in("query")
+                                .required(false)
+                                .description("Data para filtrar agendamentos (formato: yyyy-MM-dd). Exemplo: 2025-12-01")
+                                .schema(new StringSchema()
+                                        .format("date")
+                                        .example("2025-12-01")))
+                        .responses(new ApiResponses()
+                                .addApiResponse("200", new ApiResponse()
+                                        .description("Lista de agendamentos retornada com sucesso")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(new ArraySchema()
+                                                                .items(agendamentoBarbeariaSchema()))
+                                                        .example(agendamentoBarbeariaListExample()))))
+                                .addApiResponse("400", new ApiResponse()
+                                        .description("Formato de data inválido")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Formato de data inválido. Use yyyy-MM-dd"))))
+                                .addApiResponse("401", new ApiResponse()
+                                        .description("Não autenticado - Token JWT inválido ou expirado"))
+                                .addApiResponse("403", new ApiResponse()
+                                        .description("Não autorizado - Role BARBEARIA necessário"))
+                                .addApiResponse("500", new ApiResponse()
+                                        .description("Erro interno do servidor"))));
+    }
+    
+    private PathItem atualizarStatusAgendamentoPath() {
+        return new PathItem()
+                .patch(new Operation()
+                        .tags(List.of("Gestão de Agendamentos - Barbearia"))
+                        .summary("Atualizar status do agendamento")
+                        .description("Atualiza o status de um agendamento da barbearia autenticada.\n\n" +
+                                "**AUTENTICAÇÃO:** Endpoint protegido - requer token JWT.\n\n" +
+                                "**AUTORIZAÇÃO:** Apenas usuários com role BARBEARIA podem acessar.\n\n" +
+                                "**PROPRIEDADE:** O agendamento deve pertencer à barbearia autenticada.\n\n" +
+                                "**IDEMPOTÊNCIA:** Chamar com o mesmo status múltiplas vezes não gera erro.\n\n" +
+                                "**STATUS PERMITIDOS:**\n" +
+                                "- PENDENTE: Aguardando confirmação\n" +
+                                "- CONFIRMADO: Agendamento confirmado pela barbearia\n" +
+                                "- CONCLUIDO: Serviço realizado\n" +
+                                "- CANCELADO: Agendamento cancelado\n\n" +
+                                "**REGRAS DE TRANSIÇÃO:**\n" +
+                                "- ❌ Não pode confirmar agendamento cancelado\n" +
+                                "- ❌ Não pode cancelar agendamento concluído\n" +
+                                "- ✅ Pode sempre marcar como concluído\n" +
+                                "- ✅ Pode cancelar agendamento pendente ou confirmado\n\n" +
+                                "**NOTIFICAÇÕES:** Cliente é notificado automaticamente sobre mudanças de status.")
+                        .security(List.of(new SecurityRequirement().addList("Bearer")))
+                        .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
+                                .name("id")
+                                .in("path")
+                                .required(true)
+                                .description("ID do agendamento a ser atualizado")
+                                .schema(new NumberSchema()
+                                        .format("int64")
+                                        .example(100)))
+                        .requestBody(new RequestBody()
+                                .description("Novo status do agendamento")
+                                .required(true)
+                                .content(new Content()
+                                        .addMediaType("application/json", new MediaType()
+                                                .schema(agendamentoUpdateSchema())
+                                                .examples(Map.of(
+                                                        "confirmar", new Example()
+                                                                .summary("Confirmar agendamento")
+                                                                .description("Muda status de PENDENTE para CONFIRMADO")
+                                                                .value(agendamentoUpdateExampleConfirmar()),
+                                                        "concluir", new Example()
+                                                                .summary("Concluir agendamento")
+                                                                .description("Marca agendamento como CONCLUIDO após realização do serviço")
+                                                                .value(agendamentoUpdateExampleConcluir()),
+                                                        "cancelar", new Example()
+                                                                .summary("Cancelar agendamento")
+                                                                .description("Cancela agendamento (não pode ser cancelado se já concluído)")
+                                                                .value(agendamentoUpdateExampleCancelar())
+                                                )))))
+                        .responses(new ApiResponses()
+                                .addApiResponse("200", new ApiResponse()
+                                        .description("Status atualizado com sucesso")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(agendamentoResponseSchema())
+                                                        .example(agendamentoUpdateResponseExample()))))
+                                .addApiResponse("400", new ApiResponse()
+                                        .description("Transição de status inválida")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Não é possível confirmar um agendamento cancelado"))))
+                                .addApiResponse("401", new ApiResponse()
+                                        .description("Não autenticado - Token JWT inválido ou expirado"))
+                                .addApiResponse("403", new ApiResponse()
+                                        .description("Não autorizado - Agendamento não pertence à barbearia")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Este agendamento não pertence à sua barbearia"))))
+                                .addApiResponse("404", new ApiResponse()
+                                        .description("Agendamento não encontrado")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Agendamento com ID 999 não existe"))))
+                                .addApiResponse("500", new ApiResponse()
+                                        .description("Erro interno do servidor"))));
+    }
+    
+    private Schema<?> agendamentoBarbeariaSchema() {
+        Schema<?> schema = new Schema<>();
+        schema.setType("object");
+        schema.addProperty("id", new NumberSchema()
+                .format("int64")
+                .description("ID do agendamento")
+                .example(100));
+        schema.addProperty("dataHora", new StringSchema()
+                .format("date-time")
+                .description("Data e hora do agendamento")
+                .example("2025-12-01T14:00:00"));
+        schema.addProperty("status", new StringSchema()
+                .description("Status do agendamento")
+                .example("PENDENTE"));
+        schema.addProperty("observacoes", new StringSchema()
+                .description("Observações do agendamento")
+                .example("Corte degradê"));
+        schema.addProperty("clienteId", new NumberSchema()
+                .format("int64")
+                .description("ID do cliente")
+                .example(10));
+        schema.addProperty("clienteNome", new StringSchema()
+                .description("Nome do cliente")
+                .example("João Silva"));
+        schema.addProperty("clienteTelefone", new StringSchema()
+                .description("Telefone do cliente")
+                .example("(11) 98765-4321"));
+        schema.addProperty("servicoId", new NumberSchema()
+                .format("int64")
+                .description("ID do serviço")
+                .example(5));
+        schema.addProperty("servicoNome", new StringSchema()
+                .description("Nome do serviço")
+                .example("Corte Degradê"));
+        schema.addProperty("servicoTipo", new StringSchema()
+                .description("Tipo do serviço")
+                .example("CORTE"));
+        schema.addProperty("servicoPreco", new NumberSchema()
+                .format("double")
+                .description("Preço do serviço")
+                .example(50.00));
+        schema.addProperty("servicoDuracao", new NumberSchema()
+                .format("int32")
+                .description("Duração do serviço em minutos")
+                .example(30));
+        schema.addProperty("funcionarioId", new NumberSchema()
+                .format("int64")
+                .description("ID do funcionário")
+                .example(3));
+        schema.addProperty("funcionarioNome", new StringSchema()
+                .description("Nome do funcionário")
+                .example("Carlos Barbeiro"));
+        schema.addProperty("funcionarioProfissao", new StringSchema()
+                .description("Profissão do funcionário")
+                .example("BARBEIRO"));
+        schema.addProperty("dataCriacao", new StringSchema()
+                .format("date-time")
+                .description("Data de criação do agendamento")
+                .example("2025-11-18T10:00:00"));
+        schema.addProperty("dataAtualizacao", new StringSchema()
+                .format("date-time")
+                .description("Data da última atualização")
+                .example("2025-11-18T10:00:00"));
+        return schema;
+    }
+    
+    private Object agendamentoBarbeariaListExample() {
+        return """
+                [
+                  {
+                    "id": 100,
+                    "dataHora": "2025-12-01T14:00:00",
+                    "status": "PENDENTE",
+                    "observacoes": "Corte degradê",
+                    "clienteId": 10,
+                    "clienteNome": "João Silva",
+                    "clienteTelefone": "(11) 98765-4321",
+                    "servicoId": 5,
+                    "servicoNome": "Corte Degradê",
+                    "servicoTipo": "CORTE",
+                    "servicoPreco": 50.00,
+                    "servicoDuracao": 30,
+                    "funcionarioId": 3,
+                    "funcionarioNome": "Carlos Barbeiro",
+                    "funcionarioProfissao": "BARBEIRO",
+                    "dataCriacao": "2025-11-18T10:00:00",
+                    "dataAtualizacao": "2025-11-18T10:00:00"
+                  },
+                  {
+                    "id": 101,
+                    "dataHora": "2025-12-01T15:00:00",
+                    "status": "CONFIRMADO",
+                    "observacoes": "Manicure completa",
+                    "clienteId": 11,
+                    "clienteNome": "Maria Santos",
+                    "clienteTelefone": "(11) 91234-5678",
+                    "servicoId": 8,
+                    "servicoNome": "Manicure Premium",
+                    "servicoTipo": "MANICURE",
+                    "servicoPreco": 40.00,
+                    "servicoDuracao": 45,
+                    "funcionarioId": 4,
+                    "funcionarioNome": "Ana Manicure",
+                    "funcionarioProfissao": "MANICURE",
+                    "dataCriacao": "2025-11-18T11:00:00",
+                    "dataAtualizacao": "2025-11-18T12:00:00"
+                  }
+                ]
+                """;
+    }
+    
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private Schema<?> agendamentoUpdateSchema() {
+        Schema statusSchema = new StringSchema()
+                .description("Novo status do agendamento")
+                .example("CONFIRMADO");
+        statusSchema._enum(List.of("PENDENTE", "CONFIRMADO", "CONCLUIDO", "CANCELADO"));
+        
+        return new ObjectSchema()
+                .addProperty("status", statusSchema)
+                .required(List.of("status"));
+    }
+    
+    private Object agendamentoUpdateExampleConfirmar() {
+        return """
+                {
+                  "status": "CONFIRMADO"
+                }
+                """;
+    }
+    
+    private Object agendamentoUpdateExampleConcluir() {
+        return """
+                {
+                  "status": "CONCLUIDO"
+                }
+                """;
+    }
+    
+    private Object agendamentoUpdateExampleCancelar() {
+        return """
+                {
+                  "status": "CANCELADO"
+                }
+                """;
+    }
+    
+    private Object agendamentoUpdateResponseExample() {
+        return """
+                {
+                  "id": 100,
+                  "clienteId": 10,
+                  "barbeariaId": 1,
+                  "servicoId": 5,
+                  "funcionarioId": 3,
+                  "dataHora": "2025-12-01T14:00:00",
+                  "status": "CONFIRMADO",
+                  "observacoes": "Corte degradê",
+                  "dataCriacao": "2025-11-18T10:00:00",
+                  "dataAtualizacao": "2025-11-18T13:30:00"
+                }
                 """;
     }
 }
