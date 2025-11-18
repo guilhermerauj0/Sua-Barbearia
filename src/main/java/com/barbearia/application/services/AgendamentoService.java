@@ -805,7 +805,7 @@ public class AgendamentoService {
             // Dados do funcionário
             funcionario != null ? funcionario.getId() : null,
             funcionario != null ? funcionario.getNome() : "Funcionário não encontrado",
-            funcionario != null ? funcionario.getProfissao() : "BARBEIRO",
+            funcionario != null ? funcionario.getPerfilType().name() : "BARBEIRO",
             
             // Metadados
             agendamento.getDataCriacao(),
