@@ -99,6 +99,13 @@
             <version>4.0.0</version>
         </dependency>
 
+        <!-- Twilio para WhatsApp -->
+        <dependency>
+            <groupId>com.twilio.sdk</groupId>
+            <artifactId>twilio</artifactId>
+            <version>10.4.0</version>
+        </dependency>
+
         <!-- Lombok (opcional, mas recomendado) -->
         <dependency>
             <groupId>org.projectlombok</groupId>
