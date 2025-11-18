@@ -446,10 +446,11 @@ class AgendamentoServiceTest {
         // Mocks necessários
         com.barbearia.infrastructure.persistence.entities.JpaServico servico = 
                 mock(com.barbearia.infrastructure.persistence.entities.JpaServico.class);
-        com.barbearia.infrastructure.persistence.entities.JpaFuncionarioBarbeiro barbeiro = 
-                new com.barbearia.infrastructure.persistence.entities.JpaFuncionarioBarbeiro();
+        com.barbearia.infrastructure.persistence.entities.JpaFuncionario barbeiro = 
+                new com.barbearia.infrastructure.persistence.entities.JpaFuncionario();
         barbeiro.setId(1L);
         barbeiro.setBarbeariaId(1L);
+        barbeiro.setPerfilType(com.barbearia.domain.enums.TipoPerfil.BARBEIRO);
         
         when(servicoRepository.findById(1L))
                 .thenReturn(java.util.Optional.of(servico));
@@ -541,10 +542,11 @@ class AgendamentoServiceTest {
         // Mocks
         com.barbearia.infrastructure.persistence.entities.JpaServico servico = 
                 mock(com.barbearia.infrastructure.persistence.entities.JpaServico.class);
-        com.barbearia.infrastructure.persistence.entities.JpaFuncionarioBarbeiro barbeiro = 
-                new com.barbearia.infrastructure.persistence.entities.JpaFuncionarioBarbeiro();
+        com.barbearia.infrastructure.persistence.entities.JpaFuncionario barbeiro = 
+                new com.barbearia.infrastructure.persistence.entities.JpaFuncionario();
         barbeiro.setId(1L);
         barbeiro.setBarbeariaId(1L);
+        barbeiro.setPerfilType(com.barbearia.domain.enums.TipoPerfil.BARBEIRO);
         
         when(servicoRepository.findById(1L)).thenReturn(java.util.Optional.of(servico));
         when(funcionarioRepository.findById(1L)).thenReturn(java.util.Optional.of(barbeiro));
@@ -587,10 +589,11 @@ class AgendamentoServiceTest {
         // Mocks
         com.barbearia.infrastructure.persistence.entities.JpaServico servico = 
                 mock(com.barbearia.infrastructure.persistence.entities.JpaServico.class);
-        com.barbearia.infrastructure.persistence.entities.JpaFuncionarioBarbeiro barbeiro = 
-                new com.barbearia.infrastructure.persistence.entities.JpaFuncionarioBarbeiro();
+        com.barbearia.infrastructure.persistence.entities.JpaFuncionario barbeiro = 
+                new com.barbearia.infrastructure.persistence.entities.JpaFuncionario();
         barbeiro.setId(1L);
         barbeiro.setBarbeariaId(1L);
+        barbeiro.setPerfilType(com.barbearia.domain.enums.TipoPerfil.BARBEIRO);
         
         when(servicoRepository.findById(1L)).thenReturn(java.util.Optional.of(servico));
         when(funcionarioRepository.findById(1L)).thenReturn(java.util.Optional.of(barbeiro));
