@@ -17,6 +17,7 @@ import io.swagger.v3.oas.models.Operation;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -34,7 +35,39 @@ public class SwaggerConfig {
                                 .type(SecurityScheme.Type.HTTP)
                                 .scheme("bearer")
                                 .bearerFormat("JWT")
-                                .description("JWT Bearer token para autenticação")))
+                                .description("JWT Bearer token para autenticação"))
+                        // Schemas para DTOs de Exceções
+                        .addSchemas("FeriadoExcecaoRequest", new ObjectSchema()
+                                .addProperty("data", new Schema<>().type("string").format("date").description("Data da exceção"))
+                                .addProperty("descricao", new Schema<>().type("string").description("Descrição da exceção"))
+                                .addProperty("tipo", new StringSchema()
+                                        .addEnumItem("FECHADO")
+                                        .addEnumItem("HORARIO_ESPECIAL")
+                                        .description("Tipo de exceção"))
+                                .addProperty("horaAbertura", new Schema<>().type("string").format("time").description("Hora de abertura (apenas para HORARIO_ESPECIAL)"))
+                                .addProperty("horaFechamento", new Schema<>().type("string").format("time").description("Hora de fechamento (apenas para HORARIO_ESPECIAL)")))
+                        .addSchemas("FeriadoExcecaoResponse", new ObjectSchema()
+                                .addProperty("id", new Schema<>().type("integer").format("int64"))
+                                .addProperty("barbeariaId", new Schema<>().type("integer").format("int64"))
+                                .addProperty("data", new Schema<>().type("string").format("date"))
+                                .addProperty("descricao", new Schema<>().type("string"))
+                                .addProperty("tipo", new StringSchema()
+                                        .addEnumItem("FECHADO")
+                                        .addEnumItem("HORARIO_ESPECIAL"))
+                                .addProperty("horaAbertura", new Schema<>().type("string").format("time").nullable(true))
+                                .addProperty("horaFechamento", new Schema<>().type("string").format("time").nullable(true))
+                                .addProperty("ativo", new Schema<>().type("boolean")))
+                        .addSchemas("HorarioFuncionamentoRequest", new ObjectSchema()
+                                .addProperty("diaSemana", new Schema<>().type("integer").minimum(BigDecimal.ONE).maximum(BigDecimal.valueOf(7)).description("Dia da semana (1=Segunda, 7=Domingo)"))
+                                .addProperty("horaAbertura", new Schema<>().type("string").format("time"))
+                                .addProperty("horaFechamento", new Schema<>().type("string").format("time")))
+                        .addSchemas("HorarioFuncionamentoResponse", new ObjectSchema()
+                                .addProperty("id", new Schema<>().type("integer").format("int64"))
+                                .addProperty("barbeariaId", new Schema<>().type("integer").format("int64"))
+                                .addProperty("diaSemana", new Schema<>().type("integer"))
+                                .addProperty("horaAbertura", new Schema<>().type("string").format("time"))
+                                .addProperty("horaFechamento", new Schema<>().type("string").format("time"))
+                                .addProperty("ativo", new Schema<>().type("boolean"))))
                 .paths(new io.swagger.v3.oas.models.Paths()
                         // Clientes
                         .addPathItem("/api/auth/cliente/registrar", registrarClientePath())
@@ -49,6 +82,10 @@ public class SwaggerConfig {
                         .addPathItem("/api/barbearias/{id}/horarios-disponiveis", obterHorariosDisponiveisPath())
                         .addPathItem("/api/barbearias/servicos", criarServicoPath())
                         .addPathItem("/api/barbearias/horarios", criarHorarioFuncionamentoPath())
+                        // Exceções de Horário (Feriados e Fechamentos)
+                        .addPathItem("/api/barbearias/excecoes", listarExcecoesPath())
+                        .addPathItem("/api/barbearias/excecoes/periodo", listarExcecoesPorPeriodoPath())
+                        .addPathItem("/api/barbearias/excecoes/{id}", gerenciarExcecaoPath())
                         // Funcionários
                         .addPathItem("/api/barbearias/meus-funcionarios", meusFuncionariosPath())
                         // Agendamentos - Barbearia
@@ -1284,6 +1321,271 @@ public class SwaggerConfig {
                     "data": "2025-11-20",
                     "horarioInicio": "09:00:00",
                     "horarioFim": "09:30:00"
+                  }
+                ]
+                """;
+    }
+
+    // ===== EXCEÇÕES DE HORÁRIO (FERIADOS E FECHAMENTOS) =====
+    
+    private PathItem listarExcecoesPath() {
+        return new PathItem()
+                .get(new Operation()
+                        .tags(List.of("Gestão de Horários"))
+                        .summary("Listar todas as exceções de horário")
+                        .description("Retorna todas as exceções de horário (feriados, fechamentos, horários especiais) " +
+                                "cadastradas para a barbearia autenticada. Requer autenticação JWT como barbearia.")
+                        .addSecurityItem(new SecurityRequirement().addList("Bearer"))
+                        .responses(new ApiResponses()
+                                .addApiResponse("200", new ApiResponse()
+                                        .description("Lista de exceções retornada com sucesso")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(new ArraySchema()
+                                                                .items(new Schema<>()
+                                                                        .$ref("#/components/schemas/FeriadoExcecaoResponse")))
+                                                        .example(listarExcecoesExample()))))
+                                .addApiResponse("401", new ApiResponse()
+                                        .description("Token JWT inválido ou ausente"))
+                                .addApiResponse("403", new ApiResponse()
+                                        .description("Acesso negado - apenas barbearias"))
+                                .addApiResponse("500", new ApiResponse()
+                                        .description("Erro interno do servidor"))))
+                .post(new Operation()
+                        .tags(List.of("Gestão de Horários"))
+                        .summary("Criar exceção de horário")
+                        .description("Cria uma nova exceção de horário (feriado, fechamento ou horário especial) " +
+                                "para a barbearia autenticada. Não permite duplicatas na mesma data.")
+                        .addSecurityItem(new SecurityRequirement().addList("Bearer"))
+                        .requestBody(new RequestBody()
+                                .required(true)
+                                .content(new Content()
+                                        .addMediaType("application/json", new MediaType()
+                                                .schema(new Schema<>()
+                                                        .$ref("#/components/schemas/FeriadoExcecaoRequest"))
+                                                .examples(Map.of(
+                                                        "fechado", new Example()
+                                                                .summary("Feriado - Estabelecimento Fechado")
+                                                                .value(excecaoFechadoExample()),
+                                                        "horarioEspecial", new Example()
+                                                                .summary("Horário Especial")
+                                                                .value(excecaoHorarioEspecialExample()))))))
+                        .responses(new ApiResponses()
+                                .addApiResponse("201", new ApiResponse()
+                                        .description("Exceção criada com sucesso")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(new Schema<>()
+                                                                .$ref("#/components/schemas/FeriadoExcecaoResponse"))
+                                                        .example(excecaoResponseExample()))))
+                                .addApiResponse("400", new ApiResponse()
+                                        .description("Dados inválidos ou exceção duplicada"))
+                                .addApiResponse("401", new ApiResponse()
+                                        .description("Token JWT inválido ou ausente"))
+                                .addApiResponse("403", new ApiResponse()
+                                        .description("Acesso negado - apenas barbearias"))
+                                .addApiResponse("500", new ApiResponse()
+                                        .description("Erro interno do servidor"))));
+    }
+
+    private PathItem listarExcecoesPorPeriodoPath() {
+        return new PathItem()
+                .get(new Operation()
+                        .tags(List.of("Gestão de Horários"))
+                        .summary("Listar exceções em período específico")
+                        .description("Retorna exceções de horário cadastradas para a barbearia autenticada " +
+                                "dentro de um período específico. Útil para visualizar calendário de exceções.")
+                        .addSecurityItem(new SecurityRequirement().addList("Bearer"))
+                        .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
+                                .name("dataInicio")
+                                .in("query")
+                                .description("Data inicial do período (formato: yyyy-MM-dd)")
+                                .required(true)
+                                .schema(new Schema<>().type("string").format("date")))
+                        .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
+                                .name("dataFim")
+                                .in("query")
+                                .description("Data final do período (formato: yyyy-MM-dd)")
+                                .required(true)
+                                .schema(new Schema<>().type("string").format("date")))
+                        .responses(new ApiResponses()
+                                .addApiResponse("200", new ApiResponse()
+                                        .description("Lista de exceções no período")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(new ArraySchema()
+                                                                .items(new Schema<>()
+                                                                        .$ref("#/components/schemas/FeriadoExcecaoResponse")))
+                                                        .example(listarExcecoesExample()))))
+                                .addApiResponse("400", new ApiResponse()
+                                        .description("Parâmetros inválidos"))
+                                .addApiResponse("401", new ApiResponse()
+                                        .description("Token JWT inválido ou ausente"))
+                                .addApiResponse("403", new ApiResponse()
+                                        .description("Acesso negado - apenas barbearias"))
+                                .addApiResponse("500", new ApiResponse()
+                                        .description("Erro interno do servidor"))));
+    }
+
+    private PathItem gerenciarExcecaoPath() {
+        return new PathItem()
+                .get(new Operation()
+                        .tags(List.of("Gestão de Horários"))
+                        .summary("Buscar exceção por ID")
+                        .description("Retorna os detalhes de uma exceção específica da barbearia autenticada")
+                        .addSecurityItem(new SecurityRequirement().addList("Bearer"))
+                        .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
+                                .name("id")
+                                .in("path")
+                                .description("ID da exceção")
+                                .required(true)
+                                .schema(new Schema<>().type("integer").format("int64")))
+                        .responses(new ApiResponses()
+                                .addApiResponse("200", new ApiResponse()
+                                        .description("Exceção encontrada")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(new Schema<>()
+                                                                .$ref("#/components/schemas/FeriadoExcecaoResponse"))
+                                                        .example(excecaoResponseExample()))))
+                                .addApiResponse("404", new ApiResponse()
+                                        .description("Exceção não encontrada"))
+                                .addApiResponse("401", new ApiResponse()
+                                        .description("Token JWT inválido ou ausente"))
+                                .addApiResponse("403", new ApiResponse()
+                                        .description("Acesso negado"))
+                                .addApiResponse("500", new ApiResponse()
+                                        .description("Erro interno do servidor"))))
+                .put(new Operation()
+                        .tags(List.of("Gestão de Horários"))
+                        .summary("Atualizar exceção de horário")
+                        .description("Atualiza uma exceção de horário existente da barbearia autenticada")
+                        .addSecurityItem(new SecurityRequirement().addList("Bearer"))
+                        .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
+                                .name("id")
+                                .in("path")
+                                .description("ID da exceção")
+                                .required(true)
+                                .schema(new Schema<>().type("integer").format("int64")))
+                        .requestBody(new RequestBody()
+                                .required(true)
+                                .content(new Content()
+                                        .addMediaType("application/json", new MediaType()
+                                                .schema(new Schema<>()
+                                                        .$ref("#/components/schemas/FeriadoExcecaoRequest"))
+                                                .example(excecaoHorarioEspecialExample()))))
+                        .responses(new ApiResponses()
+                                .addApiResponse("200", new ApiResponse()
+                                        .description("Exceção atualizada com sucesso")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(new Schema<>()
+                                                                .$ref("#/components/schemas/FeriadoExcecaoResponse"))
+                                                        .example(excecaoResponseExample()))))
+                                .addApiResponse("400", new ApiResponse()
+                                        .description("Dados inválidos"))
+                                .addApiResponse("404", new ApiResponse()
+                                        .description("Exceção não encontrada"))
+                                .addApiResponse("401", new ApiResponse()
+                                        .description("Token JWT inválido ou ausente"))
+                                .addApiResponse("403", new ApiResponse()
+                                        .description("Acesso negado"))
+                                .addApiResponse("500", new ApiResponse()
+                                        .description("Erro interno do servidor"))))
+                .delete(new Operation()
+                        .tags(List.of("Gestão de Horários"))
+                        .summary("Remover exceção de horário")
+                        .description("Remove (desativa) uma exceção de horário da barbearia autenticada. " +
+                                "Utiliza soft delete, mantendo o registro no banco de dados.")
+                        .addSecurityItem(new SecurityRequirement().addList("Bearer"))
+                        .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
+                                .name("id")
+                                .in("path")
+                                .description("ID da exceção")
+                                .required(true)
+                                .schema(new Schema<>().type("integer").format("int64")))
+                        .responses(new ApiResponses()
+                                .addApiResponse("204", new ApiResponse()
+                                        .description("Exceção removida com sucesso"))
+                                .addApiResponse("404", new ApiResponse()
+                                        .description("Exceção não encontrada"))
+                                .addApiResponse("401", new ApiResponse()
+                                        .description("Token JWT inválido ou ausente"))
+                                .addApiResponse("403", new ApiResponse()
+                                        .description("Acesso negado"))
+                                .addApiResponse("500", new ApiResponse()
+                                        .description("Erro interno do servidor"))));
+    }
+
+    private String excecaoFechadoExample() {
+        return """
+                {
+                  "data": "2024-12-25",
+                  "descricao": "Natal - Estabelecimento Fechado",
+                  "tipo": "FECHADO"
+                }
+                """;
+    }
+
+    private String excecaoHorarioEspecialExample() {
+        return """
+                {
+                  "data": "2024-12-24",
+                  "descricao": "Véspera de Natal - Horário Especial",
+                  "tipo": "HORARIO_ESPECIAL",
+                  "horaAbertura": "08:00",
+                  "horaFechamento": "14:00"
+                }
+                """;
+    }
+
+    private String excecaoResponseExample() {
+        return """
+                {
+                  "id": 1,
+                  "barbeariaId": 1,
+                  "data": "2024-12-25",
+                  "descricao": "Natal - Estabelecimento Fechado",
+                  "tipo": "FECHADO",
+                  "horaAbertura": null,
+                  "horaFechamento": null,
+                  "ativo": true
+                }
+                """;
+    }
+
+    private String listarExcecoesExample() {
+        return """
+                [
+                  {
+                    "id": 1,
+                    "barbeariaId": 1,
+                    "data": "2024-12-25",
+                    "descricao": "Natal - Estabelecimento Fechado",
+                    "tipo": "FECHADO",
+                    "horaAbertura": null,
+                    "horaFechamento": null,
+                    "ativo": true
+                  },
+                  {
+                    "id": 2,
+                    "barbeariaId": 1,
+                    "data": "2024-12-24",
+                    "descricao": "Véspera de Natal - Horário Especial",
+                    "tipo": "HORARIO_ESPECIAL",
+                    "horaAbertura": "08:00:00",
+                    "horaFechamento": "14:00:00",
+                    "ativo": true
+                  },
+                  {
+                    "id": 3,
+                    "barbeariaId": 1,
+                    "data": "2025-01-01",
+                    "descricao": "Ano Novo",
+                    "tipo": "FECHADO",
+                    "horaAbertura": null,
+                    "horaFechamento": null,
+                    "ativo": true
                   }
                 ]
                 """;

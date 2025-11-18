@@ -53,6 +53,7 @@ public class BarbeariaController {
     private final AgendamentoService agendamentoService;
     private final FinanceiroService financeiroService;
     private final ClienteGestaoService clienteGestaoService;
+    private final com.barbearia.application.services.HorarioGestaoService horarioGestaoService;
     private final JwtService jwtService;
     
     public BarbeariaController(BarbeariaService barbeariaService, 
@@ -61,6 +62,7 @@ public class BarbeariaController {
                               AgendamentoService agendamentoService,
                               FinanceiroService financeiroService,
                               ClienteGestaoService clienteGestaoService,
+                              com.barbearia.application.services.HorarioGestaoService horarioGestaoService,
                               JwtService jwtService) {
         this.barbeariaService = barbeariaService;
         this.horarioService = horarioService;
@@ -68,6 +70,7 @@ public class BarbeariaController {
         this.agendamentoService = agendamentoService;
         this.financeiroService = financeiroService;
         this.clienteGestaoService = clienteGestaoService;
+        this.horarioGestaoService = horarioGestaoService;
         this.jwtService = jwtService;
     }
     
@@ -763,5 +766,197 @@ public class BarbeariaController {
             return ResponseEntity.internalServerError()
                     .body("Erro ao anonimizar cliente: " + e.getMessage());
         }
+    }
+    
+    // ===== ENDPOINTS PARA GESTÃO DE EXCEÇÕES/FERIADOS (T17) =====
+    
+    /**
+     * Lista todas as exceções de horário da barbearia autenticada.
+     * 
+     * Retorna 200 (OK) com lista de exceções.
+     * Retorna 401 (UNAUTHORIZED) se não autenticado.
+     * Retorna 500 (INTERNAL SERVER ERROR) em caso de erro.
+     */
+    @GetMapping("/excecoes")
+    @PreAuthorize("hasRole('BARBEARIA')")
+    public ResponseEntity<?> listarExcecoes(HttpServletRequest request) {
+        try {
+            Long barbeariaId = extrairBarbeariaId(request);
+            var excecoes = horarioGestaoService.listarExcecoes(barbeariaId);
+            return ResponseEntity.ok(excecoes);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body("Erro ao listar exceções: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Lista exceções de horário em um período específico.
+     * 
+     * @param dataInicio data inicial (formato: yyyy-MM-dd)
+     * @param dataFim data final (formato: yyyy-MM-dd)
+     * 
+     * Retorna 200 (OK) com lista de exceções no período.
+     * Retorna 401 (UNAUTHORIZED) se não autenticado.
+     * Retorna 500 (INTERNAL SERVER ERROR) em caso de erro.
+     */
+    @GetMapping("/excecoes/periodo")
+    @PreAuthorize("hasRole('BARBEARIA')")
+    public ResponseEntity<?> listarExcecoesNoPeriodo(
+            @RequestParam LocalDate dataInicio,
+            @RequestParam LocalDate dataFim,
+            HttpServletRequest request) {
+        try {
+            Long barbeariaId = extrairBarbeariaId(request);
+            var excecoes = horarioGestaoService.listarExcecoesNoPeriodo(barbeariaId, dataInicio, dataFim);
+            return ResponseEntity.ok(excecoes);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body("Erro ao listar exceções no período: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Busca uma exceção específica por ID.
+     * 
+     * @param id ID da exceção
+     * 
+     * Retorna 200 (OK) com dados da exceção.
+     * Retorna 401 (UNAUTHORIZED) se não autenticado.
+     * Retorna 403 (FORBIDDEN) se exceção não pertence à barbearia.
+     * Retorna 404 (NOT FOUND) se exceção não encontrada.
+     * Retorna 500 (INTERNAL SERVER ERROR) em caso de erro.
+     */
+    @GetMapping("/excecoes/{id}")
+    @PreAuthorize("hasRole('BARBEARIA')")
+    public ResponseEntity<?> buscarExcecaoPorId(
+            @PathVariable Long id,
+            HttpServletRequest request) {
+        try {
+            Long barbeariaId = extrairBarbeariaId(request);
+            var excecao = horarioGestaoService.buscarExcecaoPorId(id, barbeariaId);
+            return ResponseEntity.ok(excecao);
+        } catch (IllegalArgumentException e) {
+            if (e.getMessage().contains("não encontrada")) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+            }
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body("Erro ao buscar exceção: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Cria uma nova exceção de horário (feriado, fechamento especial, etc).
+     * 
+     * @param requestDto dados da exceção a criar
+     * 
+     * Retorna 201 (CREATED) com dados da exceção criada.
+     * Retorna 400 (BAD REQUEST) se dados inválidos ou já existe exceção para a data.
+     * Retorna 401 (UNAUTHORIZED) se não autenticado.
+     * Retorna 500 (INTERNAL SERVER ERROR) em caso de erro.
+     */
+    @PostMapping("/excecoes")
+    @PreAuthorize("hasRole('BARBEARIA')")
+    public ResponseEntity<?> criarExcecao(
+            @Valid @RequestBody com.barbearia.application.dto.FeriadoExcecaoRequestDto requestDto,
+            HttpServletRequest request) {
+        try {
+            Long barbeariaId = extrairBarbeariaId(request);
+            var excecao = horarioGestaoService.criarExcecao(barbeariaId, requestDto);
+            return ResponseEntity.status(HttpStatus.CREATED).body(excecao);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body("Erro ao criar exceção: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Atualiza uma exceção de horário existente.
+     * 
+     * @param id ID da exceção
+     * @param requestDto novos dados da exceção
+     * 
+     * Retorna 200 (OK) com dados da exceção atualizada.
+     * Retorna 400 (BAD REQUEST) se dados inválidos.
+     * Retorna 401 (UNAUTHORIZED) se não autenticado.
+     * Retorna 403 (FORBIDDEN) se exceção não pertence à barbearia.
+     * Retorna 404 (NOT FOUND) se exceção não encontrada.
+     * Retorna 500 (INTERNAL SERVER ERROR) em caso de erro.
+     */
+    @PutMapping("/excecoes/{id}")
+    @PreAuthorize("hasRole('BARBEARIA')")
+    public ResponseEntity<?> atualizarExcecao(
+            @PathVariable Long id,
+            @Valid @RequestBody com.barbearia.application.dto.FeriadoExcecaoRequestDto requestDto,
+            HttpServletRequest request) {
+        try {
+            Long barbeariaId = extrairBarbeariaId(request);
+            var excecao = horarioGestaoService.atualizarExcecao(id, barbeariaId, requestDto);
+            return ResponseEntity.ok(excecao);
+        } catch (IllegalArgumentException e) {
+            if (e.getMessage().contains("não encontrada")) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+            }
+            if (e.getMessage().contains("não pertence")) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+            }
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body("Erro ao atualizar exceção: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Remove (desativa) uma exceção de horário.
+     * 
+     * @param id ID da exceção
+     * 
+     * Retorna 204 (NO CONTENT) se removida com sucesso.
+     * Retorna 401 (UNAUTHORIZED) se não autenticado.
+     * Retorna 403 (FORBIDDEN) se exceção não pertence à barbearia.
+     * Retorna 404 (NOT FOUND) se exceção não encontrada.
+     * Retorna 500 (INTERNAL SERVER ERROR) em caso de erro.
+     */
+    @DeleteMapping("/excecoes/{id}")
+    @PreAuthorize("hasRole('BARBEARIA')")
+    public ResponseEntity<?> removerExcecao(
+            @PathVariable Long id,
+            HttpServletRequest request) {
+        try {
+            Long barbeariaId = extrairBarbeariaId(request);
+            horarioGestaoService.removerExcecao(id, barbeariaId);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            if (e.getMessage().contains("não encontrada")) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+            }
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body("Erro ao remover exceção: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Método auxiliar para extrair ID da barbearia do token JWT.
+     */
+    private Long extrairBarbeariaId(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new IllegalArgumentException("Token JWT não fornecido");
+        }
+        
+        String token = authHeader.substring(7);
+        Object userIdObj = jwtService.extractClaim(token, "userId");
+        if (userIdObj == null) {
+            throw new IllegalArgumentException("Token JWT inválido: userId não encontrado");
+        }
+        
+        return ((Number) userIdObj).longValue();
     }
 }
