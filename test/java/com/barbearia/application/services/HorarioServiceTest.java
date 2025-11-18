@@ -190,7 +190,7 @@ public class HorarioServiceTest {
         // Arrange
         JpaServicoCorte servico = criarServicoMock();
         JpaHorarioFuncionamento horario = criarHorarioFuncionamentoMock();
-        JpaFuncionarioBarbeiro funcionario = criarFuncionarioMock();
+        JpaFuncionario funcionario = criarFuncionarioMock();
         JpaProfissionalServico profissionalServico = criarProfissionalServicoMock();
         int diaSemana = dataManhã.getDayOfWeek().getValue();
         
@@ -237,13 +237,14 @@ public class HorarioServiceTest {
         );
     }
     
-    private JpaFuncionarioBarbeiro criarFuncionarioMock() {
-        JpaFuncionarioBarbeiro barbeiro = new JpaFuncionarioBarbeiro();
+    private JpaFuncionario criarFuncionarioMock() {
+        JpaFuncionario barbeiro = new JpaFuncionario();
         barbeiro.setId(FUNCIONARIO_ID);
         barbeiro.setNome("João");
         barbeiro.setEmail("joao@teste.com");
         barbeiro.setTelefone("123456789");
         barbeiro.setBarbeariaId(BARBEARIA_ID);
+        barbeiro.setPerfilType(com.barbearia.domain.enums.TipoPerfil.BARBEIRO);
         barbeiro.setAtivo(true);
         return barbeiro;
     }
