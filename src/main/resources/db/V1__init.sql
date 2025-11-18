@@ -36,40 +36,29 @@ CREATE TABLE IF NOT EXISTS barbearias (
     data_atualizacao TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabela de Funcionários (Herança: JOINED)
+-- Tabela de Funcionários (usando composição com perfis)
 CREATE TABLE IF NOT EXISTS funcionarios (
     id BIGSERIAL PRIMARY KEY,
     barbearia_id BIGINT NOT NULL,
     nome VARCHAR(100) NOT NULL,
     email VARCHAR(100) NOT NULL UNIQUE,
     telefone VARCHAR(20),
-    profissao VARCHAR(50) NOT NULL,
+    perfil_type VARCHAR(20) NOT NULL,
     ativo BOOLEAN NOT NULL DEFAULT TRUE,
     data_criacao TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     data_atualizacao TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_funcionarios_barbearia FOREIGN KEY (barbearia_id) REFERENCES barbearias(id) ON DELETE CASCADE
+    CONSTRAINT fk_funcionarios_barbearia FOREIGN KEY (barbearia_id) REFERENCES barbearias(id) ON DELETE CASCADE,
+    CONSTRAINT chk_perfil_type CHECK (perfil_type IN ('BARBEIRO', 'MANICURE', 'ESTETICISTA', 'COLORISTA'))
 );
 
--- Tabelas de subclasses de Funcionário (herança JOINED)
-CREATE TABLE IF NOT EXISTS funcionarios_barbeiro (
-    id BIGINT PRIMARY KEY,
-    CONSTRAINT fk_funcionarios_barbeiro FOREIGN KEY (id) REFERENCES funcionarios(id) ON DELETE CASCADE
-);
+-- Índice para otimizar buscas por perfil
+CREATE INDEX IF NOT EXISTS idx_funcionarios_perfil_type ON funcionarios(perfil_type);
 
-CREATE TABLE IF NOT EXISTS funcionarios_manicure (
-    id BIGINT PRIMARY KEY,
-    CONSTRAINT fk_funcionarios_manicure FOREIGN KEY (id) REFERENCES funcionarios(id) ON DELETE CASCADE
-);
+-- Comentário para documentação
+COMMENT ON COLUMN funcionarios.perfil_type IS 'Tipo de perfil profissional do funcionário (BARBEIRO, MANICURE, ESTETICISTA, COLORISTA)';
 
-CREATE TABLE IF NOT EXISTS funcionarios_esteticista (
-    id BIGINT PRIMARY KEY,
-    CONSTRAINT fk_funcionarios_esteticista FOREIGN KEY (id) REFERENCES funcionarios(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS funcionarios_colorista (
-    id BIGINT PRIMARY KEY,
-    CONSTRAINT fk_funcionarios_colorista FOREIGN KEY (id) REFERENCES funcionarios(id) ON DELETE CASCADE
-);
+-- Comentário para documentação
+COMMENT ON COLUMN funcionarios.perfil_type IS 'Tipo de perfil profissional do funcionário (BARBEIRO, MANICURE, ESTETICISTA, COLORISTA)';
 
 -- Tabela de Serviços
 CREATE TABLE IF NOT EXISTS servicos (
