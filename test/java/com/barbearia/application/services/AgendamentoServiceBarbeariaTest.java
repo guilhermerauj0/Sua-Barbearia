@@ -6,12 +6,12 @@ import com.barbearia.application.dto.AgendamentoUpdateDto;
 import com.barbearia.application.observers.AgendamentoEventObserver;
 import com.barbearia.application.observers.AgendamentoObserver;
 import com.barbearia.domain.enums.StatusAgendamento;
+import com.barbearia.domain.enums.TipoPerfil;
 import com.barbearia.domain.exceptions.AcessoNegadoException;
 import com.barbearia.domain.exceptions.AgendamentoNaoEncontradoException;
 import com.barbearia.infrastructure.persistence.entities.JpaAgendamento;
 import com.barbearia.infrastructure.persistence.entities.JpaCliente;
 import com.barbearia.infrastructure.persistence.entities.JpaFuncionario;
-import com.barbearia.infrastructure.persistence.entities.JpaFuncionarioBarbeiro;
 import com.barbearia.infrastructure.persistence.entities.JpaServico;
 import com.barbearia.infrastructure.persistence.entities.JpaServicoCorte;
 import com.barbearia.infrastructure.persistence.repositories.AgendamentoRepository;
@@ -112,10 +112,11 @@ class AgendamentoServiceBarbeariaTest {
         servico.setDuracao(30);
 
         // Funcionário
-        funcionario = new JpaFuncionarioBarbeiro();
+        funcionario = new JpaFuncionario();
         funcionario.setId(3L);
         funcionario.setNome("Carlos Barbeiro");
         funcionario.setBarbeariaId(barbeariaId);
+        funcionario.setPerfilType(TipoPerfil.BARBEIRO);
 
         // Agendamento
         agendamento = new JpaAgendamento();
