@@ -1,17 +1,16 @@
 package com.barbearia.infrastructure.persistence.entities;
 
+import com.barbearia.domain.enums.TipoPerfil;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 /**
- * Entidade JPA abstrata para Funcionario com estratégia JOINED.
- * Cada subclasse terá sua própria tabela.
+ * Entidade JPA para Funcionario usando composição com perfis.
+ * Não usa mais herança JOINED, armazena o perfil como enum.
  */
 @Entity
 @Table(name = "funcionarios")
-@Inheritance(strategy = InheritanceType.JOINED)
-@DiscriminatorColumn(name = "profissao", discriminatorType = DiscriminatorType.STRING)
-public abstract class JpaFuncionario {
+public class JpaFuncionario {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,16 +28,29 @@ public abstract class JpaFuncionario {
     @Column
     private String telefone;
     
+    @Enumerated(EnumType.STRING)
+    @Column(name = "perfil_type", nullable = false, length = 20)
+    private TipoPerfil perfilType;
+    
     @Column(nullable = false)
     private boolean ativo;
     
-    @Column(nullable = false)
+    @Column(name = "data_criacao", nullable = false)
     private LocalDateTime dataCriacao;
     
-    @Column(nullable = false)
+    @Column(name = "data_atualizacao", nullable = false)
     private LocalDateTime dataAtualizacao;
     
-    public abstract String getProfissao();
+    @PrePersist
+    protected void onCreate() {
+        dataCriacao = LocalDateTime.now();
+        dataAtualizacao = LocalDateTime.now();
+    }
+    
+    @PreUpdate
+    protected void onUpdate() {
+        dataAtualizacao = LocalDateTime.now();
+    }
     
     // Getters e Setters
     
@@ -80,6 +92,14 @@ public abstract class JpaFuncionario {
     
     public void setTelefone(String telefone) {
         this.telefone = telefone;
+    }
+    
+    public TipoPerfil getPerfilType() {
+        return perfilType;
+    }
+    
+    public void setPerfilType(TipoPerfil perfilType) {
+        this.perfilType = perfilType;
     }
     
     public boolean isAtivo() {
