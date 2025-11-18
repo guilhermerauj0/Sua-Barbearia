@@ -42,6 +42,7 @@ public class HorarioService {
     private final HorarioFuncionamentoRepository horarioFuncionamentoRepository;
     private final AgendamentoRepository agendamentoRepository;
     private final ServicoRepository servicoRepository;
+    private final HorarioGestaoService horarioGestaoService;
     
     // Intervalo padrão entre horários: 30 minutos
     private static final int INTERVALO_MINUTOS = 30;
@@ -51,12 +52,14 @@ public class HorarioService {
             ProfissionalServicoRepository profissionalServicoRepository,
             HorarioFuncionamentoRepository horarioFuncionamentoRepository,
             AgendamentoRepository agendamentoRepository,
-            ServicoRepository servicoRepository) {
+            ServicoRepository servicoRepository,
+            HorarioGestaoService horarioGestaoService) {
         this.funcionarioRepository = funcionarioRepository;
         this.profissionalServicoRepository = profissionalServicoRepository;
         this.horarioFuncionamentoRepository = horarioFuncionamentoRepository;
         this.agendamentoRepository = agendamentoRepository;
         this.servicoRepository = servicoRepository;
+        this.horarioGestaoService = horarioGestaoService;
     }
     
     /**
@@ -77,6 +80,12 @@ public class HorarioService {
         
         // Validar se a data não é no passado
         if (data.isBefore(LocalDate.now())) {
+            return horariosDisponiveis;
+        }
+        
+        // Verificar se há exceção/feriado para esta data (INTEGRAÇÃO T17)
+        if (!horarioGestaoService.estaAberto(barbeariaId, data, LocalTime.of(9, 0))) {
+            // Se a barbearia está fechada nesta data, retornar lista vazia
             return horariosDisponiveis;
         }
         
