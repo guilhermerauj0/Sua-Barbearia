@@ -390,7 +390,6 @@ public class AgendamentoService {
         }
         
         // Buscar agendamento
-        @SuppressWarnings({"null", "nullness"})
         Optional<JpaAgendamento> agendamentoOpt = agendamentoRepository.findById(agendamentoId);
         if (agendamentoOpt.isEmpty()) {
             throw new AgendamentoNaoEncontradoException(
@@ -420,7 +419,6 @@ public class AgendamentoService {
         agendamento.setStatus(statusNovo);
         agendamento.setDataAtualizacao(LocalDateTime.now());
         
-        @SuppressWarnings({"null", "nullness"})
         JpaAgendamento agendamentoAtualizado = agendamentoRepository.save(agendamento);
         
         // Notificar observers
