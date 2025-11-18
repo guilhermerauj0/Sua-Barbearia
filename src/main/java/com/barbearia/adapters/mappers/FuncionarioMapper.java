@@ -9,11 +9,7 @@ import org.springframework.stereotype.Component;
 /**
  * Mapper para conversão entre diferentes representações de Funcionario.
  * 
- * Suporta conversão polimórfica de todos os tipos de profissionais:
- * - BARBEIRO -> FuncionarioBarbeiro / JpaFuncionarioBarbeiro
- * - MANICURE -> FuncionarioManicure / JpaFuncionarioManicure
- * - ESTETICISTA -> FuncionarioEsteticista / JpaFuncionarioEsteticista
- * - COLORISTA -> FuncionarioColorista / JpaFuncionarioColorista
+ * Usa composição com perfis ao invés de herança de subclasses.
  * 
  * @author Sua Barbearia Team
  */
@@ -22,57 +18,26 @@ public class FuncionarioMapper {
     
     /**
      * Converte JpaFuncionario (do banco) para Funcionario de domínio.
-     * Realiza conversão polimórfica baseada na profissão.
      */
     public static Funcionario toDomain(JpaFuncionario jpaFuncionario) {
         if (jpaFuncionario == null) {
             return null;
         }
         
-        Funcionario funcionario = null;
+        Funcionario funcionario = new Funcionario(
+            jpaFuncionario.getId(),
+            jpaFuncionario.getNome(),
+            jpaFuncionario.getEmail(),
+            jpaFuncionario.getTelefone(),
+            jpaFuncionario.getBarbeariaId(),
+            jpaFuncionario.isAtivo(),
+            jpaFuncionario.getPerfilType()
+        );
         
-        if (jpaFuncionario instanceof JpaFuncionarioBarbeiro) {
-            funcionario = new FuncionarioBarbeiro(
-                jpaFuncionario.getId(),
-                jpaFuncionario.getNome(),
-                jpaFuncionario.getEmail(),
-                jpaFuncionario.getTelefone(),
-                jpaFuncionario.getBarbeariaId(),
-                jpaFuncionario.isAtivo()
-            );
-        } else if (jpaFuncionario instanceof JpaFuncionarioManicure) {
-            funcionario = new FuncionarioManicure(
-                jpaFuncionario.getId(),
-                jpaFuncionario.getNome(),
-                jpaFuncionario.getEmail(),
-                jpaFuncionario.getTelefone(),
-                jpaFuncionario.getBarbeariaId(),
-                jpaFuncionario.isAtivo()
-            );
-        } else if (jpaFuncionario instanceof JpaFuncionarioEsteticista) {
-            funcionario = new FuncionarioEsteticista(
-                jpaFuncionario.getId(),
-                jpaFuncionario.getNome(),
-                jpaFuncionario.getEmail(),
-                jpaFuncionario.getTelefone(),
-                jpaFuncionario.getBarbeariaId(),
-                jpaFuncionario.isAtivo()
-            );
-        } else if (jpaFuncionario instanceof JpaFuncionarioColorista) {
-            funcionario = new FuncionarioColorista(
-                jpaFuncionario.getId(),
-                jpaFuncionario.getNome(),
-                jpaFuncionario.getEmail(),
-                jpaFuncionario.getTelefone(),
-                jpaFuncionario.getBarbeariaId(),
-                jpaFuncionario.isAtivo()
-            );
-        }
-        
-        if (funcionario != null && jpaFuncionario.getDataCriacao() != null) {
+        if (jpaFuncionario.getDataCriacao() != null) {
             funcionario.setDataCriacao(jpaFuncionario.getDataCriacao());
         }
-        if (funcionario != null && jpaFuncionario.getDataAtualizacao() != null) {
+        if (jpaFuncionario.getDataAtualizacao() != null) {
             funcionario.setDataAtualizacao(jpaFuncionario.getDataAtualizacao());
         }
         
@@ -81,38 +46,26 @@ public class FuncionarioMapper {
     
     /**
      * Converte Funcionario de domínio para JpaFuncionario.
-     * Realiza conversão polimórfica baseada no tipo de profissional.
      */
     public static JpaFuncionario toJpaEntity(Funcionario funcionario) {
         if (funcionario == null) {
             return null;
         }
         
-        JpaFuncionario jpaFuncionario = null;
+        JpaFuncionario jpaFuncionario = new JpaFuncionario();
+        jpaFuncionario.setId(funcionario.getId());
+        jpaFuncionario.setNome(funcionario.getNome());
+        jpaFuncionario.setEmail(funcionario.getEmail());
+        jpaFuncionario.setTelefone(funcionario.getTelefone());
+        jpaFuncionario.setBarbeariaId(funcionario.getBarbeariaId());
+        jpaFuncionario.setPerfilType(funcionario.getTipoPerfil());
+        jpaFuncionario.setAtivo(funcionario.isAtivo());
         
-        if (funcionario instanceof FuncionarioBarbeiro) {
-            jpaFuncionario = new JpaFuncionarioBarbeiro();
-        } else if (funcionario instanceof FuncionarioManicure) {
-            jpaFuncionario = new JpaFuncionarioManicure();
-        } else if (funcionario instanceof FuncionarioEsteticista) {
-            jpaFuncionario = new JpaFuncionarioEsteticista();
-        } else if (funcionario instanceof FuncionarioColorista) {
-            jpaFuncionario = new JpaFuncionarioColorista();
+        if (funcionario.getDataCriacao() != null) {
+            jpaFuncionario.setDataCriacao(funcionario.getDataCriacao());
         }
-        
-        if (jpaFuncionario != null) {
-            jpaFuncionario.setId(funcionario.getId());
-            jpaFuncionario.setNome(funcionario.getNome());
-            jpaFuncionario.setEmail(funcionario.getEmail());
-            jpaFuncionario.setTelefone(funcionario.getTelefone());
-            jpaFuncionario.setBarbeariaId(funcionario.getBarbeariaId());
-            jpaFuncionario.setAtivo(funcionario.isAtivo());
-            if (funcionario.getDataCriacao() != null) {
-                jpaFuncionario.setDataCriacao(funcionario.getDataCriacao());
-            }
-            if (funcionario.getDataAtualizacao() != null) {
-                jpaFuncionario.setDataAtualizacao(funcionario.getDataAtualizacao());
-            }
+        if (funcionario.getDataAtualizacao() != null) {
+            jpaFuncionario.setDataAtualizacao(funcionario.getDataAtualizacao());
         }
         
         return jpaFuncionario;
@@ -125,6 +78,9 @@ public class FuncionarioMapper {
         if (jpaFuncionario == null) {
             return null;
         }
+        
+        // Cria Funcionario temporário para obter informações do perfil
+        Funcionario funcionario = toDomain(jpaFuncionario);
 
         return new FuncionarioResponseDto(
             jpaFuncionario.getId(),
@@ -132,42 +88,54 @@ public class FuncionarioMapper {
             jpaFuncionario.getNome(),
             jpaFuncionario.getEmail(),
             jpaFuncionario.getTelefone(),
-            jpaFuncionario.getProfissao(),
+            jpaFuncionario.getPerfilType(),
+            funcionario.getProfissao(),
+            jpaFuncionario.getPerfilType().getEspecialidades(),
             jpaFuncionario.isAtivo(),
             jpaFuncionario.getDataCriacao(),
             jpaFuncionario.getDataAtualizacao()
         );
     }
+    
+    /**
+     * Converte Funcionario de domínio para FuncionarioResponseDto.
+     */
+    public FuncionarioResponseDto toResponseDto(Funcionario funcionario) {
+        if (funcionario == null) {
+            return null;
+        }
+
+        return new FuncionarioResponseDto(
+            funcionario.getId(),
+            funcionario.getBarbeariaId(),
+            funcionario.getNome(),
+            funcionario.getEmail(),
+            funcionario.getTelefone(),
+            funcionario.getTipoPerfil(),
+            funcionario.getProfissao(),
+            funcionario.getTipoPerfil().getEspecialidades(),
+            funcionario.isAtivo(),
+            funcionario.getDataCriacao(),
+            funcionario.getDataAtualizacao()
+        );
+    }
 
     /**
-     * Cria uma instância de JpaFuncionario baseada no tipo de profissão.
+     * Cria uma instância de JpaFuncionario a partir do DTO.
      */
     public JpaFuncionario toEntityFromDto(FuncionarioRequestDto dto, Long barbeariaId) {
         if (dto == null) {
             return null;
         }
 
-        JpaFuncionario funcionario = createFuncionarioByProfissao(dto.profissao());
-        
+        JpaFuncionario funcionario = new JpaFuncionario();
         funcionario.setBarbeariaId(barbeariaId);
         funcionario.setNome(dto.nome());
         funcionario.setEmail(dto.email());
         funcionario.setTelefone(dto.telefone());
+        funcionario.setPerfilType(dto.perfilType());
         funcionario.setAtivo(true);
 
         return funcionario;
-    }
-
-    /**
-     * Cria a instância correta de funcionário baseada na profissão.
-     */
-    private JpaFuncionario createFuncionarioByProfissao(String profissao) {
-        return switch (profissao.toUpperCase()) {
-            case "BARBEIRO" -> new JpaFuncionarioBarbeiro();
-            case "MANICURE" -> new JpaFuncionarioManicure();
-            case "ESTETICISTA" -> new JpaFuncionarioEsteticista();
-            case "COLORISTA" -> new JpaFuncionarioColorista();
-            default -> throw new IllegalArgumentException("Profissão inválida: " + profissao + ". Valores aceitos: BARBEIRO, MANICURE, ESTETICISTA, COLORISTA");
-        };
     }
 }
