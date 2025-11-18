@@ -7,9 +7,13 @@ import com.barbearia.application.dto.HorarioFuncionamentoRequestDto;
 import com.barbearia.application.dto.HorarioFuncionamentoResponseDto;
 import com.barbearia.application.dto.FuncionarioRequestDto;
 import com.barbearia.application.dto.FuncionarioResponseDto;
+import com.barbearia.application.dto.AgendamentoBarbeariaDto;
+import com.barbearia.application.dto.AgendamentoResponseDto;
+import com.barbearia.application.dto.AgendamentoUpdateDto;
 import com.barbearia.application.services.BarbeariaService;
 import com.barbearia.application.services.HorarioService;
 import com.barbearia.application.services.FuncionarioService;
+import com.barbearia.application.services.AgendamentoService;
 import com.barbearia.application.security.JwtService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -40,15 +44,18 @@ public class BarbeariaController {
     private final BarbeariaService barbeariaService;
     private final HorarioService horarioService;
     private final FuncionarioService funcionarioService;
+    private final AgendamentoService agendamentoService;
     private final JwtService jwtService;
     
     public BarbeariaController(BarbeariaService barbeariaService, 
                               HorarioService horarioService,
                               FuncionarioService funcionarioService,
+                              AgendamentoService agendamentoService,
                               JwtService jwtService) {
         this.barbeariaService = barbeariaService;
         this.horarioService = horarioService;
         this.funcionarioService = funcionarioService;
+        this.agendamentoService = agendamentoService;
         this.jwtService = jwtService;
     }
     
@@ -353,6 +360,153 @@ public class BarbeariaController {
         } catch (Exception e) {
             return ResponseEntity.internalServerError()
                     .body("Erro ao criar funcionário: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Lista agendamentos da barbearia autenticada, com filtro opcional por data.
+     * 
+     * Segurança:
+     * - Requer autenticação JWT (Bearer token)
+     * - Apenas role BARBEARIA pode acessar
+     * - BarbeariaId é extraído do token
+     * 
+     * Parâmetros:
+     * - data (opcional): Filtrar agendamentos por data específica (formato: yyyy-MM-dd)
+     * 
+     * Retorna:
+     * - 200 (OK) com lista de agendamentos detalhados
+     * - 400 (Bad Request) se formato de data inválido
+     * - 401 (Unauthorized) se token inválido/ausente
+     * - 403 (Forbidden) se não for role BARBEARIA
+     * - 500 (Internal Server Error) em caso de erro
+     * 
+     * @param data Data para filtrar (opcional, formato: yyyy-MM-dd)
+     * @param request Requisição HTTP (para extrair token JWT)
+     * @return Lista de agendamentos com dados de cliente, serviço e funcionário
+     */
+    @GetMapping("/meus-agendamentos")
+    @PreAuthorize("hasRole('BARBEARIA')")
+    public ResponseEntity<?> listarMeusAgendamentos(
+            @RequestParam(required = false) String data,
+            HttpServletRequest request) {
+        try {
+            // Extrai token do cabeçalho Authorization
+            String token = request.getHeader("Authorization");
+            if (token == null || !token.startsWith("Bearer ")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("Token JWT não fornecido ou inválido");
+            }
+            
+            // Remove prefixo "Bearer " do token
+            token = token.substring(7);
+            
+            // Extrai ID da barbearia do token
+            Object userIdObj = jwtService.extractClaim(token, "userId");
+            if (userIdObj == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("Token JWT inválido: userId não encontrado");
+            }
+            
+            Long barbeariaId = ((Number) userIdObj).longValue();
+            
+            // Parse da data se fornecida
+            LocalDate dataFiltro = null;
+            if (data != null && !data.isBlank()) {
+                try {
+                    dataFiltro = LocalDate.parse(data);
+                } catch (Exception e) {
+                    return ResponseEntity.badRequest()
+                            .body("Formato de data inválido. Use yyyy-MM-dd");
+                }
+            }
+            
+            // Lista agendamentos
+            List<AgendamentoBarbeariaDto> agendamentos = 
+                agendamentoService.listarAgendamentosBarbearia(barbeariaId, dataFiltro);
+            
+            return ResponseEntity.ok(agendamentos);
+            
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body("Erro ao listar agendamentos: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Atualiza o status de um agendamento da barbearia autenticada.
+     * 
+     * Segurança:
+     * - Requer autenticação JWT (Bearer token)
+     * - Apenas role BARBEARIA pode acessar
+     * - BarbeariaId é extraído do token
+     * - Validação: agendamento deve pertencer à barbearia
+     * 
+     * Validações:
+     * - Agendamento deve existir
+     * - Agendamento deve pertencer à barbearia autenticada
+     * - Transições de status devem ser válidas
+     * - Operação é idempotente (mesmo status não gera erro)
+     * 
+     * Regras de transição:
+     * - Não pode confirmar agendamento cancelado
+     * - Não pode cancelar agendamento concluído
+     * - Pode sempre marcar como concluído
+     * 
+     * Retorna:
+     * - 200 (OK) com dados atualizados do agendamento
+     * - 400 (Bad Request) se transição de status inválida
+     * - 401 (Unauthorized) se token inválido/ausente
+     * - 403 (Forbidden) se não for role BARBEARIA ou agendamento não pertence à barbearia
+     * - 404 (Not Found) se agendamento não existe
+     * - 500 (Internal Server Error) em caso de erro
+     * 
+     * @param id ID do agendamento
+     * @param updateDto DTO com novo status
+     * @param request Requisição HTTP (para extrair token JWT)
+     * @return DTO com dados atualizados do agendamento
+     */
+    @PatchMapping("/agendamentos/{id}")
+    @PreAuthorize("hasRole('BARBEARIA')")
+    public ResponseEntity<?> atualizarStatusAgendamento(
+            @PathVariable Long id,
+            @Valid @RequestBody AgendamentoUpdateDto updateDto,
+            HttpServletRequest request) {
+        try {
+            // Extrai token do cabeçalho Authorization
+            String token = request.getHeader("Authorization");
+            if (token == null || !token.startsWith("Bearer ")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("Token JWT não fornecido ou inválido");
+            }
+            
+            // Remove prefixo "Bearer " do token
+            token = token.substring(7);
+            
+            // Extrai ID da barbearia do token
+            Object userIdObj = jwtService.extractClaim(token, "userId");
+            if (userIdObj == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("Token JWT inválido: userId não encontrado");
+            }
+            
+            Long barbeariaId = ((Number) userIdObj).longValue();
+            
+            // Atualiza status do agendamento
+            AgendamentoResponseDto agendamentoAtualizado = 
+                agendamentoService.atualizarStatusAgendamento(id, barbeariaId, updateDto);
+            
+            return ResponseEntity.ok(agendamentoAtualizado);
+            
+        } catch (com.barbearia.domain.exceptions.AgendamentoNaoEncontradoException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (com.barbearia.domain.exceptions.AcessoNegadoException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body("Erro ao atualizar agendamento: " + e.getMessage());
         }
     }
 }
