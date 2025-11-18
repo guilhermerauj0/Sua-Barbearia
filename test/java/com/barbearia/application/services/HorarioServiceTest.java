@@ -53,6 +53,9 @@ public class HorarioServiceTest {
     
     private HorarioService horarioService;
     
+    @Mock
+    private HorarioGestaoService horarioGestaoService;
+    
     private static final Long BARBEARIA_ID = 1L;
     private static final Long SERVICO_ID = 1L;
     private static final Long FUNCIONARIO_ID = 1L;
@@ -65,7 +68,8 @@ public class HorarioServiceTest {
             profissionalServicoRepository,
             horarioFuncionamentoRepository,
             agendamentoRepository,
-            servicoRepository
+            servicoRepository,
+            horarioGestaoService
         );
         dataManhã = LocalDate.now().plusDays(1);
     }
