@@ -39,7 +39,11 @@ public class CorsConfig {
             "http://localhost:*",
             "http://127.0.0.1:*",
             "https://localhost:*",
-            "https://127.0.0.1:*"
+            "https://127.0.0.1:*",
+            "http://www.agendasuabarbearias.tech",
+            "https://www.agendasuabarbearias.tech",
+            "https://sua-barbearia-frontend.vercel.app",
+            "http://sua-barbearia-frontend.vercel.app"
             // Adicione aqui o domínio de produção:
             // "https://sua-barbearia.com",
             // "https://www.sua-barbearia.com"
