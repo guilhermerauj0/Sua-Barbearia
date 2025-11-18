@@ -6,6 +6,7 @@ import com.barbearia.application.dto.AgendamentoBriefDto;
 import com.barbearia.application.dto.AgendamentoRequestDto;
 import com.barbearia.application.dto.AgendamentoResponseDto;
 import com.barbearia.application.dto.AgendamentoUpdateDto;
+import com.barbearia.application.observers.AgendamentoEventObserver;
 import com.barbearia.application.observers.AgendamentoObserver;
 import com.barbearia.domain.enums.StatusAgendamento;
 import com.barbearia.domain.exceptions.AcessoNegadoException;
@@ -56,19 +57,22 @@ public class AgendamentoService {
     private final ClienteRepository clienteRepository;
     private final ProfissionalServicoRepository profissionalServicoRepository;
     private final List<AgendamentoObserver> observers;
+    private final List<AgendamentoEventObserver> eventObservers;
     
     public AgendamentoService(AgendamentoRepository agendamentoRepository,
                              FuncionarioRepository funcionarioRepository,
                              ServicoRepository servicoRepository,
                              ClienteRepository clienteRepository,
                              ProfissionalServicoRepository profissionalServicoRepository,
-                             List<AgendamentoObserver> observers) {
+                             List<AgendamentoObserver> observers,
+                             List<AgendamentoEventObserver> eventObservers) {
         this.agendamentoRepository = agendamentoRepository;
         this.funcionarioRepository = funcionarioRepository;
         this.servicoRepository = servicoRepository;
         this.clienteRepository = clienteRepository;
         this.profissionalServicoRepository = profissionalServicoRepository;
         this.observers = observers != null ? observers : new ArrayList<>();
+        this.eventObservers = eventObservers != null ? eventObservers : new ArrayList<>();
     }
     
     /**
@@ -277,6 +281,9 @@ public class AgendamentoService {
         // Salva no banco de dados
         JpaAgendamento agendamentoSalvo = agendamentoRepository.save(novoAgendamento);
         
+        // Notificar criação do agendamento
+        notificarCriacaoAgendamento(agendamentoSalvo, clienteId, requestDto.getServicoId(), funcionario);
+        
         // Retorna DTO de resposta
         return AgendamentoMapper.toResponseDto(agendamentoSalvo);
     }
@@ -383,7 +390,7 @@ public class AgendamentoService {
         }
         
         // Buscar agendamento
-        @SuppressWarnings("null")
+        @SuppressWarnings({"null", "nullness"})
         Optional<JpaAgendamento> agendamentoOpt = agendamentoRepository.findById(agendamentoId);
         if (agendamentoOpt.isEmpty()) {
             throw new AgendamentoNaoEncontradoException(
@@ -413,7 +420,7 @@ public class AgendamentoService {
         agendamento.setStatus(statusNovo);
         agendamento.setDataAtualizacao(LocalDateTime.now());
         
-        @SuppressWarnings("null")
+        @SuppressWarnings({"null", "nullness"})
         JpaAgendamento agendamentoAtualizado = agendamentoRepository.save(agendamento);
         
         // Notificar observers
@@ -424,6 +431,13 @@ public class AgendamentoService {
             agendamento.getClienteId(), 
             barbeariaId
         );
+        
+        // Notificar eventos específicos se houver mudança para status relevante
+        if (statusNovo == StatusAgendamento.CONFIRMADO && statusAnterior != StatusAgendamento.CONFIRMADO) {
+            notificarEventoEspecifico(agendamentoAtualizado, "confirmado", null);
+        } else if (statusNovo == StatusAgendamento.CANCELADO && statusAnterior != StatusAgendamento.CANCELADO) {
+            notificarEventoEspecifico(agendamentoAtualizado, "cancelado", null);
+        }
         
         return AgendamentoMapper.toResponseDto(agendamentoAtualizado);
     }
@@ -486,6 +500,268 @@ public class AgendamentoService {
             } catch (Exception e) {
                 // Log erro mas não interrompe o fluxo
                 System.err.println("Erro ao notificar observer: " + e.getMessage());
+            }
+        }
+    }
+    
+    /**
+     * Método auxiliar para notificar eventos específicos com dados completos.
+     * 
+     * @param agendamento Agendamento JPA com dados atualizados
+     * @param tipoEvento Tipo do evento ("confirmado", "cancelado")
+     * @param motivoCancelamento Motivo do cancelamento (apenas para cancelamento)
+     */
+    private void notificarEventoEspecifico(JpaAgendamento agendamento, String tipoEvento, String motivoCancelamento) {
+        try {
+            // Buscar dados do cliente
+            @SuppressWarnings("null")
+            JpaCliente cliente = clienteRepository.findById(agendamento.getClienteId()).orElse(null);
+            if (cliente == null) {
+                System.err.println("Cliente não encontrado para agendamento: " + agendamento.getId());
+                return;
+            }
+            
+            // Buscar dados do serviço
+            @SuppressWarnings("null")
+            JpaServico servico = servicoRepository.findById(agendamento.getServicoId()).orElse(null);
+            if (servico == null) {
+                System.err.println("Serviço não encontrado para agendamento: " + agendamento.getId());
+                return;
+            }
+            
+            // Buscar dados da barbearia através do funcionário
+            @SuppressWarnings("null")
+            JpaFuncionario funcionario = funcionarioRepository.findById(agendamento.getBarbeiroId()).orElse(null);
+            String barbeariaNome = "Barbearia";
+            if (funcionario != null) {
+                barbeariaNome = "Sua Barbearia"; // Placeholder até implementação da busca por barbearia
+            }
+            
+            // Formatar data/hora
+            String dataHora = agendamento.getDataHora().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy 'às' HH:mm"));
+            
+            // Notificar evento específico
+            switch (tipoEvento) {
+                case "confirmado":
+                    notificarAgendamentoConfirmado(
+                        agendamento.getId(),
+                        cliente.getNome(),
+                        cliente.getTelefone(),
+                        servico.getNome(),
+                        dataHora,
+                        barbeariaNome
+                    );
+                    break;
+                case "cancelado":
+                    notificarAgendamentoCancelado(
+                        agendamento.getId(),
+                        cliente.getNome(),
+                        cliente.getTelefone(),
+                        servico.getNome(),
+                        dataHora,
+                        barbeariaNome,
+                        motivoCancelamento
+                    );
+                    break;
+                default:
+                    System.err.println("Tipo de evento desconhecido: " + tipoEvento);
+            }
+            
+        } catch (Exception e) {
+            System.err.println("Erro ao preparar notificação de evento específico: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Método auxiliar para notificar a criação de um agendamento.
+     * 
+     * @param agendamento Agendamento JPA salvo
+     * @param clienteId ID do cliente
+     * @param servicoId ID do serviço
+     * @param funcionario Funcionário JPA
+     */
+    private void notificarCriacaoAgendamento(JpaAgendamento agendamento, Long clienteId, Long servicoId, JpaFuncionario funcionario) {
+        try {
+            // Buscar dados do cliente
+            @SuppressWarnings("null")
+            JpaCliente cliente = clienteRepository.findById(clienteId).orElse(null);
+            if (cliente == null) {
+                System.err.println("Cliente não encontrado para agendamento: " + agendamento.getId());
+                return;
+            }
+            
+            // Buscar dados do serviço
+            @SuppressWarnings("null")
+            JpaServico servico = servicoRepository.findById(servicoId).orElse(null);
+            if (servico == null) {
+                System.err.println("Serviço não encontrado para agendamento: " + agendamento.getId());
+                return;
+            }
+            
+            // Nome da barbearia (placeholder por enquanto)
+            String barbeariaNome = "Sua Barbearia";
+            
+            // Formatar data/hora
+            String dataHora = agendamento.getDataHora().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy 'às' HH:mm"));
+            
+            // Notificar criação
+            notificarAgendamentoCriado(
+                agendamento.getId(),
+                cliente.getNome(),
+                cliente.getTelefone(),
+                servico.getNome(),
+                dataHora,
+                barbeariaNome
+            );
+            
+        } catch (Exception e) {
+            System.err.println("Erro ao preparar notificação de criação de agendamento: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Notifica todos os event observers sobre a criação de um agendamento.
+     * 
+     * @param agendamentoId ID do agendamento criado
+     * @param clienteNome Nome do cliente
+     * @param clienteTelefone Telefone do cliente
+     * @param servicoNome Nome do serviço
+     * @param dataHora Data e hora do agendamento
+     * @param barbeariaNome Nome da barbearia
+     */
+    private void notificarAgendamentoCriado(
+            Long agendamentoId,
+            String clienteNome,
+            String clienteTelefone,
+            String servicoNome,
+            String dataHora,
+            String barbeariaNome) {
+        
+        for (AgendamentoEventObserver observer : eventObservers) {
+            try {
+                observer.onAgendamentoCriado(
+                    agendamentoId,
+                    clienteNome,
+                    clienteTelefone,
+                    servicoNome,
+                    dataHora,
+                    barbeariaNome
+                );
+            } catch (Exception e) {
+                // Log erro mas não interrompe o fluxo
+                System.err.println("Erro ao notificar event observer sobre criação: " + e.getMessage());
+            }
+        }
+    }
+    
+    /**
+     * Notifica todos os event observers sobre a confirmação de um agendamento.
+     * 
+     * @param agendamentoId ID do agendamento confirmado
+     * @param clienteNome Nome do cliente
+     * @param clienteTelefone Telefone do cliente
+     * @param servicoNome Nome do serviço
+     * @param dataHora Data e hora do agendamento
+     * @param barbeariaNome Nome da barbearia
+     */
+    private void notificarAgendamentoConfirmado(
+            Long agendamentoId,
+            String clienteNome,
+            String clienteTelefone,
+            String servicoNome,
+            String dataHora,
+            String barbeariaNome) {
+        
+        for (AgendamentoEventObserver observer : eventObservers) {
+            try {
+                observer.onAgendamentoConfirmado(
+                    agendamentoId,
+                    clienteNome,
+                    clienteTelefone,
+                    servicoNome,
+                    dataHora,
+                    barbeariaNome
+                );
+            } catch (Exception e) {
+                // Log erro mas não interrompe o fluxo
+                System.err.println("Erro ao notificar event observer sobre confirmação: " + e.getMessage());
+            }
+        }
+    }
+    
+    /**
+     * Notifica todos os event observers sobre o cancelamento de um agendamento.
+     * 
+     * @param agendamentoId ID do agendamento cancelado
+     * @param clienteNome Nome do cliente
+     * @param clienteTelefone Telefone do cliente
+     * @param servicoNome Nome do serviço
+     * @param dataHora Data e hora do agendamento
+     * @param barbeariaNome Nome da barbearia
+     * @param motivoCancelamento Motivo do cancelamento (opcional)
+     */
+    private void notificarAgendamentoCancelado(
+            Long agendamentoId,
+            String clienteNome,
+            String clienteTelefone,
+            String servicoNome,
+            String dataHora,
+            String barbeariaNome,
+            String motivoCancelamento) {
+        
+        for (AgendamentoEventObserver observer : eventObservers) {
+            try {
+                observer.onAgendamentoCancelado(
+                    agendamentoId,
+                    clienteNome,
+                    clienteTelefone,
+                    servicoNome,
+                    dataHora,
+                    barbeariaNome,
+                    motivoCancelamento
+                );
+            } catch (Exception e) {
+                // Log erro mas não interrompe o fluxo
+                System.err.println("Erro ao notificar event observer sobre cancelamento: " + e.getMessage());
+            }
+        }
+    }
+    
+    /**
+     * Notifica todos os event observers sobre o reagendamento de um agendamento.
+     * 
+     * @param agendamentoId ID do agendamento reagendado
+     * @param clienteNome Nome do cliente
+     * @param clienteTelefone Telefone do cliente
+     * @param servicoNome Nome do serviço
+     * @param dataHoraAntiga Data e hora antiga
+     * @param dataHoraNova Data e hora nova
+     * @param barbeariaNome Nome da barbearia
+     */
+    @SuppressWarnings("unused")
+    private void notificarAgendamentoReagendado(
+            Long agendamentoId,
+            String clienteNome,
+            String clienteTelefone,
+            String servicoNome,
+            String dataHoraAntiga,
+            String dataHoraNova,
+            String barbeariaNome) {
+        
+        for (AgendamentoEventObserver observer : eventObservers) {
+            try {
+                observer.onAgendamentoReagendado(
+                    agendamentoId,
+                    clienteNome,
+                    clienteTelefone,
+                    servicoNome,
+                    dataHoraAntiga,
+                    dataHoraNova,
+                    barbeariaNome
+                );
+            } catch (Exception e) {
+                // Log erro mas não interrompe o fluxo
+                System.err.println("Erro ao notificar event observer sobre reagendamento: " + e.getMessage());
             }
         }
     }

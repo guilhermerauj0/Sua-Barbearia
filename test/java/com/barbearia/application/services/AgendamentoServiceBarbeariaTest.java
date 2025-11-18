@@ -3,6 +3,7 @@ package com.barbearia.application.services;
 import com.barbearia.application.dto.AgendamentoBarbeariaDto;
 import com.barbearia.application.dto.AgendamentoResponseDto;
 import com.barbearia.application.dto.AgendamentoUpdateDto;
+import com.barbearia.application.observers.AgendamentoEventObserver;
 import com.barbearia.application.observers.AgendamentoObserver;
 import com.barbearia.domain.enums.StatusAgendamento;
 import com.barbearia.domain.exceptions.AcessoNegadoException;
@@ -83,13 +84,15 @@ class AgendamentoServiceBarbeariaTest {
     @BeforeEach
     void setUp() {
         List<AgendamentoObserver> observers = Arrays.asList(observer);
+        List<AgendamentoEventObserver> eventObservers = Arrays.asList(); // Lista vazia por enquanto
         agendamentoService = new AgendamentoService(
             agendamentoRepository,
             funcionarioRepository,
             servicoRepository,
             clienteRepository,
             profissionalServicoRepository,
-            observers
+            observers,
+            eventObservers
         );
 
         barbeariaId = 1L;

@@ -48,6 +48,7 @@ public class SwaggerConfig {
                         .addPathItem("/api/barbearias/{id}/servicos", listarServicosPath())
                         .addPathItem("/api/barbearias/{id}/horarios-disponiveis", obterHorariosDisponiveisPath())
                         .addPathItem("/api/barbearias/servicos", criarServicoPath())
+                        .addPathItem("/api/barbearias/horarios", criarHorarioFuncionamentoPath())
                         // Funcionários
                         .addPathItem("/api/barbearias/meus-funcionarios", meusFuncionariosPath())
                         // Agendamentos - Barbearia
@@ -1136,6 +1137,62 @@ public class SwaggerConfig {
                   "barbeariaId": 1,
                   "ativo": true,
                   "tipoServico": "CORTE"
+                }
+                """;
+    }
+
+    private PathItem criarHorarioFuncionamentoPath() {
+        return new PathItem()
+                .post(new Operation()
+                        .tags(List.of("Barbearias"))
+                        .summary("Criar ou atualizar horário de funcionamento")
+                        .description("Cria ou atualiza o horário de funcionamento da barbearia para um dia da semana específico. " +
+                                "Requer autenticação JWT. Apenas barbearias podem acessar este endpoint.")
+                        .addSecurityItem(new SecurityRequirement().addList("Bearer"))
+                        .requestBody(new RequestBody()
+                                .required(true)
+                                .content(new Content()
+                                        .addMediaType("application/json", new MediaType()
+                                                .schema(new Schema<>()
+                                                        .$ref("#/components/schemas/HorarioFuncionamentoRequest"))
+                                                .example(horarioFuncionamentoRequestExample()))))
+                        .responses(new ApiResponses()
+                                .addApiResponse("201", new ApiResponse()
+                                        .description("Horário criado/atualizado com sucesso")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(new Schema<>()
+                                                                .$ref("#/components/schemas/HorarioFuncionamentoResponse"))
+                                                        .example(horarioFuncionamentoResponseExample()))))
+                                .addApiResponse("400", new ApiResponse()
+                                        .description("Dados inválidos"))
+                                .addApiResponse("401", new ApiResponse()
+                                        .description("Token JWT inválido ou ausente"))
+                                .addApiResponse("403", new ApiResponse()
+                                        .description("Acesso negado - apenas barbearias"))
+                                .addApiResponse("500", new ApiResponse()
+                                        .description("Erro interno do servidor"))));
+    }
+
+    private String horarioFuncionamentoRequestExample() {
+        return """
+                {
+                  "diaSemana": 1,
+                  "horaAbertura": "08:00",
+                  "horaFechamento": "18:00"
+                }
+                """;
+    }
+
+    private String horarioFuncionamentoResponseExample() {
+        return """
+                {
+                  "id": 1,
+                  "barbeariaId": 1,
+                  "diaSemana": 1,
+                  "horaAbertura": "08:00:00",
+                  "horaFechamento": "18:00:00",
+                  "ativo": true
                 }
                 """;
     }
