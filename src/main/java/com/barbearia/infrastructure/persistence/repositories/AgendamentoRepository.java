@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -141,4 +142,79 @@ public interface AgendamentoRepository extends JpaRepository<JpaAgendamento, Lon
      * @return Lista de agendamentos ordenados por data/hora decrescente
      */
     List<JpaAgendamento> findByBarbeariaIdOrderByDataHoraDesc(Long barbeariaId);
+    
+    /**
+     * Calcula o faturamento total da barbearia em um período.
+     * 
+     * Query nativa SQL para melhor performance.
+     * Considera apenas agendamentos com status CONCLUIDO.
+     * 
+     * @param barbeariaId ID da barbearia
+     * @param dataInicio Data/hora inicial do período
+     * @param dataFim Data/hora final do período
+     * @return Faturamento total do período (soma dos preços dos serviços)
+     */
+    @Query(value = """
+            SELECT COALESCE(SUM(s.preco), 0) 
+            FROM agendamentos a 
+            INNER JOIN servicos s ON a.servico_id = s.id 
+            WHERE a.barbearia_id = :barbeariaId 
+            AND a.data_hora BETWEEN :dataInicio AND :dataFim 
+            AND a.status = 'CONCLUIDO'
+            """, nativeQuery = true)
+    BigDecimal calcularFaturamentoPorPeriodo(
+            @Param("barbeariaId") Long barbeariaId,
+            @Param("dataInicio") LocalDateTime dataInicio,
+            @Param("dataFim") LocalDateTime dataFim
+    );
+    
+    /**
+     * Conta o total de agendamentos concluídos em um período.
+     * 
+     * @param barbeariaId ID da barbearia
+     * @param dataInicio Data/hora inicial do período
+     * @param dataFim Data/hora final do período
+     * @return Quantidade de agendamentos concluídos
+     */
+    @Query("SELECT COUNT(a) FROM JpaAgendamento a " +
+           "WHERE a.barbeariaId = :barbeariaId " +
+           "AND a.dataHora BETWEEN :dataInicio AND :dataFim " +
+           "AND a.status = 'CONCLUIDO'")
+    Long contarAgendamentosConcluidosPorPeriodo(
+            @Param("barbeariaId") Long barbeariaId,
+            @Param("dataInicio") LocalDateTime dataInicio,
+            @Param("dataFim") LocalDateTime dataFim
+    );
+    
+    /**
+     * Retorna os serviços mais rentáveis da barbearia em um período.
+     * 
+     * Query nativa SQL com agregação e ordenação por faturamento.
+     * Retorna: servicoId, servicoNome, totalRealizacoes, faturamentoTotal
+     * 
+     * @param barbeariaId ID da barbearia
+     * @param dataInicio Data/hora inicial do período
+     * @param dataFim Data/hora final do período
+     * @return Lista de arrays com [servicoId, servicoNome, totalRealizacoes, faturamentoTotal]
+     */
+    @Query(value = """
+            SELECT 
+                s.id as servicoId,
+                s.nome as servicoNome,
+                COUNT(a.id) as totalRealizacoes,
+                SUM(s.preco) as faturamentoTotal
+            FROM agendamentos a
+            INNER JOIN servicos s ON a.servico_id = s.id
+            WHERE a.barbearia_id = :barbeariaId
+            AND a.data_hora BETWEEN :dataInicio AND :dataFim
+            AND a.status = 'CONCLUIDO'
+            GROUP BY s.id, s.nome
+            ORDER BY faturamentoTotal DESC
+            LIMIT 5
+            """, nativeQuery = true)
+    List<Object[]> buscarServicosMaisRentaveis(
+            @Param("barbeariaId") Long barbeariaId,
+            @Param("dataInicio") LocalDateTime dataInicio,
+            @Param("dataFim") LocalDateTime dataFim
+    );
 }
