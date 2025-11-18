@@ -9,6 +9,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 /**
  * Configuração de segurança do Spring Security com JWT.
@@ -37,9 +38,12 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
     
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final CorsConfigurationSource corsConfigurationSource;
     
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
+                         CorsConfigurationSource corsConfigurationSource) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.corsConfigurationSource = corsConfigurationSource;
     }
     
     /**
@@ -51,6 +55,9 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+            // Habilita CORS com a configuração personalizada
+            .cors(cors -> cors.configurationSource(corsConfigurationSource))
+            
             // Desabilita CSRF (não necessário para APIs REST stateless com JWT)
             .csrf(AbstractHttpConfigurer::disable)
             
@@ -59,17 +66,17 @@ public class SecurityConfig {
                 // Endpoints públicos (não exigem autenticação)
                 .requestMatchers(
                     "/",
+                    "/error",
                     "/docs",
-                    "/api/auth/cliente/registrar",
-                    "/api/auth/cliente/login",
-                    "/api/auth/barbearia/registrar",
-                    "/api/auth/barbearia/login",
+                    "/api/auth/**",
                     "/api/hello",
+                    // Swagger UI e documentação
                     "/swagger-ui/**",
-                    "/v3/api-docs/**",
                     "/swagger-ui.html",
+                    "/v3/api-docs/**",
                     "/swagger-resources/**",
-                    "/webjars/**"
+                    "/webjars/**",
+                    "/api-docs/**"
                 ).permitAll()
                 
                 // Todos os demais endpoints exigem autenticação
