@@ -30,7 +30,7 @@ public class HorarioDisponivelMapper {
         return new HorarioDisponivelDto(
             jpaFuncionario.getId(),
             jpaFuncionario.getNome(),
-            jpaFuncionario.getProfissao(),
+            jpaFuncionario.getPerfilType().name(),
             data,
             horarioInicio,
             horarioFim
