@@ -217,4 +217,26 @@ public interface AgendamentoRepository extends JpaRepository<JpaAgendamento, Lon
             @Param("dataInicio") LocalDateTime dataInicio,
             @Param("dataFim") LocalDateTime dataFim
     );
+    
+    /**
+     * Busca agendamentos de uma barbearia em um período com status específico.
+     * 
+     * @param barbeariaId ID da barbearia
+     * @param dataInicio Data/hora de início
+     * @param dataFim Data/hora de fim
+     * @param status Status do agendamento
+     * @return Lista de agendamentos
+     */
+    @Query("SELECT a FROM JpaAgendamento a " +
+           "WHERE a.barbeariaId = :barbeariaId " +
+           "AND a.dataHora BETWEEN :dataInicio AND :dataFim " +
+           "AND a.status = :status " +
+           "ORDER BY a.dataHora ASC")
+    List<JpaAgendamento> findByBarbeariaIdAndDataHoraBetweenAndStatus(
+            @Param("barbeariaId") Long barbeariaId,
+            @Param("dataInicio") LocalDateTime dataInicio,
+            @Param("dataFim") LocalDateTime dataFim,
+            @Param("status") com.barbearia.domain.enums.StatusAgendamento status
+    );
 }
+

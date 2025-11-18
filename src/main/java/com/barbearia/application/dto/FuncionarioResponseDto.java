@@ -1,5 +1,6 @@
 package com.barbearia.application.dto;
 
+import com.barbearia.domain.enums.TipoPerfil;
 import java.time.LocalDateTime;
 
 /**
@@ -13,7 +14,9 @@ public record FuncionarioResponseDto(
     String nome,
     String email,
     String telefone,
+    TipoPerfil perfilType,
     String profissao,
+    String especialidades,
     boolean ativo,
     LocalDateTime dataCriacao,
     LocalDateTime dataAtualizacao

@@ -1269,7 +1269,7 @@ public class SwaggerConfig {
                                                                 .items(new ObjectSchema()
                                                                         .addProperty("funcionarioId", new Schema<>().type("integer").format("int64"))
                                                                         .addProperty("funcionarioNome", new Schema<>().type("string"))
-                                                                        .addProperty("profissao", new StringSchema()
+                                                                        .addProperty("perfilType", new StringSchema()
                                                                                 .addEnumItem("BARBEIRO")
                                                                                 .addEnumItem("MANICURE")
                                                                                 .addEnumItem("ESTETICISTA")
@@ -1301,7 +1301,7 @@ public class SwaggerConfig {
                   {
                     "funcionarioId": 1,
                     "funcionarioNome": "João Silva",
-                    "profissao": "BARBEIRO",
+                    "perfilType": "BARBEIRO",
                     "data": "2025-11-20",
                     "horarioInicio": "09:00:00",
                     "horarioFim": "09:30:00"
@@ -1309,7 +1309,7 @@ public class SwaggerConfig {
                   {
                     "funcionarioId": 1,
                     "funcionarioNome": "João Silva",
-                    "profissao": "BARBEIRO",
+                    "perfilType": "BARBEIRO",
                     "data": "2025-11-20",
                     "horarioInicio": "09:30:00",
                     "horarioFim": "10:00:00"
@@ -1317,7 +1317,7 @@ public class SwaggerConfig {
                   {
                     "funcionarioId": 2,
                     "funcionarioNome": "Maria Santos",
-                    "profissao": "MANICURE",
+                    "perfilType": "MANICURE",
                     "data": "2025-11-20",
                     "horarioInicio": "09:00:00",
                     "horarioFim": "09:30:00"
@@ -1760,16 +1760,16 @@ public class SwaggerConfig {
                                 "**AUTENTICAÇÃO:** Endpoint protegido - requer token JWT.\n\n" +
                                 "**AUTORIZAÇÃO:** Apenas usuários com role BARBEARIA podem acessar.\n\n" +
                                 "**IDENTIFICAÇÃO:** O ID da barbearia é extraído automaticamente do token JWT.\n\n" +
-                                "**IMPORTANTE:** O campo 'profissao' é OBRIGATÓRIO e deve ser um dos seguintes valores:\n" +
-                                "- **BARBEIRO**: Profissional especializado em cortes de cabelo e barba\n" +
-                                "- **MANICURE**: Profissional especializado em serviços de unhas\n" +
-                                "- **ESTETICISTA**: Profissional especializado em estética (sobrancelhas, etc)\n" +
-                                "- **COLORISTA**: Profissional especializado em coloração capilar\n\n" +
+                                "**IMPORTANTE:** O campo 'perfilType' é OBRIGATÓRIO e deve ser um dos seguintes valores:\n" +
+                                "- **BARBEIRO**: Profissional especializado em cortes de cabelo e barba (comissão 15%)\n" +
+                                "- **MANICURE**: Profissional especializado em serviços de unhas (comissão 12%)\n" +
+                                "- **ESTETICISTA**: Profissional especializado em estética (comissão 13%)\n" +
+                                "- **COLORISTA**: Profissional especializado em coloração capilar (comissão 18%)\n\n" +
                                 "**VALIDAÇÕES:**\n" +
                                 "- nome: obrigatório, 3-100 caracteres\n" +
                                 "- email: obrigatório, formato válido, único por barbearia\n" +
                                 "- telefone: obrigatório, 10-20 caracteres\n" +
-                                "- profissao: obrigatório, um dos valores acima\n\n" +
+                                "- perfilType: obrigatório, um dos valores acima\n\n" +
                                 "**OBSERVAÇÃO:** Funcionários não possuem login no sistema (não são usuários autenticáveis).")
                         .security(List.of(new SecurityRequirement().addList("Bearer")))
                         .requestBody(new RequestBody()
@@ -1815,10 +1815,10 @@ public class SwaggerConfig {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private Schema<?> funcionarioRequestSchema() {
-        Schema profissaoSchema = new StringSchema()
-                .description("Profissão do funcionário (obrigatório: BARBEIRO, MANICURE, ESTETICISTA, COLORISTA)")
+        Schema perfilTypeSchema = new StringSchema()
+                .description("Tipo de perfil do funcionário (obrigatório: BARBEIRO, MANICURE, ESTETICISTA, COLORISTA)")
                 .example("BARBEIRO");
-        profissaoSchema._enum(List.of("BARBEIRO", "MANICURE", "ESTETICISTA", "COLORISTA"));
+        perfilTypeSchema._enum(List.of("BARBEIRO", "MANICURE", "ESTETICISTA", "COLORISTA"));
         
         return new ObjectSchema()
                 .addProperty("nome", new StringSchema()
@@ -1830,7 +1830,7 @@ public class SwaggerConfig {
                 .addProperty("telefone", new StringSchema()
                         .description("Telefone do funcionário (obrigatório, 10-20 caracteres)")
                         .example("(11) 98765-4321"))
-                .addProperty("profissao", profissaoSchema);
+                .addProperty("perfilType", perfilTypeSchema);
     }
 
     private Schema<?> funcionarioResponseSchema() {
@@ -1850,8 +1850,8 @@ public class SwaggerConfig {
                 .addProperty("telefone", new StringSchema()
                         .description("Telefone do funcionário")
                         .example("(11) 98765-4321"))
-                .addProperty("profissao", new StringSchema()
-                        .description("Profissão do funcionário")
+                .addProperty("perfilType", new StringSchema()
+                        .description("Tipo de perfil do funcionário")
                         .example("BARBEIRO"))
                 .addProperty("ativo", new BooleanSchema()
                         .description("Indica se o funcionário está ativo")
@@ -1872,7 +1872,7 @@ public class SwaggerConfig {
                   "nome": "Carlos Silva",
                   "email": "carlos.silva@email.com",
                   "telefone": "(11) 98765-4321",
-                  "profissao": "BARBEIRO"
+                  "perfilType": "BARBEIRO"
                 }
                 """;
     }
@@ -1883,7 +1883,7 @@ public class SwaggerConfig {
                   "nome": "Juliana Costa",
                   "email": "juliana.costa@email.com",
                   "telefone": "(11) 98765-1234",
-                  "profissao": "MANICURE"
+                  "perfilType": "MANICURE"
                 }
                 """;
     }
@@ -1894,7 +1894,7 @@ public class SwaggerConfig {
                   "nome": "Fernanda Oliveira",
                   "email": "fernanda.oliveira@email.com",
                   "telefone": "(11) 98765-5678",
-                  "profissao": "ESTETICISTA"
+                  "perfilType": "ESTETICISTA"
                 }
                 """;
     }
@@ -1905,7 +1905,7 @@ public class SwaggerConfig {
                   "nome": "Roberto Alves",
                   "email": "roberto.alves@email.com",
                   "telefone": "(11) 98765-9999",
-                  "profissao": "COLORISTA"
+                  "perfilType": "COLORISTA"
                 }
                 """;
     }
@@ -1918,7 +1918,7 @@ public class SwaggerConfig {
                   "nome": "Carlos Silva",
                   "email": "carlos.silva@email.com",
                   "telefone": "(11) 98765-4321",
-                  "profissao": "BARBEIRO",
+                  "perfilType": "BARBEIRO",
                   "ativo": true,
                   "dataCriacao": "2025-01-20T10:30:00",
                   "dataAtualizacao": "2025-01-20T10:30:00"
@@ -1935,7 +1935,7 @@ public class SwaggerConfig {
                     "nome": "Carlos Silva",
                     "email": "carlos.silva@email.com",
                     "telefone": "(11) 98765-4321",
-                    "profissao": "BARBEIRO",
+                    "perfilType": "BARBEIRO",
                     "ativo": true,
                     "dataCriacao": "2025-01-20T10:30:00",
                     "dataAtualizacao": "2025-01-20T10:30:00"
@@ -1946,7 +1946,7 @@ public class SwaggerConfig {
                     "nome": "Juliana Costa",
                     "email": "juliana.costa@email.com",
                     "telefone": "(11) 98765-1234",
-                    "profissao": "MANICURE",
+                    "perfilType": "MANICURE",
                     "ativo": true,
                     "dataCriacao": "2025-01-20T11:15:00",
                     "dataAtualizacao": "2025-01-20T11:15:00"
@@ -1957,7 +1957,7 @@ public class SwaggerConfig {
                     "nome": "Fernanda Oliveira",
                     "email": "fernanda.oliveira@email.com",
                     "telefone": "(11) 98765-5678",
-                    "profissao": "ESTETICISTA",
+                    "perfilType": "ESTETICISTA",
                     "ativo": true,
                     "dataCriacao": "2025-01-20T14:45:00",
                     "dataAtualizacao": "2025-01-20T14:45:00"
@@ -1968,7 +1968,7 @@ public class SwaggerConfig {
                     "nome": "Roberto Alves",
                     "email": "roberto.alves@email.com",
                     "telefone": "(11) 98765-9999",
-                    "profissao": "COLORISTA",
+                    "perfilType": "COLORISTA",
                     "ativo": true,
                     "dataCriacao": "2025-01-20T16:20:00",
                     "dataAtualizacao": "2025-01-20T16:20:00"
@@ -2153,8 +2153,8 @@ public class SwaggerConfig {
         schema.addProperty("funcionarioNome", new StringSchema()
                 .description("Nome do funcionário")
                 .example("Carlos Barbeiro"));
-        schema.addProperty("funcionarioProfissao", new StringSchema()
-                .description("Profissão do funcionário")
+        schema.addProperty("funcionarioPerfilType", new StringSchema()
+                .description("Tipo de perfil do funcionário")
                 .example("BARBEIRO"));
         schema.addProperty("dataCriacao", new StringSchema()
                 .format("date-time")
@@ -2185,7 +2185,7 @@ public class SwaggerConfig {
                     "servicoDuracao": 30,
                     "funcionarioId": 3,
                     "funcionarioNome": "Carlos Barbeiro",
-                    "funcionarioProfissao": "BARBEIRO",
+                    "funcionarioPerfilType": "BARBEIRO",
                     "dataCriacao": "2025-11-18T10:00:00",
                     "dataAtualizacao": "2025-11-18T10:00:00"
                   },
@@ -2204,7 +2204,7 @@ public class SwaggerConfig {
                     "servicoDuracao": 45,
                     "funcionarioId": 4,
                     "funcionarioNome": "Ana Manicure",
-                    "funcionarioProfissao": "MANICURE",
+                    "funcionarioPerfilType": "MANICURE",
                     "dataCriacao": "2025-11-18T11:00:00",
                     "dataAtualizacao": "2025-11-18T12:00:00"
                   }

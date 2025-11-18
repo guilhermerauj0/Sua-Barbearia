@@ -11,6 +11,7 @@ import com.barbearia.application.dto.AgendamentoBarbeariaDto;
 import com.barbearia.application.dto.AgendamentoResponseDto;
 import com.barbearia.application.dto.AgendamentoUpdateDto;
 import com.barbearia.application.dto.RelatorioFinanceiroDto;
+import com.barbearia.application.dto.RelatorioComissoesDto;
 import com.barbearia.application.dto.ClienteAtendidoDto;
 import com.barbearia.application.dto.ClienteDetalhesDto;
 import com.barbearia.application.services.BarbeariaService;
@@ -18,11 +19,13 @@ import com.barbearia.application.services.HorarioService;
 import com.barbearia.application.services.FuncionarioService;
 import com.barbearia.application.services.AgendamentoService;
 import com.barbearia.application.services.FinanceiroService;
+import com.barbearia.application.services.ComissaoService;
 import com.barbearia.application.services.ClienteGestaoService;
 import com.barbearia.application.security.JwtService;
 import com.barbearia.domain.enums.PeriodoRelatorio;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -52,6 +55,7 @@ public class BarbeariaController {
     private final FuncionarioService funcionarioService;
     private final AgendamentoService agendamentoService;
     private final FinanceiroService financeiroService;
+    private final ComissaoService comissaoService;
     private final ClienteGestaoService clienteGestaoService;
     private final com.barbearia.application.services.HorarioGestaoService horarioGestaoService;
     private final JwtService jwtService;
@@ -61,6 +65,7 @@ public class BarbeariaController {
                               FuncionarioService funcionarioService,
                               AgendamentoService agendamentoService,
                               FinanceiroService financeiroService,
+                              ComissaoService comissaoService,
                               ClienteGestaoService clienteGestaoService,
                               com.barbearia.application.services.HorarioGestaoService horarioGestaoService,
                               JwtService jwtService) {
@@ -69,6 +74,7 @@ public class BarbeariaController {
         this.funcionarioService = funcionarioService;
         this.agendamentoService = agendamentoService;
         this.financeiroService = financeiroService;
+        this.comissaoService = comissaoService;
         this.clienteGestaoService = clienteGestaoService;
         this.horarioGestaoService = horarioGestaoService;
         this.jwtService = jwtService;
@@ -591,6 +597,76 @@ public class BarbeariaController {
         } catch (Exception e) {
             return ResponseEntity.internalServerError()
                     .body("Erro ao gerar relatório financeiro: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Gera relatório de comissões dos funcionários da barbearia.
+     * 
+     * <p>Endpoint protegido: apenas barbearias podem acessar.</p>
+     * 
+     * <p>Calcula as comissões de cada funcionário baseado nos serviços prestados
+     * no período especificado. As taxas de comissão são aplicadas conforme o perfil:</p>
+     * <ul>
+     *   <li>BARBEIRO: 15%</li>
+     *   <li>MANICURE: 12%</li>
+     *   <li>ESTETICISTA: 13%</li>
+     *   <li>COLORISTA: 18%</li>
+     * </ul>
+     * 
+     * @param dataInicio Data inicial do período (formato: yyyy-MM-dd)
+     * @param dataFim Data final do período (formato: yyyy-MM-dd)
+     * @param request Request HTTP para extração do JWT
+     * @return 200 (OK) com relatório de comissões
+     *         400 (BAD REQUEST) se as datas forem inválidas
+     *         401 (UNAUTHORIZED) se não autenticado
+     *         403 (FORBIDDEN) se não for barbearia
+     *         500 (INTERNAL SERVER ERROR) em caso de erro
+     */
+    @GetMapping("/relatorio-comissoes")
+    @PreAuthorize("hasRole('BARBEARIA')")
+    public ResponseEntity<?> obterRelatorioComissoes(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim,
+            HttpServletRequest request) {
+        
+        try {
+            // Extrair token JWT do header Authorization
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("Token JWT não fornecido");
+            }
+            
+            // Remove prefixo "Bearer " do token
+            String token = authHeader.substring(7);
+            
+            // Extrai ID da barbearia do token
+            Object userIdObj = jwtService.extractClaim(token, "userId");
+            if (userIdObj == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("Token JWT inválido: userId não encontrado");
+            }
+            
+            Long barbeariaId = ((Number) userIdObj).longValue();
+            
+            // Validar datas
+            if (dataInicio.isAfter(dataFim)) {
+                return ResponseEntity.badRequest()
+                        .body("Data inicial não pode ser posterior à data final");
+            }
+            
+            // Gerar relatório de comissões
+            RelatorioComissoesDto relatorio = comissaoService.gerarRelatorioComissoes(
+                    barbeariaId, dataInicio, dataFim);
+            
+            return ResponseEntity.ok(relatorio);
+            
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body("Erro ao gerar relatório de comissões: " + e.getMessage());
         }
     }
     

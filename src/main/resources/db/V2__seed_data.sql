@@ -8,19 +8,13 @@ INSERT INTO clientes (nome, email, senha, telefone, role, ativo, data_criacao, d
 VALUES 
 ('João Silva', 'joao.silva@email.com', '$2a$10$N9qo8uLOickgx2ZMRZoMye7ZhzJJDTqt5Ey2s2nqIxNjDDGTqZ.5G', '11912345678', 'CLIENTE', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
--- Inserindo funcionários (diversos tipos)
-INSERT INTO funcionarios (nome, email, telefone, barbearia_id, profissao, ativo, data_criacao, data_atualizacao)
+-- Inserindo funcionários (diversos perfis)
+INSERT INTO funcionarios (nome, email, telefone, barbearia_id, perfil_type, ativo, data_criacao, data_atualizacao)
 VALUES 
 ('Carlos Barbeiro', 'carlos@barbearia.com', '11998765432', 1, 'BARBEIRO', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('Ana Manicure', 'ana@barbearia.com', '11987654321', 1, 'MANICURE', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('Paula Esteticista', 'paula@barbearia.com', '11976543210', 1, 'ESTETICISTA', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('Roberto Colorista', 'roberto@barbearia.com', '11965432109', 1, 'COLORISTA', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
-
--- Inserindo nas tabelas de subclasses de funcionário
-INSERT INTO funcionarios_barbeiro (id) VALUES (1);
-INSERT INTO funcionarios_manicure (id) VALUES (2);
-INSERT INTO funcionarios_esteticista (id) VALUES (3);
-INSERT INTO funcionarios_colorista (id) VALUES (4);
 
 -- Inserindo serviços (todos os tipos disponíveis)
 INSERT INTO servicos (barbearia_id, nome, descricao, preco, duracao, tipo_servico, ativo, data_criacao, data_atualizacao)

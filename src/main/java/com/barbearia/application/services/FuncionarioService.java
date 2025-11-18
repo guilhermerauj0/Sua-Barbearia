@@ -33,9 +33,6 @@ public class FuncionarioService {
     @SuppressWarnings("null")
     @Transactional
     public FuncionarioResponseDto criarFuncionario(FuncionarioRequestDto dto, Long barbeariaId) {
-        // Valida profissão
-        validarProfissao(dto.profissao());
-
         // Verifica se já existe funcionário com mesmo email na barbearia
         if (funcionarioRepository.existsByEmailAndBarbeariaId(dto.email(), barbeariaId)) {
             throw new IllegalArgumentException("Já existe um funcionário com este email nesta barbearia");
@@ -58,18 +55,5 @@ public class FuncionarioService {
         return funcionarios.stream()
                 .map(funcionarioMapper::toResponseDto)
                 .collect(Collectors.toList());
-    }
-
-    /**
-     * Valida se a profissão é válida.
-     */
-    private void validarProfissao(String profissao) {
-        List<String> profissoesValidas = List.of("BARBEIRO", "MANICURE", "ESTETICISTA", "COLORISTA");
-        
-        if (!profissoesValidas.contains(profissao.toUpperCase())) {
-            throw new IllegalArgumentException(
-                "Profissão inválida: " + profissao + ". Valores aceitos: " + String.join(", ", profissoesValidas)
-            );
-        }
     }
 }
