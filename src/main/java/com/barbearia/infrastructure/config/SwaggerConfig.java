@@ -55,6 +55,9 @@ public class SwaggerConfig {
                         .addPathItem("/api/barbearias/agendamentos/{id}", atualizarStatusAgendamentoPath())
                         // Gestão Financeira
                         .addPathItem("/api/barbearias/gestao-financeira", gestaoFinanceiraPath())
+                        // Gestão de Clientes (LGPD)
+                        .addPathItem("/api/barbearias/meus-clientes", meusClientesPath())
+                        .addPathItem("/api/barbearias/clientes/{id}", detalhesClientePath())
                         // Agendamentos - Cliente
                         .addPathItem("/api/agendamentos", criarAgendamentoPath())
                         .addPathItem("/api/agendamentos/{id}", buscarPorIdPath()));
@@ -2149,5 +2152,89 @@ public class SwaggerConfig {
                   ]
                 }
                 """;
+    }
+    
+    // ===== Gestão de Clientes (LGPD) - T15 =====
+    
+    private PathItem meusClientesPath() {
+        return new PathItem()
+                .get(new Operation()
+                        .tags(List.of("Gestão de Clientes - Barbearia (LGPD)"))
+                        .summary("Listar meus clientes atendidos")
+                        .description("Lista todos os clientes que foram atendidos pela barbearia. Clientes anonimizados não aparecem.")
+                        .security(List.of(new SecurityRequirement().addList("Bearer")))
+                        .responses(new ApiResponses()
+                                .addApiResponse("200", new ApiResponse()
+                                        .description("Lista de clientes")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("""
+                                                                [{
+                                                                  "id": 10,
+                                                                  "nome": "João Silva",
+                                                                  "telefone": "11987654321",
+                                                                  "email": "joao@email.com",
+                                                                  "totalAgendamentos": 5,
+                                                                  "ultimoAgendamento": "2025-11-15T14:00:00",
+                                                                  "ativo": true,
+                                                                  "anonimizado": false
+                                                                }]
+                                                                """))))
+                                .addApiResponse("401", new ApiResponse().description("Não autenticado"))
+                                .addApiResponse("403", new ApiResponse().description("Não autorizado"))));
+    }
+    
+    private PathItem detalhesClientePath() {
+        return new PathItem()
+                .get(new Operation()
+                        .tags(List.of("Gestão de Clientes - Barbearia (LGPD)"))
+                        .summary("Buscar detalhes de um cliente")
+                        .description("Retorna detalhes completos do cliente incluindo histórico de agendamentos.")
+                        .security(List.of(new SecurityRequirement().addList("Bearer")))
+                        .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
+                                .name("id")
+                                .in("path")
+                                .required(true)
+                                .schema(new NumberSchema().format("int64")))
+                        .responses(new ApiResponses()
+                                .addApiResponse("200", new ApiResponse()
+                                        .description("Detalhes do cliente")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("""
+                                                                {
+                                                                  "id": 10,
+                                                                  "nome": "João Silva",
+                                                                  "telefone": "11987654321",
+                                                                  "email": "joao@email.com",
+                                                                  "documento": null,
+                                                                  "endereco": null,
+                                                                  "totalAgendamentos": 5,
+                                                                  "agendamentosConcluidos": 4,
+                                                                  "agendamentosCancelados": 1,
+                                                                  "primeiroAgendamento": "2025-10-01T10:00:00",
+                                                                  "ultimoAgendamento": "2025-11-15T14:00:00",
+                                                                  "ativo": true,
+                                                                  "anonimizado": false,
+                                                                  "dataCriacao": "2025-09-01T08:00:00",
+                                                                  "dataAtualizacao": "2025-11-15T14:05:00",
+                                                                  "agendamentos": []
+                                                                }
+                                                                """))))
+                                .addApiResponse("404", new ApiResponse().description("Cliente não encontrado"))))
+                .delete(new Operation()
+                        .tags(List.of("Gestão de Clientes - Barbearia (LGPD)"))
+                        .summary("Anonimizar cliente (LGPD)")
+                        .description("Anonimiza dados pessoais do cliente preservando histórico de agendamentos. Operação irreversível!")
+                        .security(List.of(new SecurityRequirement().addList("Bearer")))
+                        .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
+                                .name("id")
+                                .in("path")
+                                .required(true)
+                                .schema(new NumberSchema().format("int64")))
+                        .responses(new ApiResponses()
+                                .addApiResponse("204", new ApiResponse().description("Cliente anonimizado com sucesso"))
+                                .addApiResponse("403", new ApiResponse().description("Cliente já anonimizado"))
+                                .addApiResponse("404", new ApiResponse().description("Cliente não encontrado"))));
     }
 }

@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS clientes (
     telefone VARCHAR(20) NOT NULL,
     role VARCHAR(20) NOT NULL DEFAULT 'CLIENTE',
     ativo BOOLEAN NOT NULL DEFAULT TRUE,
+    anonimizado BOOLEAN NOT NULL DEFAULT FALSE,
+    deleted_at TIMESTAMP NULL,
     data_criacao TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     data_atualizacao TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -163,6 +165,8 @@ CREATE TABLE IF NOT EXISTS horarios_funcionamento (
 -- Índices para melhor performance nas consultas
 CREATE INDEX IF NOT EXISTS idx_clientes_email ON clientes(email);
 CREATE INDEX IF NOT EXISTS idx_clientes_ativo ON clientes(ativo);
+CREATE INDEX IF NOT EXISTS idx_clientes_anonimizado ON clientes(anonimizado);
+CREATE INDEX IF NOT EXISTS idx_clientes_deleted_at ON clientes(deleted_at);
 
 CREATE INDEX IF NOT EXISTS idx_barbearias_email ON barbearias(email);
 CREATE INDEX IF NOT EXISTS idx_barbearias_ativo ON barbearias(ativo);

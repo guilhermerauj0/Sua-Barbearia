@@ -11,11 +11,14 @@ import com.barbearia.application.dto.AgendamentoBarbeariaDto;
 import com.barbearia.application.dto.AgendamentoResponseDto;
 import com.barbearia.application.dto.AgendamentoUpdateDto;
 import com.barbearia.application.dto.RelatorioFinanceiroDto;
+import com.barbearia.application.dto.ClienteAtendidoDto;
+import com.barbearia.application.dto.ClienteDetalhesDto;
 import com.barbearia.application.services.BarbeariaService;
 import com.barbearia.application.services.HorarioService;
 import com.barbearia.application.services.FuncionarioService;
 import com.barbearia.application.services.AgendamentoService;
 import com.barbearia.application.services.FinanceiroService;
+import com.barbearia.application.services.ClienteGestaoService;
 import com.barbearia.application.security.JwtService;
 import com.barbearia.domain.enums.PeriodoRelatorio;
 import jakarta.servlet.http.HttpServletRequest;
@@ -49,6 +52,7 @@ public class BarbeariaController {
     private final FuncionarioService funcionarioService;
     private final AgendamentoService agendamentoService;
     private final FinanceiroService financeiroService;
+    private final ClienteGestaoService clienteGestaoService;
     private final JwtService jwtService;
     
     public BarbeariaController(BarbeariaService barbeariaService, 
@@ -56,12 +60,14 @@ public class BarbeariaController {
                               FuncionarioService funcionarioService,
                               AgendamentoService agendamentoService,
                               FinanceiroService financeiroService,
+                              ClienteGestaoService clienteGestaoService,
                               JwtService jwtService) {
         this.barbeariaService = barbeariaService;
         this.horarioService = horarioService;
         this.funcionarioService = funcionarioService;
         this.agendamentoService = agendamentoService;
         this.financeiroService = financeiroService;
+        this.clienteGestaoService = clienteGestaoService;
         this.jwtService = jwtService;
     }
     
@@ -582,6 +588,180 @@ public class BarbeariaController {
         } catch (Exception e) {
             return ResponseEntity.internalServerError()
                     .body("Erro ao gerar relatório financeiro: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Lista todos os clientes atendidos pela barbearia autenticada.
+     * 
+     * <p>Endpoint protegido: apenas barbearias podem acessar.</p>
+     * 
+     * <p>Retorna lista de clientes que possuem pelo menos um agendamento com a barbearia.</p>
+     * <p>Clientes anonimizados (LGPD) não aparecem na listagem.</p>
+     * 
+     * @param request Request HTTP para extração do JWT
+     * @return 200 (OK) com lista de clientes atendidos
+     *         401 (UNAUTHORIZED) se não autenticado
+     *         403 (FORBIDDEN) se não for barbearia
+     *         500 (INTERNAL SERVER ERROR) em caso de erro
+     */
+    @GetMapping("/meus-clientes")
+    @PreAuthorize("hasRole('BARBEARIA')")
+    public ResponseEntity<?> listarMeusClientes(HttpServletRequest request) {
+        
+        try {
+            // Extrair token JWT do header Authorization
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("Token JWT não fornecido");
+            }
+            
+            // Remove prefixo "Bearer " do token
+            String token = authHeader.substring(7);
+            
+            // Extrai ID da barbearia do token
+            Object userIdObj = jwtService.extractClaim(token, "userId");
+            if (userIdObj == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("Token JWT inválido: userId não encontrado");
+            }
+            
+            Long barbeariaId = ((Number) userIdObj).longValue();
+            
+            // Listar clientes atendidos
+            List<ClienteAtendidoDto> clientes = clienteGestaoService.listarClientesAtendidos(barbeariaId);
+            
+            return ResponseEntity.ok(clientes);
+            
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body("Erro ao listar clientes: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Busca detalhes completos de um cliente atendido.
+     * 
+     * <p>Endpoint protegido: apenas barbearias podem acessar.</p>
+     * 
+     * <p>Inclui histórico completo de agendamentos e estatísticas.</p>
+     * <p>Apenas a barbearia que atendeu o cliente pode visualizar seus dados.</p>
+     * 
+     * @param id ID do cliente
+     * @param request Request HTTP para extração do JWT
+     * @return 200 (OK) com detalhes completos do cliente
+     *         401 (UNAUTHORIZED) se não autenticado
+     *         403 (FORBIDDEN) se não for barbearia
+     *         404 (NOT FOUND) se cliente não foi atendido pela barbearia
+     *         500 (INTERNAL SERVER ERROR) em caso de erro
+     */
+    @GetMapping("/clientes/{id}")
+    @PreAuthorize("hasRole('BARBEARIA')")
+    public ResponseEntity<?> buscarDetalhesCliente(
+            @PathVariable Long id,
+            HttpServletRequest request) {
+        
+        try {
+            // Extrair token JWT do header Authorization
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("Token JWT não fornecido");
+            }
+            
+            // Remove prefixo "Bearer " do token
+            String token = authHeader.substring(7);
+            
+            // Extrai ID da barbearia do token
+            Object userIdObj = jwtService.extractClaim(token, "userId");
+            if (userIdObj == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("Token JWT inválido: userId não encontrado");
+            }
+            
+            Long barbeariaId = ((Number) userIdObj).longValue();
+            
+            // Buscar detalhes do cliente
+            ClienteDetalhesDto cliente = clienteGestaoService.buscarDetalhesCliente(id, barbeariaId);
+            
+            return ResponseEntity.ok(cliente);
+            
+        } catch (com.barbearia.domain.exceptions.ClienteNaoEncontradoException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body("Erro ao buscar detalhes do cliente: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Anonimiza os dados pessoais de um cliente (LGPD).
+     * 
+     * <p>Endpoint protegido: apenas barbearias podem acessar.</p>
+     * 
+     * <p><b>Processo de anonimização (LGPD):</b></p>
+     * <ul>
+     *   <li>Substitui dados pessoais por tokens únicos</li>
+     *   <li>Marca cliente como anonimizado e inativo</li>
+     *   <li>Registra data/hora da anonimização</li>
+     *   <li>Preserva histórico de agendamentos (obrigação legal)</li>
+     * </ul>
+     * 
+     * <p><b>Importante:</b> Operação irreversível. Dados não podem ser recuperados.</p>
+     * 
+     * @param id ID do cliente a ser anonimizado
+     * @param request Request HTTP para extração do JWT
+     * @return 204 (NO CONTENT) em caso de sucesso
+     *         401 (UNAUTHORIZED) se não autenticado
+     *         403 (FORBIDDEN) se cliente já anonimizado ou não pertence à barbearia
+     *         404 (NOT FOUND) se cliente não foi atendido pela barbearia
+     *         500 (INTERNAL SERVER ERROR) em caso de erro
+     */
+    @DeleteMapping("/clientes/{id}")
+    @PreAuthorize("hasRole('BARBEARIA')")
+    public ResponseEntity<?> anonimizarCliente(
+            @PathVariable Long id,
+            HttpServletRequest request) {
+        
+        try {
+            // Extrair token JWT do header Authorization
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("Token JWT não fornecido");
+            }
+            
+            // Remove prefixo "Bearer " do token
+            String token = authHeader.substring(7);
+            
+            // Extrai ID da barbearia do token
+            Object userIdObj = jwtService.extractClaim(token, "userId");
+            if (userIdObj == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("Token JWT inválido: userId não encontrado");
+            }
+            
+            Long barbeariaId = ((Number) userIdObj).longValue();
+            
+            // Anonimizar dados do cliente
+            clienteGestaoService.anonimizarCliente(id, barbeariaId);
+            
+            return ResponseEntity.noContent().build();
+            
+        } catch (com.barbearia.domain.exceptions.ClienteNaoEncontradoException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (com.barbearia.domain.exceptions.AcessoNegadoException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body("Erro ao anonimizar cliente: " + e.getMessage());
         }
     }
 }

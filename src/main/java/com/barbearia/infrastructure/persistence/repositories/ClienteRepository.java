@@ -2,8 +2,11 @@ package com.barbearia.infrastructure.persistence.repositories;
 
 import com.barbearia.infrastructure.persistence.entities.JpaCliente;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -73,4 +76,40 @@ public interface ClienteRepository extends JpaRepository<JpaCliente, Long> {
      * @return Optional contendo o cliente ativo se encontrado, ou vazio caso contrário
      */
     Optional<JpaCliente> findByEmailAndAtivoTrue(String email);
+    
+    /**
+     * Busca todos os clientes que foram atendidos por uma barbearia específica.
+     * 
+     * Query JPQL que faz join com a tabela de agendamentos para encontrar
+     * clientes que possuem pelo menos um agendamento naquela barbearia.
+     * Retorna apenas clientes não anonimizados.
+     * 
+     * @param barbeariaId ID da barbearia
+     * @return Lista de clientes atendidos pela barbearia
+     */
+    @Query("SELECT DISTINCT c FROM JpaCliente c " +
+           "INNER JOIN JpaAgendamento a ON a.clienteId = c.id " +
+           "WHERE a.barbeariaId = :barbeariaId " +
+           "AND c.anonimizado = false " +
+           "ORDER BY c.nome ASC")
+    List<JpaCliente> findClientesAtendidosPorBarbearia(@Param("barbeariaId") Long barbeariaId);
+    
+    /**
+     * Busca um cliente específico que foi atendido por uma barbearia.
+     * 
+     * Verifica se o cliente pertence à carteira de clientes da barbearia
+     * (teve pelo menos um agendamento).
+     * 
+     * @param clienteId ID do cliente
+     * @param barbeariaId ID da barbearia
+     * @return Optional contendo o cliente se foi atendido pela barbearia
+     */
+    @Query("SELECT DISTINCT c FROM JpaCliente c " +
+           "INNER JOIN JpaAgendamento a ON a.clienteId = c.id " +
+           "WHERE c.id = :clienteId " +
+           "AND a.barbeariaId = :barbeariaId " +
+           "AND c.anonimizado = false")
+    Optional<JpaCliente> findClienteAtendidoPorBarbearia(
+            @Param("clienteId") Long clienteId,
+            @Param("barbeariaId") Long barbeariaId);
 }
