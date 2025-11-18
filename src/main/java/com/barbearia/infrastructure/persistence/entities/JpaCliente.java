@@ -73,6 +73,20 @@ public class JpaCliente {
     private boolean ativo = true;
     
     /**
+     * Indica se os dados do cliente foram anonimizados (LGPD)
+     * Quando true, dados pessoais foram substituídos por tokens
+     */
+    @Column(nullable = false)
+    private boolean anonimizado = false;
+    
+    /**
+     * Data e hora em que o cliente foi marcado como deletado/anonimizado
+     * Usado para compliance LGPD
+     */
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+    
+    /**
      * Data e hora de criação do registro
      * Preenchida automaticamente na inserção
      */
@@ -175,6 +189,22 @@ public class JpaCliente {
     
     public void setAtivo(boolean ativo) {
         this.ativo = ativo;
+    }
+    
+    public boolean isAnonimizado() {
+        return anonimizado;
+    }
+    
+    public void setAnonimizado(boolean anonimizado) {
+        this.anonimizado = anonimizado;
+    }
+    
+    public LocalDateTime getDeletedAt() {
+        return deletedAt;
+    }
+    
+    public void setDeletedAt(LocalDateTime deletedAt) {
+        this.deletedAt = deletedAt;
     }
     
     public LocalDateTime getDataCriacao() {
