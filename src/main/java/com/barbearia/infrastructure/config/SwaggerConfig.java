@@ -132,8 +132,12 @@ public class SwaggerConfig {
         Server prodServer = new Server()
                 .url("https://sua-barbearia.onrender.com")
                 .description("Servidor de Produção (Render)");
+
+        Server azureServer = new Server()
+                .url("https://sua-barbearia-g7f7ftc4f6ewbkch.centralus-01.azurewebsites.net/")
+                .description("Servidor de Produção (Azure)");
         
-        return List.of(devServer, prodServer);
+        return List.of(devServer, prodServer, azureServer);
     }
 
     private PathItem registrarClientePath() {
