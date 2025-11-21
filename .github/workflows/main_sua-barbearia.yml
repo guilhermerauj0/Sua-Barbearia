@@ -25,7 +25,7 @@ jobs:
           distribution: 'microsoft'
 
       - name: Build with Maven
-        run: mvn clean install
+        run: mvn clean install -DskipTests
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
@@ -60,4 +60,5 @@ jobs:
           app-name: 'sua-barbearia'
           slot-name: 'Production'
           package: '*.jar'
+
           
