@@ -812,4 +812,129 @@ public class AgendamentoService {
             agendamento.getDataAtualizacao()
         );
     }
+    
+    /**
+     * Cancela um agendamento.
+     * 
+     * @param agendamentoId ID do agendamento
+     * @param usuarioId ID do usuário solicitante
+     * @param tipoUsuario Tipo do usuário solicitante
+     */
+    @Transactional
+    @SuppressWarnings("null")
+    public void cancelarAgendamento(Long agendamentoId, Long usuarioId, String tipoUsuario) {
+        // Busca com validação de permissão
+        buscarAgendamentoPorId(agendamentoId, usuarioId, tipoUsuario);
+        
+        JpaAgendamento agendamento = agendamentoRepository.findById(agendamentoId).orElseThrow();
+        
+        if (agendamento.getStatus() == StatusAgendamento.CANCELADO) {
+            throw new IllegalArgumentException("Agendamento já está cancelado");
+        }
+        
+        if (agendamento.getDataHora().isBefore(LocalDateTime.now())) {
+             throw new IllegalArgumentException("Não é possível cancelar agendamentos passados");
+        }
+
+        agendamento.setStatus(StatusAgendamento.CANCELADO);
+        agendamento.setDataAtualizacao(LocalDateTime.now());
+        agendamentoRepository.save(agendamento);
+    }
+
+    /**
+     * Reagenda um agendamento.
+     * 
+     * @param agendamentoId ID do agendamento
+     * @param novaDataHora Nova data e hora
+     * @param usuarioId ID do usuário solicitante
+     * @param tipoUsuario Tipo do usuário solicitante
+     * @return Agendamento atualizado
+     */
+    @Transactional
+    @SuppressWarnings("null")
+    public AgendamentoResponseDto reagendarAgendamento(Long agendamentoId, LocalDateTime novaDataHora, Long usuarioId, String tipoUsuario) {
+        // Busca com validação de permissão
+        buscarAgendamentoPorId(agendamentoId, usuarioId, tipoUsuario);
+        
+        JpaAgendamento agendamento = agendamentoRepository.findById(agendamentoId).orElseThrow();
+        
+        if (agendamento.getStatus() == StatusAgendamento.CANCELADO) {
+            throw new IllegalArgumentException("Não é possível reagendar um agendamento cancelado");
+        }
+        
+        if (novaDataHora.isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Nova data/hora não pode ser no passado");
+        }
+        
+        // Verificar conflito de horário (excluindo o próprio agendamento se for o mesmo horário, mas aqui mudou o horário)
+        if (agendamentoRepository.existsConflictByBarbeiroIdAndDataHora(
+                agendamento.getBarbeiroId(),
+                novaDataHora)) {
+            throw new IllegalArgumentException("Horário não disponível para este funcionário");
+        }
+        
+        agendamento.setDataHora(novaDataHora);
+        agendamento.setDataAtualizacao(LocalDateTime.now());
+        // Se estava confirmado, talvez devesse voltar para pendente? 
+        // Por simplicidade, mantemos o status, mas em um sistema real talvez precisasse de reconfirmação.
+        // O usuário pediu "Reagendar e cancelar", assumindo fluxo simples.
+        
+        JpaAgendamento agendamentoSalvo = agendamentoRepository.save(agendamento);
+        
+        return AgendamentoMapper.toResponseDto(agendamentoSalvo);
+    }
+    
+    /**
+     * Confirma um agendamento.
+     * 
+     * @param agendamentoId ID do agendamento
+     * @param usuarioId ID do usuário autenticado
+     * @param tipoUsuario Tipo do usuário
+     */
+    @Transactional
+    public void confirmarAgendamento(Long agendamentoId, Long usuarioId, String tipoUsuario) {
+        if (agendamentoId == null) throw new IllegalArgumentException("ID do agendamento não pode ser nulo");
+        
+        JpaAgendamento agendamento = agendamentoRepository.findById(agendamentoId)
+                .orElseThrow(() -> new AgendamentoNaoEncontradoException("Agendamento não encontrado"));
+        
+        if (!verificarAutorizacaoAcesso(agendamento, usuarioId, tipoUsuario)) {
+            throw new AcessoNegadoException("Sem permissão para confirmar este agendamento");
+        }
+        
+        if ("CLIENTE".equalsIgnoreCase(tipoUsuario)) {
+             throw new AcessoNegadoException("Clientes não podem confirmar agendamentos");
+        }
+
+        agendamento.setStatus(StatusAgendamento.CONFIRMADO);
+        agendamento.setDataAtualizacao(LocalDateTime.now());
+        agendamentoRepository.save(agendamento);
+    }
+
+    /**
+     * Conclui um agendamento.
+     * 
+     * @param agendamentoId ID do agendamento
+     * @param usuarioId ID do usuário autenticado
+     * @param tipoUsuario Tipo do usuário
+     */
+    @Transactional
+    public void concluirAgendamento(Long agendamentoId, Long usuarioId, String tipoUsuario) {
+        if (agendamentoId == null) throw new IllegalArgumentException("ID do agendamento não pode ser nulo");
+        
+        JpaAgendamento agendamento = agendamentoRepository.findById(agendamentoId)
+                .orElseThrow(() -> new AgendamentoNaoEncontradoException("Agendamento não encontrado"));
+        
+        if (!verificarAutorizacaoAcesso(agendamento, usuarioId, tipoUsuario)) {
+            throw new AcessoNegadoException("Sem permissão para concluir este agendamento");
+        }
+        
+        if ("CLIENTE".equalsIgnoreCase(tipoUsuario)) {
+             throw new AcessoNegadoException("Clientes não podem concluir agendamentos");
+        }
+
+        agendamento.setStatus(StatusAgendamento.CONCLUIDO);
+        agendamento.setDataAtualizacao(LocalDateTime.now());
+        agendamentoRepository.save(agendamento);
+    }
 }
