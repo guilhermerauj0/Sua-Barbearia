@@ -60,14 +60,17 @@ public class SwaggerConfig {
                         .addSchemas("HorarioFuncionamentoRequest", new ObjectSchema()
                                 .addProperty("diaSemana", new Schema<>().type("integer").minimum(BigDecimal.ONE).maximum(BigDecimal.valueOf(7)).description("Dia da semana (1=Segunda, 7=Domingo)"))
                                 .addProperty("horaAbertura", new Schema<>().type("string").format("time"))
-                                .addProperty("horaFechamento", new Schema<>().type("string").format("time")))
+                                .addProperty("horaFechamento", new Schema<>().type("string").format("time"))
+                                .addProperty("ativo", new Schema<>().type("boolean").description("Indica se o horário está ativo (true) ou inativo (false). Padrão: true")))
                         .addSchemas("HorarioFuncionamentoResponse", new ObjectSchema()
                                 .addProperty("id", new Schema<>().type("integer").format("int64"))
                                 .addProperty("barbeariaId", new Schema<>().type("integer").format("int64"))
                                 .addProperty("diaSemana", new Schema<>().type("integer"))
                                 .addProperty("horaAbertura", new Schema<>().type("string").format("time"))
                                 .addProperty("horaFechamento", new Schema<>().type("string").format("time"))
-                                .addProperty("ativo", new Schema<>().type("boolean"))))
+                                .addProperty("ativo", new Schema<>().type("boolean")))
+                        .addSchemas("AgendamentoReagendamentoRequest", new ObjectSchema()
+                                .addProperty("novaDataHora", new Schema<>().type("string").format("date-time").description("Nova data e hora"))))
                 .paths(new io.swagger.v3.oas.models.Paths()
                         // Clientes
                         .addPathItem("/api/auth/cliente/registrar", registrarClientePath())
@@ -98,7 +101,13 @@ public class SwaggerConfig {
                         .addPathItem("/api/barbearias/clientes/{id}", detalhesClientePath())
                         // Agendamentos - Cliente
                         .addPathItem("/api/agendamentos", criarAgendamentoPath())
-                        .addPathItem("/api/agendamentos/{id}", buscarPorIdPath()));
+                        .addPathItem("/api/agendamentos/{id}", buscarPorIdPath())
+                        .addPathItem("/api/agendamentos/{id}/cancelar", cancelarAgendamentoPath())
+                        .addPathItem("/api/agendamentos/{id}/reagendar", reagendarAgendamentoPath())
+                        .addPathItem("/api/agendamentos/{id}/confirmar", confirmarAgendamentoPath())
+                        .addPathItem("/api/agendamentos/{id}/concluir", concluirAgendamentoPath())
+                        .addPathItem("/api/barbearias/funcionarios/{funcionarioId}/link-acesso", gerarLinkAcessoPath())
+                        .addPathItem("/api/horarios/funcionario/{funcionarioId}", horariosFuncionarioPath()));
     }
 
     private Info apiInfo() {
@@ -1216,7 +1225,8 @@ public class SwaggerConfig {
                 {
                   "diaSemana": 1,
                   "horaAbertura": "08:00",
-                  "horaFechamento": "18:00"
+                  "horaFechamento": "18:00",
+                  "ativo": true
                 }
                 """;
     }
@@ -2595,5 +2605,103 @@ public class SwaggerConfig {
                                 .addApiResponse("204", new ApiResponse().description("Cliente anonimizado com sucesso"))
                                 .addApiResponse("403", new ApiResponse().description("Cliente já anonimizado"))
                                 .addApiResponse("404", new ApiResponse().description("Cliente não encontrado"))));
+    }
+
+    // ===== NOVAS ROTAS (Agendamento Actions, Magic Link, Horarios) =====
+
+    private PathItem cancelarAgendamentoPath() {
+        return new PathItem()
+                .post(new Operation()
+                        .tags(List.of("Agendamentos"))
+                        .summary("Cancelar agendamento")
+                        .description("Cancela um agendamento existente.")
+                        .security(List.of(new SecurityRequirement().addList("Bearer")))
+                        .responses(new ApiResponses()
+                                .addApiResponse("204", new ApiResponse().description("Agendamento cancelado com sucesso"))
+                                .addApiResponse("400", new ApiResponse().description("Erro de validação (ex: agendamento passado)"))
+                                .addApiResponse("404", new ApiResponse().description("Agendamento não encontrado"))));
+    }
+
+    private PathItem reagendarAgendamentoPath() {
+        return new PathItem()
+                .post(new Operation()
+                        .tags(List.of("Agendamentos"))
+                        .summary("Reagendar agendamento")
+                        .description("Altera a data e hora de um agendamento.")
+                        .security(List.of(new SecurityRequirement().addList("Bearer")))
+                        .requestBody(new RequestBody()
+                                .content(new Content()
+                                        .addMediaType("application/json", new MediaType()
+                                                .schema(new Schema<>().$ref("#/components/schemas/AgendamentoReagendamentoRequest")))))
+                        .responses(new ApiResponses()
+                                .addApiResponse("200", new ApiResponse().description("Agendamento reagendado com sucesso"))
+                                .addApiResponse("400", new ApiResponse().description("Erro de validação"))
+                                .addApiResponse("404", new ApiResponse().description("Agendamento não encontrado"))));
+    }
+
+    private PathItem confirmarAgendamentoPath() {
+        return new PathItem()
+                .post(new Operation()
+                        .tags(List.of("Agendamentos"))
+                        .summary("Confirmar agendamento")
+                        .description("Confirma um agendamento pendente.")
+                        .security(List.of(new SecurityRequirement().addList("Bearer")))
+                        .responses(new ApiResponses()
+                                .addApiResponse("200", new ApiResponse().description("Agendamento confirmado com sucesso"))
+                                .addApiResponse("404", new ApiResponse().description("Agendamento não encontrado"))));
+    }
+
+    private PathItem concluirAgendamentoPath() {
+        return new PathItem()
+                .post(new Operation()
+                        .tags(List.of("Agendamentos"))
+                        .summary("Concluir agendamento")
+                        .description("Marca um agendamento como concluído.")
+                        .security(List.of(new SecurityRequirement().addList("Bearer")))
+                        .responses(new ApiResponses()
+                                .addApiResponse("200", new ApiResponse().description("Agendamento concluído com sucesso"))
+                                .addApiResponse("404", new ApiResponse().description("Agendamento não encontrado"))));
+    }
+
+    private PathItem gerarLinkAcessoPath() {
+        return new PathItem()
+                .post(new Operation()
+                        .tags(List.of("Funcionários"))
+                        .summary("Gerar Link de Acesso (Magic Link)")
+                        .description("Gera um link de acesso temporário para o funcionário acessar seu painel.")
+                        .security(List.of(new SecurityRequirement().addList("Bearer")))
+                        .responses(new ApiResponses()
+                                .addApiResponse("200", new ApiResponse()
+                                        .description("Link gerado com sucesso")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("{\"link\": \"https://sua-barbearia.com/login?token=...\"}"))))
+                                .addApiResponse("403", new ApiResponse().description("Acesso negado"))));
+    }
+
+    private PathItem horariosFuncionarioPath() {
+        return new PathItem()
+                .get(new Operation()
+                        .tags(List.of("Horários"))
+                        .summary("Listar horários do funcionário")
+                        .description("Lista os horários de funcionamento configurados para um funcionário.")
+                        .responses(new ApiResponses()
+                                .addApiResponse("200", new ApiResponse()
+                                        .description("Lista de horários")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(new ArraySchema().items(new Schema<>().$ref("#/components/schemas/HorarioFuncionamentoResponse"))))))))
+                .post(new Operation()
+                        .tags(List.of("Horários"))
+                        .summary("Salvar horário do funcionário")
+                        .description("Cria ou atualiza o horário de funcionamento para um dia específico.")
+                        .security(List.of(new SecurityRequirement().addList("Bearer")))
+                        .requestBody(new RequestBody()
+                                .content(new Content()
+                                        .addMediaType("application/json", new MediaType()
+                                                .schema(new Schema<>().$ref("#/components/schemas/HorarioFuncionamentoRequest")))))
+                        .responses(new ApiResponses()
+                                .addApiResponse("200", new ApiResponse().description("Horário salvo com sucesso"))
+                                .addApiResponse("400", new ApiResponse().description("Dados inválidos"))));
     }
 }
