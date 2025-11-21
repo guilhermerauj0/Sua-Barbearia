@@ -24,6 +24,7 @@ public class HorarioFuncionamentoMapper {
         return new HorarioFuncionamentoResponseDto(
             jpaEntity.getId(),
             jpaEntity.getBarbeariaId(),
+            jpaEntity.getFuncionarioId(),
             jpaEntity.getDiaSemana(),
             jpaEntity.getHoraAbertura(),
             jpaEntity.getHoraFechamento(),
