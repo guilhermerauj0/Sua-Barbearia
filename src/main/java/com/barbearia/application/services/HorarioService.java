@@ -71,6 +71,19 @@ public class HorarioService {
      * @return Lista de horários disponíveis com informações do profissional
      */
     public List<HorarioDisponivelDto> obterHorariosDisponiveis(Long barbeariaId, Long servicoId, LocalDate data) {
+        return obterHorariosDisponiveis(barbeariaId, servicoId, data, null);
+    }
+
+    /**
+     * Obtém os horários disponíveis para um serviço em uma data específica, opcionalmente filtrando por profissional.
+     * 
+     * @param barbeariaId ID da barbearia
+     * @param servicoId ID do serviço desejado
+     * @param data Data para consultar disponibilidade
+     * @param profissionalId ID do profissional (opcional)
+     * @return Lista de horários disponíveis com informações do profissional
+     */
+    public List<HorarioDisponivelDto> obterHorariosDisponiveis(Long barbeariaId, Long servicoId, LocalDate data, Long profissionalId) {
         List<HorarioDisponivelDto> horariosDisponiveis = new ArrayList<>();
         
         // Validar parâmetros
@@ -99,19 +112,6 @@ public class HorarioService {
         // Obter dia da semana (1=SEGUNDA, 7=DOMINGO - ISO 8601)
         int diaSemana = data.getDayOfWeek().getValue();
         
-        // Buscar horário de funcionamento para esse dia
-        Optional<com.barbearia.infrastructure.persistence.entities.JpaHorarioFuncionamento> horarioOpt =
-                horarioFuncionamentoRepository.findByBarbeariaIdAndDiaSemanaAtivo(barbeariaId, diaSemana);
-        
-        if (horarioOpt.isEmpty()) {
-            // Barbearia fechada nesse dia
-            return horariosDisponiveis;
-        }
-        
-        var horarioFuncionamento = horarioOpt.get();
-        LocalTime horaAbertura = horarioFuncionamento.getHoraAbertura();
-        LocalTime horaFechamento = horarioFuncionamento.getHoraFechamento();
-        
         // Buscar todos os profissionais que podem fazer esse serviço
         List<com.barbearia.infrastructure.persistence.entities.JpaProfissionalServico> profissionaisCasos =
                 profissionalServicoRepository.findFuncionariosByServicoIdAtivo(servicoId);
@@ -120,12 +120,35 @@ public class HorarioService {
         for (var profissionalServico : profissionaisCasos) {
             Long funcionarioId = profissionalServico.getFuncionarioId();
             
+            // Se um profissional específico foi solicitado, filtrar os outros
+            if (profissionalId != null && !profissionalId.equals(funcionarioId)) {
+                continue;
+            }
+            
             // Obter dados do funcionário
             Optional<JpaFuncionario> funcionarioOpt = funcionarioRepository.findByIdAtivo(funcionarioId);
             if (funcionarioOpt.isEmpty()) {
                 continue;
             }
             JpaFuncionario funcionario = funcionarioOpt.get();
+
+            // Tenta buscar horário específico do profissional
+            Optional<com.barbearia.infrastructure.persistence.entities.JpaHorarioFuncionamento> horarioOpt =
+                    horarioFuncionamentoRepository.findByFuncionarioIdAndDiaSemanaAtivo(funcionarioId, diaSemana);
+            
+            // Se não tiver horário específico, tenta o da barbearia
+            if (horarioOpt.isEmpty()) {
+                horarioOpt = horarioFuncionamentoRepository.findByBarbeariaIdAndDiaSemanaAtivo(barbeariaId, diaSemana);
+            }
+
+            if (horarioOpt.isEmpty()) {
+                // Profissional e barbearia fechados nesse dia
+                continue;
+            }
+            
+            var horarioFuncionamento = horarioOpt.get();
+            LocalTime horaAbertura = horarioFuncionamento.getHoraAbertura();
+            LocalTime horaFechamento = horarioFuncionamento.getHoraFechamento();
             
             // Buscar agendamentos do profissional para essa data
             LocalDateTime inicioData = data.atStartOfDay();
