@@ -44,4 +44,22 @@ public interface HorarioFuncionamentoRepository extends JpaRepository<JpaHorario
      */
     @Query("SELECT COUNT(h) > 0 FROM JpaHorarioFuncionamento h WHERE h.barbeariaId = :barbeariaId AND h.diaSemana = :diaSemana AND h.ativo = true")
     boolean existsForBarbeariaAndDiaAtivo(@Param("barbeariaId") Long barbeariaId, @Param("diaSemana") Integer diaSemana);
+
+    /**
+     * Encontra o horário de funcionamento de um funcionário para um dia específico (apenas ativo).
+     */
+    @Query("SELECT h FROM JpaHorarioFuncionamento h WHERE h.funcionarioId = :funcionarioId AND h.diaSemana = :diaSemana AND h.ativo = true")
+    Optional<JpaHorarioFuncionamento> findByFuncionarioIdAndDiaSemanaAtivo(@Param("funcionarioId") Long funcionarioId, @Param("diaSemana") Integer diaSemana);
+
+    /**
+     * Encontra todos os horários de um funcionário (apenas ativos).
+     */
+    @Query("SELECT h FROM JpaHorarioFuncionamento h WHERE h.funcionarioId = :funcionarioId AND h.ativo = true ORDER BY h.diaSemana ASC")
+    List<JpaHorarioFuncionamento> findByFuncionarioIdAtivo(@Param("funcionarioId") Long funcionarioId);
+
+    /**
+     * Encontra o horário de funcionamento de um funcionário para um dia específico (ignora status ativo).
+     */
+    @Query("SELECT h FROM JpaHorarioFuncionamento h WHERE h.funcionarioId = :funcionarioId AND h.diaSemana = :diaSemana")
+    Optional<JpaHorarioFuncionamento> findByFuncionarioIdAndDiaSemana(@Param("funcionarioId") Long funcionarioId, @Param("diaSemana") Integer diaSemana);
 }
