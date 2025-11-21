@@ -25,9 +25,15 @@ public class HorarioGestaoService {
     private static final Logger log = LoggerFactory.getLogger(HorarioGestaoService.class);
     
     private final FeriadoExcecaoRepository feriadoExcecaoRepository;
+    private final com.barbearia.infrastructure.persistence.repositories.HorarioFuncionamentoRepository horarioFuncionamentoRepository;
+    private final com.barbearia.infrastructure.persistence.repositories.FuncionarioRepository funcionarioRepository;
     
-    public HorarioGestaoService(FeriadoExcecaoRepository feriadoExcecaoRepository) {
+    public HorarioGestaoService(FeriadoExcecaoRepository feriadoExcecaoRepository,
+                                com.barbearia.infrastructure.persistence.repositories.HorarioFuncionamentoRepository horarioFuncionamentoRepository,
+                                com.barbearia.infrastructure.persistence.repositories.FuncionarioRepository funcionarioRepository) {
         this.feriadoExcecaoRepository = feriadoExcecaoRepository;
+        this.horarioFuncionamentoRepository = horarioFuncionamentoRepository;
+        this.funcionarioRepository = funcionarioRepository;
     }
     
     // ===== MÉTODOS PARA EXCEÇÕES/FERIADOS =====
@@ -267,5 +273,79 @@ public class HorarioGestaoService {
         entity.setDescricao(domain.getDescricao());
         entity.setAtivo(domain.isAtivo());
         return entity;
+    }
+    
+    // ===== MÉTODOS PARA HORÁRIOS DE FUNCIONAMENTO =====
+
+    /**
+     * Lista os horários de funcionamento de um funcionário.
+     */
+    public List<HorarioFuncionamentoResponseDto> listarHorariosFuncionario(Long funcionarioId) {
+        List<com.barbearia.infrastructure.persistence.entities.JpaHorarioFuncionamento> horarios = 
+                horarioFuncionamentoRepository.findByFuncionarioIdAtivo(funcionarioId);
+        
+        return horarios.stream()
+                .map(h -> new HorarioFuncionamentoResponseDto(
+                        h.getId(), 
+                        h.getBarbeariaId(), 
+                        h.getFuncionarioId(),
+                        h.getDiaSemana(), 
+                        h.getHoraAbertura(), 
+                        h.getHoraFechamento(), 
+                        h.isAtivo()))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Atualiza ou cria o horário de funcionamento de um funcionário para um dia específico.
+     */
+    @Transactional
+    public HorarioFuncionamentoResponseDto salvarHorarioFuncionario(Long barbeariaId, Long funcionarioId, HorarioFuncionamentoRequestDto dto) {
+        if (dto == null) {
+            throw new IllegalArgumentException("Dados de horário não podem ser nulos");
+        }
+        
+        if (!dto.isValid()) {
+            throw new IllegalArgumentException("Dados de horário inválidos");
+        }
+        
+        if (funcionarioId == null) {
+            throw new IllegalArgumentException("ID do funcionário não pode ser nulo");
+        }
+        
+        // Valida se o funcionário pertence à barbearia
+        com.barbearia.infrastructure.persistence.entities.JpaFuncionario funcionario = 
+                funcionarioRepository.findById(funcionarioId)
+                .orElseThrow(() -> new IllegalArgumentException("Funcionário não encontrado"));
+                
+        if (!funcionario.getBarbeariaId().equals(barbeariaId)) {
+            throw new IllegalArgumentException("Funcionário não pertence a esta barbearia");
+        }
+
+        // Verifica se já existe horário para este dia e funcionário (ativo ou inativo)
+        com.barbearia.infrastructure.persistence.entities.JpaHorarioFuncionamento horario = 
+                horarioFuncionamentoRepository.findByFuncionarioIdAndDiaSemana(funcionarioId, dto.getDiaSemana())
+                .orElse(new com.barbearia.infrastructure.persistence.entities.JpaHorarioFuncionamento(
+                        barbeariaId, funcionarioId, dto.getDiaSemana(), dto.getHoraAbertura(), dto.getHoraFechamento()));
+
+        // Atualiza dados
+        horario.setHoraAbertura(dto.getHoraAbertura());
+        horario.setHoraFechamento(dto.getHoraFechamento());
+        horario.setBarbeariaId(barbeariaId); // Garante que está vinculado à barbearia correta
+        horario.setFuncionarioId(funcionarioId);
+        // Se ativo não for informado, assume true (ativo)
+        horario.setAtivo(dto.getAtivo() != null ? dto.getAtivo() : true);
+        horario.setDataAtualizacao(java.time.LocalDateTime.now());
+
+        com.barbearia.infrastructure.persistence.entities.JpaHorarioFuncionamento salvo = horarioFuncionamentoRepository.save(horario);
+
+        return new HorarioFuncionamentoResponseDto(
+                salvo.getId(), 
+                salvo.getBarbeariaId(), 
+                salvo.getFuncionarioId(),
+                salvo.getDiaSemana(), 
+                salvo.getHoraAbertura(), 
+                salvo.getHoraFechamento(), 
+                salvo.isAtivo());
     }
 }
