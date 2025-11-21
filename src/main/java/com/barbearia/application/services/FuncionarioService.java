@@ -21,10 +21,14 @@ public class FuncionarioService {
 
     private final FuncionarioRepository funcionarioRepository;
     private final FuncionarioMapper funcionarioMapper;
+    private final com.barbearia.infrastructure.persistence.repositories.ProfissionalServicoRepository profissionalServicoRepository;
 
-    public FuncionarioService(FuncionarioRepository funcionarioRepository, FuncionarioMapper funcionarioMapper) {
+    public FuncionarioService(FuncionarioRepository funcionarioRepository, 
+                              FuncionarioMapper funcionarioMapper,
+                              com.barbearia.infrastructure.persistence.repositories.ProfissionalServicoRepository profissionalServicoRepository) {
         this.funcionarioRepository = funcionarioRepository;
         this.funcionarioMapper = funcionarioMapper;
+        this.profissionalServicoRepository = profissionalServicoRepository;
     }
 
     /**
@@ -53,6 +57,25 @@ public class FuncionarioService {
         List<JpaFuncionario> funcionarios = funcionarioRepository.findByBarbeariaIdAndAtivoTrue(barbeariaId);
         
         return funcionarios.stream()
+                .map(funcionarioMapper::toResponseDto)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Lista profissionais que realizam um determinado serviço.
+     */
+    @Transactional(readOnly = true)
+    @SuppressWarnings("null")
+    public List<FuncionarioResponseDto> listarProfissionaisPorServico(Long servicoId) {
+        List<Long> funcionarioIds = profissionalServicoRepository.findFuncionariosByServicoIdAtivo(servicoId)
+                .stream()
+                .map(ps -> ps.getFuncionarioId())
+                .collect(Collectors.toList());
+        
+        List<JpaFuncionario> funcionarios = funcionarioRepository.findAllById(funcionarioIds);
+        
+        return funcionarios.stream()
+                .filter(JpaFuncionario::isAtivo)
                 .map(funcionarioMapper::toResponseDto)
                 .collect(Collectors.toList());
     }
