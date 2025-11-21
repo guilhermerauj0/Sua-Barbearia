@@ -163,6 +163,123 @@ public class AgendamentoController {
     }
     
     /**
+     * Cancela um agendamento.
+     */
+    @PostMapping("/{id}/cancelar")
+    public ResponseEntity<?> cancelarAgendamento(
+            @PathVariable Long id,
+            HttpServletRequest request) {
+        try {
+            Long usuarioId = extrairUsuarioIdDoToken(request);
+            String tipoUsuario = extrairTipoUsuarioDoToken(request);
+            
+            if (usuarioId == null || tipoUsuario == null) {
+                return ResponseEntity.status(401).body("Token JWT inválido");
+            }
+            
+            agendamentoService.cancelarAgendamento(id, usuarioId, tipoUsuario);
+            
+            return ResponseEntity.noContent().build();
+        } catch (AgendamentoNaoEncontradoException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        } catch (AcessoNegadoException e) {
+            return ResponseEntity.status(403).body(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Erro ao cancelar agendamento: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Reagenda um agendamento.
+     */
+    @PostMapping("/{id}/reagendar")
+    public ResponseEntity<?> reagendarAgendamento(
+            @PathVariable Long id,
+            @RequestBody com.barbearia.application.dto.AgendamentoReagendamentoDto dto,
+            HttpServletRequest request) {
+        try {
+            Long usuarioId = extrairUsuarioIdDoToken(request);
+            String tipoUsuario = extrairTipoUsuarioDoToken(request);
+            
+            if (usuarioId == null || tipoUsuario == null) {
+                return ResponseEntity.status(401).body("Token JWT inválido");
+            }
+            
+            AgendamentoResponseDto agendamento = agendamentoService.reagendarAgendamento(id, dto.novaDataHora(), usuarioId, tipoUsuario);
+            
+            return ResponseEntity.ok(agendamento);
+        } catch (AgendamentoNaoEncontradoException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        } catch (AcessoNegadoException e) {
+            return ResponseEntity.status(403).body(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Erro ao reagendar agendamento: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Confirma um agendamento.
+     */
+    @PostMapping("/{id}/confirmar")
+    public ResponseEntity<?> confirmarAgendamento(
+            @PathVariable Long id,
+            HttpServletRequest request) {
+        try {
+            Long usuarioId = extrairUsuarioIdDoToken(request);
+            String tipoUsuario = extrairTipoUsuarioDoToken(request);
+            
+            if (usuarioId == null || tipoUsuario == null) {
+                return ResponseEntity.status(401).body("Token JWT inválido");
+            }
+            
+            agendamentoService.confirmarAgendamento(id, usuarioId, tipoUsuario);
+            
+            return ResponseEntity.ok().build();
+        } catch (AgendamentoNaoEncontradoException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        } catch (AcessoNegadoException e) {
+            return ResponseEntity.status(403).body(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Erro ao confirmar agendamento: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Conclui um agendamento.
+     */
+    @PostMapping("/{id}/concluir")
+    public ResponseEntity<?> concluirAgendamento(
+            @PathVariable Long id,
+            HttpServletRequest request) {
+        try {
+            Long usuarioId = extrairUsuarioIdDoToken(request);
+            String tipoUsuario = extrairTipoUsuarioDoToken(request);
+            
+            if (usuarioId == null || tipoUsuario == null) {
+                return ResponseEntity.status(401).body("Token JWT inválido");
+            }
+            
+            agendamentoService.concluirAgendamento(id, usuarioId, tipoUsuario);
+            
+            return ResponseEntity.ok().build();
+        } catch (AgendamentoNaoEncontradoException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        } catch (AcessoNegadoException e) {
+            return ResponseEntity.status(403).body(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Erro ao concluir agendamento: " + e.getMessage());
+        }
+    }
+    
+    /**
      * Extrai o ID do usuário do token JWT presente no header Authorization.
      * 
      * @param request Requisição HTTP
