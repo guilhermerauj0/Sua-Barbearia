@@ -297,7 +297,7 @@ public class BarbeariaController {
             @ApiResponse(responseCode = "403", description = "Usuário não possui role BARBEARIA", content = @Content(mediaType = "text/plain")),
             @ApiResponse(responseCode = "500", description = "Erro interno do servidor", content = @Content(mediaType = "text/plain"))
     })
-    @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Dados do funcionário", required = true, content = @Content(mediaType = "application/json", schema = @Schema(implementation = FuncionarioRequestDto.class), examples = @ExampleObject(name = "Novo Funcionário", value = "{\"nome\":\"Carlos Souza\",\"email\":\"carlos@email.com\",\"telefone\":\"87977776666\",\"profissao\":\"BARBEIRO\"}")))
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Dados do funcionário", required = true, content = @Content(mediaType = "application/json", schema = @Schema(implementation = FuncionarioRequestDto.class), examples = @ExampleObject(name = "Novo Funcionário", value = "{\"nome\":\"Carlos Souza\",\"email\":\"carlos@email.com\",\"telefone\":\"87977776666\",\"perfilType\":\"BARBEIRO\"}")))
     @PostMapping("/meus-funcionarios")
     @PreAuthorize("hasRole('BARBEARIA')")
     public ResponseEntity<?> criarFuncionario(
