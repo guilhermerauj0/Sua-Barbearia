@@ -14,44 +14,59 @@ import java.util.Optional;
  */
 @Repository
 public interface FuncionarioRepository extends JpaRepository<JpaFuncionario, Long> {
-    
+
     /**
      * Encontra um funcionário por ID (com opção de filtrar apenas ativos).
      */
     @Query("SELECT f FROM JpaFuncionario f WHERE f.id = :id AND f.ativo = true")
     Optional<JpaFuncionario> findByIdAtivo(@Param("id") Long id);
-    
+
     /**
      * Encontra todos os funcionários ativos de uma barbearia.
      */
     @Query("SELECT f FROM JpaFuncionario f WHERE f.barbeariaId = :barbeariaId AND f.ativo = true")
     List<JpaFuncionario> findByBarbeariaIdAtivo(@Param("barbeariaId") Long barbeariaId);
-    
+
     /**
      * Encontra todos os funcionários (ativos ou não) de uma barbearia.
      */
     @Query("SELECT f FROM JpaFuncionario f WHERE f.barbeariaId = :barbeariaId")
     List<JpaFuncionario> findByBarbeariaId(@Param("barbeariaId") Long barbeariaId);
-    
+
     /**
      * Encontra um funcionário por email (apenas ativos).
      */
     @Query("SELECT f FROM JpaFuncionario f WHERE LOWER(f.email) = LOWER(:email) AND f.ativo = true")
     Optional<JpaFuncionario> findByEmailAtivo(@Param("email") String email);
-    
+
     /**
      * Encontra um funcionário por telefone (apenas ativos).
      */
     @Query("SELECT f FROM JpaFuncionario f WHERE f.telefone = :telefone AND f.ativo = true")
     Optional<JpaFuncionario> findByTelefoneAtivo(@Param("telefone") String telefone);
-    
+
     /**
      * Verifica se existe funcionário com email específico na barbearia.
      */
     boolean existsByEmailAndBarbeariaId(String email, Long barbeariaId);
-    
+
     /**
      * Encontra funcionários ativos de uma barbearia (método alternativo).
      */
     List<JpaFuncionario> findByBarbeariaIdAndAtivoTrue(Long barbeariaId);
+
+    /**
+     * Encontra funcionário por access token (para validação de link).
+     */
+    Optional<JpaFuncionario> findByAccessToken(String accessToken);
+
+    /**
+     * Valida token: ativo E não expirado.
+     */
+    @Query("SELECT f FROM JpaFuncionario f WHERE f.accessToken = :token " +
+            "AND f.tokenAtivo = true " +
+            "AND (f.tokenExpiraEm IS NULL OR f.tokenExpiraEm > :agora)")
+    Optional<JpaFuncionario> findByTokenValidoComExpiracao(
+            @Param("token") String token,
+            @Param("agora") java.time.LocalDateTime agora);
 }
