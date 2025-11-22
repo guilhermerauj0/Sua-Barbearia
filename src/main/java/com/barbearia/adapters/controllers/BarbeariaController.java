@@ -22,6 +22,11 @@ import com.barbearia.application.services.ClienteGestaoService;
 import com.barbearia.application.security.JwtService;
 import com.barbearia.domain.enums.PeriodoRelatorio;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -75,9 +80,9 @@ public class BarbeariaController {
         this.jwtService = jwtService;
     }
 
-    @Operation(summary = "Listar todas as barbearias", description = "Retorna lista de barbearias ativas do sistema (endpoint público)")
+    @Operation(summary = "List all active barbershops", description = "Returns a list of active barbershops in the system. Public endpoint.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Lista retornada")
+            @ApiResponse(responseCode = "200", description = "List returned", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = BarbeariaListItemDto.class)), examples = @ExampleObject(value = "[{\"id\":1,\"nome\":\"Barbearia A\",\"ativo\":true},{\"id\":2,\"nome\":\"Barbearia B\",\"ativo\":true}]")))
     })
     @GetMapping
     public ResponseEntity<?> listarBarbearias() {

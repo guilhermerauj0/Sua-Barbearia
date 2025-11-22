@@ -4,6 +4,13 @@ import com.barbearia.application.dto.ServicoDto;
 import com.barbearia.application.dto.ServicoRequestDto;
 import com.barbearia.application.security.JwtService;
 import com.barbearia.application.services.BarbeariaService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,73 +27,51 @@ import org.springframework.web.bind.annotation.*;
  * 
  * @author Sua Barbearia Team
  */
+@Tag(name = "Serviços", description = "Operações de gerenciamento de serviços para barbearias autenticadas")
 @RestController
 @RequestMapping("/api/barbearias/servicos")
 @CrossOrigin(origins = "*")
 public class ServicoController {
-    
+
     private final BarbeariaService barbeariaService;
     private final JwtService jwtService;
-    
+
     public ServicoController(BarbeariaService barbeariaService, JwtService jwtService) {
         this.barbeariaService = barbeariaService;
         this.jwtService = jwtService;
     }
-    
-    /**
-     * Cria um novo serviço para a barbearia autenticada.
-     * 
-     * Segurança:
-     * - Requer autenticação JWT (Bearer token)
-     * - Apenas role BARBEARIA pode acessar
-     * - BarbeariaId é extraído do token (não pode ser alterado)
-     * 
-     * Validações:
-     * - Nome é obrigatório
-     * - Preço deve ser maior que zero
-     * - Duração deve ser maior que zero (em minutos)
-     * - Barbearia deve existir e estar ativa
-     * 
-     * Retorna:
-     * - 201 (Created) com dados do serviço criado
-     * - 400 (Bad Request) se dados inválidos
-     * - 401 (Unauthorized) se token inválido/ausente
-     * - 403 (Forbidden) se não for role BARBEARIA
-     * - 500 (Internal Server Error) em caso de erro
-     * 
-     * @param requestDto Dados do serviço a ser criado
-     * @param request Requisição HTTP (para extrair token JWT)
-     * @return DTO com dados do serviço criado
-     */
+
+    @Operation(summary = "Create a new service for the authenticated barbershop", description = "Creates a service (e.g., haircut, shave) linked to the barbershop extracted from the JWT token. "
+            + "The request body must contain name, description, price and duration.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Service successfully created", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ServicoDto.class), examples = @ExampleObject(name = "Created Service", value = "{\"id\":1,\"nome\":\"Corte Masculino\",\"descricao\":\"Corte clássico\",\"preco\":30.0,\"duracao\":30,\"ativo\":true}"))),
+            @ApiResponse(responseCode = "400", description = "Invalid input data", content = @Content(mediaType = "text/plain")),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid JWT token", content = @Content(mediaType = "text/plain")),
+            @ApiResponse(responseCode = "403", description = "User does not have BARBEARIA role", content = @Content(mediaType = "text/plain")),
+            @ApiResponse(responseCode = "500", description = "Internal server error", content = @Content(mediaType = "text/plain"))
+    })
     @PostMapping
     public ResponseEntity<?> criarServico(
             @RequestBody ServicoRequestDto requestDto,
             HttpServletRequest request) {
         try {
-            // Extrai token do cabeçalho Authorization
+            // Extract JWT token
             String token = request.getHeader("Authorization");
             if (token == null || !token.startsWith("Bearer ")) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body("Token JWT não fornecido ou inválido");
             }
-            
-            // Remove prefixo "Bearer " do token
             token = token.substring(7);
-            
-            // Extrai ID da barbearia do token
+            // Extract barbershop ID from token
             Object userIdObj = jwtService.extractClaim(token, "userId");
             if (userIdObj == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body("Token JWT inválido: userId não encontrado");
             }
-            
             Long barbeariaId = ((Number) userIdObj).longValue();
-            
-            // Cria o serviço
+            // Create the service
             ServicoDto servicoCriado = barbeariaService.criarServico(barbeariaId, requestDto);
-            
             return ResponseEntity.status(HttpStatus.CREATED).body(servicoCriado);
-            
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
