@@ -41,14 +41,15 @@ public class ServicoController {
         this.jwtService = jwtService;
     }
 
-    @Operation(summary = "Create a new service for the authenticated barbershop", description = "Creates a service (e.g., haircut, shave) linked to the barbershop extracted from the JWT token. "
-            + "The request body must contain name, description, price and duration.")
+    @Operation(summary = "Criar novo serviço para a barbearia autenticada", description = "Cria um serviço (ex: corte, barba) vinculado à barbearia autenticada. "
+            +
+            "O corpo da requisição deve conter nome, descrição, preço e duração.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "Service successfully created", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ServicoDto.class), examples = @ExampleObject(name = "Created Service", value = "{\"id\":1,\"nome\":\"Corte Masculino\",\"descricao\":\"Corte clássico\",\"preco\":30.0,\"duracao\":30,\"ativo\":true}"))),
-            @ApiResponse(responseCode = "400", description = "Invalid input data", content = @Content(mediaType = "text/plain")),
-            @ApiResponse(responseCode = "401", description = "Missing or invalid JWT token", content = @Content(mediaType = "text/plain")),
-            @ApiResponse(responseCode = "403", description = "User does not have BARBEARIA role", content = @Content(mediaType = "text/plain")),
-            @ApiResponse(responseCode = "500", description = "Internal server error", content = @Content(mediaType = "text/plain"))
+            @ApiResponse(responseCode = "201", description = "Serviço criado com sucesso", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ServicoDto.class), examples = @ExampleObject(name = "Serviço Criado", value = "{\"id\":1,\"nome\":\"Corte Masculino\",\"descricao\":\"Corte clássico\",\"preco\":30.0,\"duracao\":30,\"ativo\":true}"))),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos", content = @Content(mediaType = "text/plain")),
+            @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido", content = @Content(mediaType = "text/plain")),
+            @ApiResponse(responseCode = "403", description = "Usuário não possui role BARBEARIA", content = @Content(mediaType = "text/plain")),
+            @ApiResponse(responseCode = "500", description = "Erro interno do servidor", content = @Content(mediaType = "text/plain"))
     })
     @PostMapping
     public ResponseEntity<?> criarServico(
