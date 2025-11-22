@@ -4,6 +4,14 @@ import com.barbearia.application.dto.HorarioFuncionamentoRequestDto;
 import com.barbearia.application.dto.HorarioFuncionamentoResponseDto;
 import com.barbearia.application.services.HorarioGestaoService;
 import com.barbearia.application.security.JwtService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,8 +19,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 
 /**
- * Controller REST para gestão de horários.
+ * Gestão de Horários de Funcionários.
  */
+@Tag(name = "Horários", description = "Horários de funcionamento dos profissionais")
 @RestController
 @RequestMapping("/api/horarios")
 @CrossOrigin(origins = "*")
@@ -26,86 +35,70 @@ public class HorarioController {
         this.jwtService = jwtService;
     }
 
-    /**
-     * Lista os horários de funcionamento de um funcionário.
-     */
+    @Operation(summary = "Listar horários do funcionário", description = "Retorna horários base de funcionamento de um profissional (seg-dom)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Lista de horários")
+    })
     @GetMapping("/funcionario/{funcionarioId}")
-    public ResponseEntity<List<HorarioFuncionamentoResponseDto>> listarHorariosFuncionario(@PathVariable Long funcionarioId) {
+    public ResponseEntity<List<HorarioFuncionamentoResponseDto>> listarHorariosFuncionario(
+            @Parameter(description = "ID do funcionário", example = "1") @PathVariable Long funcionarioId) {
         return ResponseEntity.ok(horarioGestaoService.listarHorariosFuncionario(funcionarioId));
     }
 
-    /**
-     * Salva o horário de funcionamento de um funcionário.
-     */
+    @Operation(summary = "Definir horário do funcionário", description = "Barbearia define horário de trabalho de um profissional para um dia da semana", security = @SecurityRequirement(name = "Bearer"), requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(name = "Horário Segunda-feira", value = """
+            {
+              "diaSemana": "SEGUNDA",
+              "horaAbertura": "09:00",
+              "horaFechamento": "18:00",
+              "ativo": true
+            }
+            """))))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Horário salvo"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos"),
+            @ApiResponse(responseCode = "401", description = "Token inválido")
+    })
     @PostMapping("/funcionario/{funcionarioId}")
     public ResponseEntity<?> salvarHorarioFuncionario(
-            @PathVariable Long funcionarioId,
+            @Parameter(description = "ID do funcionário") @PathVariable Long funcionarioId,
             @RequestBody HorarioFuncionamentoRequestDto dto,
             HttpServletRequest request) {
         try {
-            // Extrai barbeariaId do token (assumindo que quem edita é a barbearia ou o próprio funcionário)
-            // Simplificação: pegando do token se for barbearia, ou validando permissão
-            // Aqui vou assumir que o token tem o ID da barbearia se for admin/barbearia
-            // Ou se for o próprio funcionário.
-            
-            // Por enquanto, vamos pegar o barbeariaId do token se disponível, ou passar como parametro?
-            // O ideal seria validar se o usuário tem permissão.
-            
-            // Vamos extrair o ID do usuário e verificar permissões (simplificado)
-            // Long usuarioId = jwtService.extractUserId(token);
-            // String role = jwtService.extractRole(token);
-            
-            // Para simplificar e atender o requisito "facilitar para a barbearia adicionar", 
-            // vamos assumir que o frontend envia o token da barbearia.
-            // Precisamos do ID da barbearia. Onde pegar?
-            // O funcionário pertence a uma barbearia. Podemos buscar o funcionário e pegar o ID da barbearia dele.
-            // Mas aqui no controller não tenho acesso ao repo de funcionário.
-            // Vou passar um ID fixo ou extrair do token se for barbearia.
-            
-            // Melhor: O service pode buscar o funcionário e pegar o barbeariaId dele.
-            // Mas o método salvarHorarioFuncionario pede barbeariaId.
-            // Vou alterar o service para buscar o funcionário e pegar o barbeariaId dele, 
-            // assim não preciso passar barbeariaId no controller.
-            
-            // Mas espere, eu já editei o service e ele pede barbeariaId.
-            // Vou passar um valor dummy ou tentar extrair.
-            // O correto é extrair do token.
-            
-            String authHeader = request.getHeader("Authorization");
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                return ResponseEntity.status(401).body("Token inválido");
-            }
-            String token = authHeader.substring(7);
-            
-            // Tenta pegar barbeariaId do token (se for logado como barbearia)
-            // Se for logado como funcionário, talvez tenha barbeariaId no token também?
-            // Se não, teria que buscar no banco.
-            
-            // Vou assumir que o token tem o claim "barbeariaId" ou que o "userId" é o barbeariaId se role=BARBEARIA.
-            
-            Long barbeariaId = null;
-            String role = (String) jwtService.extractClaim(token, "role");
-            Object userIdObj = jwtService.extractClaim(token, "userId");
-            Long userId = userIdObj instanceof Number ? ((Number) userIdObj).longValue() : Long.parseLong(userIdObj.toString());
+            Long barbeariaId = extrairBarbeariaIdDoToken(request);
 
-            if ("BARBEARIA".equals(role)) {
-                barbeariaId = userId;
-            } else {
-                // Se for funcionário, precisaria buscar a barbearia dele.
-                // Como não tenho acesso fácil aqui, vou lançar erro se não for barbearia por enquanto,
-                // ou assumir que o service vai validar.
-                // Mas o service pede barbeariaId.
-                
-                // Vou fazer um "hack" seguro: passar o userId como barbeariaId SE for barbearia.
-                // Se não for, retorna erro 403.
-                return ResponseEntity.status(403).body("Apenas a barbearia pode gerenciar horários (por enquanto)");
+            if (barbeariaId == null) {
+                return ResponseEntity.status(401).body("Token JWT inválido");
             }
 
-            HorarioFuncionamentoResponseDto response = horarioGestaoService.salvarHorarioFuncionario(barbeariaId, funcionarioId, dto);
-            return ResponseEntity.ok(response);
-            
-        } catch (Exception e) {
+            var horario = horarioGestaoService.salvarHorarioFuncionario(barbeariaId, funcionarioId, dto);
+            return ResponseEntity.ok(horario);
+
+        } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Erro: " + e.getMessage());
         }
+    }
+
+    private Long extrairBarbeariaIdDoToken(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return null;
+        }
+
+        String token = authHeader.substring(7);
+        Object userIdClaim = jwtService.extractClaim(token, "userId");
+
+        if (userIdClaim instanceof Number) {
+            return ((Number) userIdClaim).longValue();
+        } else if (userIdClaim instanceof String) {
+            try {
+                return Long.parseLong((String) userIdClaim);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+
+        return null;
     }
 }
