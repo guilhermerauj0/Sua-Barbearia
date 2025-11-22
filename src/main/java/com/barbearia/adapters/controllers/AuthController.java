@@ -150,8 +150,8 @@ public class AuthController {
      */
     @Operation(summary = "Login barbearia", description = "Autentica barbearia e retorna token JWT. Use o MESMO email/senha do registro.", requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(name = "Login Teste", value = """
             {
-              "email": "ana.costa@teste.com",
-              "senha": "Barbearia@123"
+              "email": "carlos.oliveira@teste.com",
+              "senha": "Empresa@456"
             }
             """))))
     @ApiResponses(value = {
