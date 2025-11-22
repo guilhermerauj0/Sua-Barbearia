@@ -107,7 +107,8 @@ public class SwaggerConfig {
                         .addPathItem("/api/agendamentos/{id}/confirmar", confirmarAgendamentoPath())
                         .addPathItem("/api/agendamentos/{id}/concluir", concluirAgendamentoPath())
                         .addPathItem("/api/barbearias/funcionarios/{funcionarioId}/link-acesso", gerarLinkAcessoPath())
-                        .addPathItem("/api/horarios/funcionario/{funcionarioId}", horariosFuncionarioPath()));
+                        .addPathItem("/api/horarios/funcionario/{funcionarioId}", horariosFuncionarioPath())
+                        .addPathItem("/api/funcionarios/servico/{servicoId}", listarEspecialistasPorServicoPath()));
     }
 
     private Info apiInfo() {
@@ -1023,6 +1024,14 @@ public class SwaggerConfig {
         return schema;
     }
 
+    private Schema<?> buildPerfilTypeSchema() {
+        StringSchema schema = new StringSchema();
+        schema.setDescription("Tipo de profissional");
+        schema.setEnum(List.of("BARBEIRO", "MANICURE", "ESTETICISTA", "COLORISTA"));
+        schema.setExample("BARBEIRO");
+        return schema;
+    }
+
     private String servicoListExample() {
         return """
                 [
@@ -1251,49 +1260,91 @@ public class SwaggerConfig {
     private PathItem obterHorariosDisponiveisPath() {
         return new PathItem()
                 .get(new Operation()
-                        .tags(List.of("Barbearias"))
+                        .tags(List.of("Barbearias", "Agendamentos"))
                         .summary("Obter horários disponíveis para agendamento")
-                        .description("Retorna os horários disponíveis para um serviço em uma data específica. " +
-                                "Considera o horário de funcionamento da barbearia, profissionais qualificados, " +
-                                "duração do serviço e agendamentos existentes.")
+                        .description("**ROTA ESSENCIAL PARA AGENDAMENTO**: Retorna slots de horário disponíveis considerando múltiplos fatores.\\n\\n" +
+                                "**COMO FUNCIONA:**\\n" +
+                                "1. Sistema busca todos os profissionais que executam o serviço solicitado\\n" +
+                                "2. Para cada profissional, consulta horário de funcionamento do dia (ex: 9h-18h)\\n" +
+                                "3. Divide em slots baseado na duração do serviço (ex: corte 30min → slots de 30min)\\n" +
+                                "4. Remove slots já ocupados por agendamentos confirmados/pendentes\\n" +
+                                "5. Remove slots bloqueados por exceções (feriados, folgas)\\n" +
+                                "6. Retorna lista de horários disponíveis por profissional\\n\\n" +
+                                "**PARÂMETROS:**\\n" +
+                                "- `id` (path): ID da barbearia\\n" +
+                                "- `servicoId` (query): ID do serviço escolhido pelo cliente\\n" +
+                                "- `data` (query): Data desejada (formato yyyy-MM-dd)\\n" +
+                                "- `profissionalId` (query, opcional): Filtrar por profissional específico\\n\\n" +
+                                "**LÓGICA DE DURAÇÃO:**\\n" +
+                                "- Serviço de 30min: Slots de 30min (9:00-9:30, 9:30-10:00, etc.)\\n" +
+                                "- Serviço de 45min: Slots de 45min (9:00-9:45, 9:45-10:30, etc.)\\n" +
+                                "- Serviço de 1h: Slots de 1h (9:00-10:00, 10:00-11:00, etc.)\\n\\n" +
+                                "**BLOQUEIOS CONSIDERADOS:**\\n" +
+                                "- ❌ Horários fora do expediente do profissional\\n" +
+                                "- ❌ Slots já agendados (status PENDENTE ou CONFIRMADO)\\n" +
+                                "- ❌ Exceções cadastradas (feriados, folgas)\\n" +
+                                "- ❌ Profissional sem horário configurado para o dia\\n\\n" +
+                                "**FLUXO NO FRONTEND:**\\n" +
+                                "1. Cliente escolhe serviço em GET /api/barbearias/{id}/servicos\\n" +
+                                "2. (Opcional) Cliente escolhe profissional em GET /api/funcionarios/servico/{servicoId}\\n" +
+                                "3. Cliente escolhe data no calendário\\n" +
+                                "4. Frontend chama esta rota para exibir horários disponíveis\\n" +
+                                "5. Cliente seleciona horário e cria agendamento em POST /api/agendamentos\\n\\n" +
+                                "**ACESSO:** Público (não requer autenticação)")
                         .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
                                 .name("id")
                                 .in("path")
                                 .description("ID da barbearia")
                                 .required(true)
-                                .schema(new Schema<>().type("integer").format("int64")))
+                                .schema(new IntegerSchema().format("int64").example(1)))
                         .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
                                 .name("servicoId")
                                 .in("query")
-                                .description("ID do serviço desejado")
+                                .description("ID do serviço desejado (obrigatório)")
                                 .required(true)
-                                .schema(new Schema<>().type("integer").format("int64")))
+                                .schema(new IntegerSchema().format("int64").example(1)))
                         .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
                                 .name("data")
                                 .in("query")
-                                .description("Data para consultar (formato: yyyy-MM-dd)")
+                                .description("Data para consultar (formato: yyyy-MM-dd). Ex: 2025-12-25")
                                 .required(true)
-                                .schema(new Schema<>().type("string").format("date")))
+                                .schema(new StringSchema().format("date").example("2025-12-25")))
+                        .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
+                                .name("profissionalId")
+                                .in("query")
+                                .description("(Opcional) Filtrar por profissional específico. Se não informado, retorna todos.")
+                                .required(false)
+                                .schema(new IntegerSchema().format("int64").example(2)))
                         .responses(new ApiResponses()
                                 .addApiResponse("200", new ApiResponse()
-                                        .description("Lista de horários disponíveis")
+                                        .description("Lista de horários disponíveis agrupados por profissional")
                                         .content(new Content()
                                                 .addMediaType("application/json", new MediaType()
                                                         .schema(new ArraySchema()
                                                                 .items(new ObjectSchema()
-                                                                        .addProperty("funcionarioId", new Schema<>().type("integer").format("int64"))
-                                                                        .addProperty("funcionarioNome", new Schema<>().type("string"))
-                                                                        .addProperty("perfilType", new StringSchema()
-                                                                                .addEnumItem("BARBEIRO")
-                                                                                .addEnumItem("MANICURE")
-                                                                                .addEnumItem("ESTETICISTA")
-                                                                                .addEnumItem("COLORISTA"))
-                                                                        .addProperty("data", new Schema<>().type("string").format("date"))
-                                                                        .addProperty("horarioInicio", new Schema<>().type("string").format("time"))
-                                                                        .addProperty("horarioFim", new Schema<>().type("string").format("time"))))
-                                                        .example(obterHorariosDisponiveisExample()))))
+                                                                        .addProperty("funcionarioId", new IntegerSchema()
+                                                                                .format("int64")
+                                                                                .description("ID do profissional")
+                                                                                .example(1))
+                                                                        .addProperty("funcionarioNome", new StringSchema()
+                                                                                .description("Nome do profissional")
+                                                                                .example("João Silva"))
+                                                                        .addProperty("perfilType", buildPerfilTypeSchema())
+                                                                        .addProperty("data", new StringSchema()
+                                                                                .format("date")
+                                                                                .description("Data do slot")
+                                                                                .example("2025-12-25"))
+                                                                        .addProperty("horarioInicio", new StringSchema()
+                                                                                .format("time")
+                                                                                .description("Hora de início do slot")
+                                                                                .example("09:00:00"))
+                                                                        .addProperty("horarioFim", new StringSchema()
+                                                                                .format("time")
+                                                                                .description("Hora de fim do slot (baseado na duração do serviço)")
+                                                                                .example("09:30:00"))))
+                                                        .example(obterHorariosDisponiveisExampleDetalhado()))))
                                 .addApiResponse("400", new ApiResponse()
-                                        .description("Parâmetros inválidos")
+                                        .description("Parâmetros inválidos ou ausentes")
                                         .content(new Content()
                                                 .addMediaType("application/json", new MediaType()
                                                         .example("Parâmetro servicoId é obrigatório"))))
@@ -1301,22 +1352,22 @@ public class SwaggerConfig {
                                         .description("Barbearia ou serviço não encontrado")
                                         .content(new Content()
                                                 .addMediaType("application/json", new MediaType()
-                                                        .example("Barbearia não encontrada"))))
+                                                        .example("Serviço com ID 999 não encontrado"))))
                                 .addApiResponse("500", new ApiResponse()
                                         .description("Erro interno do servidor")
                                         .content(new Content()
                                                 .addMediaType("application/json", new MediaType()
-                                                        .example("Erro ao obter horários disponíveis"))))));
+                                                        .example("Erro ao calcular horários disponíveis"))))));
     }
 
-    private String obterHorariosDisponiveisExample() {
+    private String obterHorariosDisponiveisExampleDetalhado() {
         return """
                 [
                   {
                     "funcionarioId": 1,
                     "funcionarioNome": "João Silva",
                     "perfilType": "BARBEIRO",
-                    "data": "2025-11-20",
+                    "data": "2025-12-25",
                     "horarioInicio": "09:00:00",
                     "horarioFim": "09:30:00"
                   },
@@ -1324,17 +1375,33 @@ public class SwaggerConfig {
                     "funcionarioId": 1,
                     "funcionarioNome": "João Silva",
                     "perfilType": "BARBEIRO",
-                    "data": "2025-11-20",
+                    "data": "2025-12-25",
                     "horarioInicio": "09:30:00",
                     "horarioFim": "10:00:00"
                   },
                   {
+                    "funcionarioId": 1,
+                    "funcionarioNome": "João Silva",
+                    "perfilType": "BARBEIRO",
+                    "data": "2025-12-25",
+                    "horarioInicio": "14:00:00",
+                    "horarioFim": "14:30:00"
+                  },
+                  {
                     "funcionarioId": 2,
                     "funcionarioNome": "Maria Santos",
-                    "perfilType": "MANICURE",
-                    "data": "2025-11-20",
-                    "horarioInicio": "09:00:00",
-                    "horarioFim": "09:30:00"
+                    "perfilType": "BARBEIRO",
+                    "data": "2025-12-25",
+                    "horarioInicio": "10:00:00",
+                    "horarioFim": "10:30:00"
+                  },
+                  {
+                    "funcionarioId": 2,
+                    "funcionarioNome": "Maria Santos",
+                    "perfilType": "BARBEIRO",
+                    "data": "2025-12-25",
+                    "horarioInicio": "10:30:00",
+                    "horarioFim": "11:00:00"
                   }
                 ]
                 """;
@@ -2618,12 +2685,45 @@ public class SwaggerConfig {
                 .post(new Operation()
                         .tags(List.of("Agendamentos"))
                         .summary("Cancelar agendamento")
-                        .description("Cancela um agendamento existente.")
+                        .description("**Cancela um agendamento existente.**\n\n" +
+                                "**PERMISSÕES:**\n" +
+                                "- ✅ CLIENTE: Pode cancelar seus próprios agendamentos\n" +
+                                "- ✅ BARBEARIA: Pode cancelar agendamentos da sua barbearia\n" +
+                                "- ✅ FUNCIONÁRIO (com link): Pode cancelar agendamentos onde ele é o profissional\n\n" +
+                                "**REGRAS:**\n" +
+                                "- Agendamento deve estar em status PENDENTE ou CONFIRMADO\n" +
+                                "- Não é possível cancelar agendamentos já CONCLUÍDOS ou CANCELADOS\n" +
+                                "- Sistema valida permissão baseado no userId e role do token JWT\n\n" +
+                                "**FLUXO:**\n" +
+                                "1. Sistema extrai userId e role do token JWT\n" +
+                                "2. Valida se o usuário tem permissão sobre o agendamento\n" +
+                                "3. Atualiza status para CANCELADO\n" +
+                                "4. Libera o horário para outros agendamentos")
                         .security(List.of(new SecurityRequirement().addList("Bearer")))
+                        .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
+                                .name("id")
+                                .in("path")
+                                .required(true)
+                                .description("ID do agendamento")
+                                .schema(new IntegerSchema().format("int64").example(1)))
                         .responses(new ApiResponses()
-                                .addApiResponse("204", new ApiResponse().description("Agendamento cancelado com sucesso"))
-                                .addApiResponse("400", new ApiResponse().description("Erro de validação (ex: agendamento passado)"))
-                                .addApiResponse("404", new ApiResponse().description("Agendamento não encontrado"))));
+                                .addApiResponse("204", new ApiResponse()
+                                        .description("Agendamento cancelado com sucesso"))
+                                .addApiResponse("400", new ApiResponse()
+                                        .description("Erro de validação (ex: agendamento já concluído ou status inválido)")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Não é possível cancelar um agendamento já concluído"))))
+                                .addApiResponse("403", new ApiResponse()
+                                        .description("Acesso negado - usuário não tem permissão sobre este agendamento")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Você não tem permissão para cancelar este agendamento"))))
+                                .addApiResponse("404", new ApiResponse()
+                                        .description("Agendamento não encontrado")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Agendamento com ID 999 não encontrado"))))));
     }
 
     private PathItem reagendarAgendamentoPath() {
@@ -2631,16 +2731,55 @@ public class SwaggerConfig {
                 .post(new Operation()
                         .tags(List.of("Agendamentos"))
                         .summary("Reagendar agendamento")
-                        .description("Altera a data e hora de um agendamento.")
+                        .description("**Altera a data e hora de um agendamento existente.**\n\n" +
+                                "**PERMISSÕES:**\n" +
+                                "- ✅ CLIENTE: Pode reagendar seus próprios agendamentos\n" +
+                                "- ✅ BARBEARIA: Pode reagendar agendamentos da sua barbearia\n" +
+                                "- ❌ FUNCIONÁRIO: NÃO pode reagendar (apenas cancelar)\n\n" +
+                                "**REGRAS:**\n" +
+                                "- Agendamento deve estar em status PENDENTE ou CONFIRMADO\n" +
+                                "- Nova data/hora não pode estar no passado\n" +
+                                "- Novo horário deve estar disponível (sem conflitos)\n" +
+                                "- Sistema valida duração do serviço e disponibilidade do profissional\n" +
+                                "- Não é possível reagendar agendamentos CONCLUÍDOS ou CANCELADOS\n\n" +
+                                "**FLUXO:**\n" +
+                                "1. Sistema valida permissão do usuário\n" +
+                                "2. Verifica disponibilidade do novo horário\n" +
+                                "3. Valida conflitos com outros agendamentos\n" +
+                                "4. Atualiza data/hora do agendamento\n" +
+                                "5. Retorna agendamento atualizado")
                         .security(List.of(new SecurityRequirement().addList("Bearer")))
+                        .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
+                                .name("id")
+                                .in("path")
+                                .required(true)
+                                .description("ID do agendamento")
+                                .schema(new IntegerSchema().format("int64").example(1)))
                         .requestBody(new RequestBody()
+                                .description("Nova data e hora para o agendamento")
+                                .required(true)
                                 .content(new Content()
                                         .addMediaType("application/json", new MediaType()
-                                                .schema(new Schema<>().$ref("#/components/schemas/AgendamentoReagendamentoRequest")))))
+                                                .schema(new Schema<>().$ref("#/components/schemas/AgendamentoReagendamentoRequest"))
+                                                .example("{\"novaDataHora\": \"2025-12-25T14:00:00\"}"))))
                         .responses(new ApiResponses()
-                                .addApiResponse("200", new ApiResponse().description("Agendamento reagendado com sucesso"))
-                                .addApiResponse("400", new ApiResponse().description("Erro de validação"))
-                                .addApiResponse("404", new ApiResponse().description("Agendamento não encontrado"))));
+                                .addApiResponse("200", new ApiResponse()
+                                        .description("Agendamento reagendado com sucesso")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(new Schema<>().$ref("#/components/schemas/AgendamentoResponse")))))
+                                .addApiResponse("400", new ApiResponse()
+                                        .description("Erro de validação (data passada, horário indisponível, etc.)")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Horário não disponível para o profissional selecionado"))))
+                                .addApiResponse("403", new ApiResponse()
+                                        .description("Acesso negado")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Você não tem permissão para reagendar este agendamento"))))
+                                .addApiResponse("404", new ApiResponse()
+                                        .description("Agendamento não encontrado"))));
     }
 
     private PathItem confirmarAgendamentoPath() {
@@ -2648,11 +2787,45 @@ public class SwaggerConfig {
                 .post(new Operation()
                         .tags(List.of("Agendamentos"))
                         .summary("Confirmar agendamento")
-                        .description("Confirma um agendamento pendente.")
+                        .description("**Confirma um agendamento que está em status PENDENTE.**\n\n" +
+                                "**PERMISSÕES:**\n" +
+                                "- ❌ CLIENTE: NÃO pode confirmar (cliente apenas cria agendamento)\n" +
+                                "- ✅ BARBEARIA: Pode confirmar agendamentos da sua barbearia\n" +
+                                "- ✅ FUNCIONÁRIO (com link): Pode confirmar agendamentos onde ele é o profissional\n\n" +
+                                "**REGRAS:**\n" +
+                                "- Agendamento deve estar em status PENDENTE\n" +
+                                "- Apenas barbearia ou o profissional responsável podem confirmar\n" +
+                                "- Após confirmação, status muda para CONFIRMADO\n" +
+                                "- Cliente recebe notificação da confirmação (futuro)\n\n" +
+                                "**FLUXO:**\n" +
+                                "1. Sistema valida se usuário é BARBEARIA ou FUNCIONÁRIO\n" +
+                                "2. Verifica se agendamento pertence à barbearia ou ao funcionário\n" +
+                                "3. Valida se status é PENDENTE\n" +
+                                "4. Atualiza status para CONFIRMADO\n" +
+                                "5. Retorna sucesso\n\n" +
+                                "**USO:** Funcionário com link gerado usa esta rota para confirmar atendimentos do dia.")
                         .security(List.of(new SecurityRequirement().addList("Bearer")))
+                        .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
+                                .name("id")
+                                .in("path")
+                                .required(true)
+                                .description("ID do agendamento")
+                                .schema(new IntegerSchema().format("int64").example(1)))
                         .responses(new ApiResponses()
-                                .addApiResponse("200", new ApiResponse().description("Agendamento confirmado com sucesso"))
-                                .addApiResponse("404", new ApiResponse().description("Agendamento não encontrado"))));
+                                .addApiResponse("200", new ApiResponse()
+                                        .description("Agendamento confirmado com sucesso"))
+                                .addApiResponse("400", new ApiResponse()
+                                        .description("Erro de validação (status inválido)")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Apenas agendamentos PENDENTES podem ser confirmados"))))
+                                .addApiResponse("403", new ApiResponse()
+                                        .description("Acesso negado - cliente não pode confirmar")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Apenas a barbearia ou o profissional podem confirmar agendamentos"))))
+                                .addApiResponse("404", new ApiResponse()
+                                        .description("Agendamento não encontrado"))));
     }
 
     private PathItem concluirAgendamentoPath() {
@@ -2660,11 +2833,47 @@ public class SwaggerConfig {
                 .post(new Operation()
                         .tags(List.of("Agendamentos"))
                         .summary("Concluir agendamento")
-                        .description("Marca um agendamento como concluído.")
+                        .description("**Marca um agendamento como CONCLUÍDO após o serviço ter sido executado.**\n\n" +
+                                "**PERMISSÕES:**\n" +
+                                "- ❌ CLIENTE: NÃO pode concluir\n" +
+                                "- ✅ BARBEARIA: Pode concluir agendamentos da sua barbearia\n" +
+                                "- ✅ FUNCIONÁRIO (com link): Pode concluir agendamentos onde ele é o profissional\n\n" +
+                                "**REGRAS:**\n" +
+                                "- Agendamento deve estar em status CONFIRMADO\n" +
+                                "- Apenas barbearia ou o profissional podem concluir\n" +
+                                "- Após conclusão, status muda para CONCLUIDO\n" +
+                                "- Agendamentos concluídos entram no histórico do cliente\n" +
+                                "- Comissões são calculadas após conclusão (se configurado)\n\n" +
+                                "**FLUXO:**\n" +
+                                "1. Sistema valida se usuário é BARBEARIA ou FUNCIONÁRIO\n" +
+                                "2. Verifica permissão sobre o agendamento\n" +
+                                "3. Valida se status é CONFIRMADO\n" +
+                                "4. Atualiza status para CONCLUIDO\n" +
+                                "5. Calcula comissões (se aplicável)\n" +
+                                "6. Retorna sucesso\n\n" +
+                                "**USO:** Profissional finaliza atendimento e marca como concluído para faturamento.")
                         .security(List.of(new SecurityRequirement().addList("Bearer")))
+                        .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
+                                .name("id")
+                                .in("path")
+                                .required(true)
+                                .description("ID do agendamento")
+                                .schema(new IntegerSchema().format("int64").example(1)))
                         .responses(new ApiResponses()
-                                .addApiResponse("200", new ApiResponse().description("Agendamento concluído com sucesso"))
-                                .addApiResponse("404", new ApiResponse().description("Agendamento não encontrado"))));
+                                .addApiResponse("200", new ApiResponse()
+                                        .description("Agendamento concluído com sucesso"))
+                                .addApiResponse("400", new ApiResponse()
+                                        .description("Erro de validação (status inválido)")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Apenas agendamentos CONFIRMADOS podem ser concluídos"))))
+                                .addApiResponse("403", new ApiResponse()
+                                        .description("Acesso negado - cliente não pode concluir")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Apenas a barbearia ou o profissional podem concluir agendamentos"))))
+                                .addApiResponse("404", new ApiResponse()
+                                        .description("Agendamento não encontrado"))));
     }
 
     private PathItem gerarLinkAcessoPath() {
@@ -2686,26 +2895,192 @@ public class SwaggerConfig {
     private PathItem horariosFuncionarioPath() {
         return new PathItem()
                 .get(new Operation()
-                        .tags(List.of("Horários"))
-                        .summary("Listar horários do funcionário")
-                        .description("Lista os horários de funcionamento configurados para um funcionário.")
+                        .tags(List.of("Horários", "Funcionários"))
+                        .summary("Listar horários de um funcionário")
+                        .description("**Retorna todos os horários de funcionamento configurados para um funcionário.**\\n\\n" +
+                                "**ACESSO:** Público (não requer autenticação)\\n\\n" +
+                                "**RESPOSTA:**\\n" +
+                                "Lista com horários por dia da semana (0=Domingo, 1=Segunda, ..., 6=Sábado).\\n" +
+                                "Cada entrada contém:\\n" +
+                                "- `id`: ID do horário\\n" +
+                                "- `funcionarioId`: ID do funcionário\\n" +
+                                "- `diaSemana`: Dia da semana (0-6)\\n" +
+                                "- `horaAbertura`: Horário de início (ex: 09:00:00)\\n" +
+                                "- `horaFechamento`: Horário de término (ex: 18:00:00)\\n" +
+                                "- `ativo`: Se o horário está ativo\\n\\n" +
+                                "**USO:**\\n" +
+                                "- Frontend pode usar para mostrar agenda do profissional\\n" +
+                                "- Sistema usa internamente ao calcular horários disponíveis")
+                        .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
+                                .name("funcionarioId")
+                                .in("path")
+                                .required(true)
+                                .description("ID do funcionário")
+                                .schema(new IntegerSchema().format("int64").example(2)))
                         .responses(new ApiResponses()
                                 .addApiResponse("200", new ApiResponse()
-                                        .description("Lista de horários")
+                                        .description("Lista de horários do funcionário")
                                         .content(new Content()
                                                 .addMediaType("application/json", new MediaType()
-                                                        .schema(new ArraySchema().items(new Schema<>().$ref("#/components/schemas/HorarioFuncionamentoResponse"))))))))
+                                                        .schema(new ArraySchema().items(new Schema<>().$ref("#/components/schemas/HorarioFuncionamentoResponse")))
+                                                        .example(listarHorariosFuncionarioExample()))))
+                                .addApiResponse("404", new ApiResponse()
+                                        .description("Funcionário não encontrado"))))
                 .post(new Operation()
-                        .tags(List.of("Horários"))
-                        .summary("Salvar horário do funcionário")
-                        .description("Cria ou atualiza o horário de funcionamento para um dia específico.")
+                        .tags(List.of("Horários", "Funcionários"))
+                        .summary("Salvar horário de funcionário")
+                        .description("**Cria ou atualiza o horário de funcionamento de um funcionário para um dia específico.**\\n\\n" +
+                                "**PERMISSÕES:**\\n" +
+                                "- ✅ BARBEARIA: Pode gerenciar horários de todos os funcionários da sua barbearia\\n" +
+                                "- ✅ FUNCIONÁRIO (com link): Pode gerenciar seus próprios horários (FUTURO)\\n" +
+                                "- ❌ CLIENTE: Não tem acesso\\n\\n" +
+                                "**VALIDAÇÕES:**\\n" +
+                                "- `diaSemana` deve estar entre 0 (Domingo) e 6 (Sábado)\\n" +
+                                "- `horaAbertura` deve ser antes de `horaFechamento`\\n" +
+                                "- Horários devem estar em formato HH:mm (ex: 09:00, 14:30)\\n" +
+                                "- Se já existe horário para o dia, será atualizado\\n" +
+                                "- Funcionário deve pertencer à barbearia autenticada\\n\\n" +
+                                "**IMPORTANTE:**\\n" +
+                                "Sistema usa esses horários ao calcular slots disponíveis para agendamento.\\n" +
+                                "Profissional SEM horário configurado = Não aparece em horários disponíveis.\\n\\n" +
+                                "**EXEMPLO DE USO:**\\n" +
+                                "1. Barbearia cadastra funcionário\\n" +
+                                "2. Barbearia define horários de segunda a sexta (diaSemana 1-5)\\n" +
+                                "3. Sistema usa esses horários ao calcular disponibilidade\\n" +
+                                "4. Cliente vê apenas horários dentro do expediente do profissional")
                         .security(List.of(new SecurityRequirement().addList("Bearer")))
+                        .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
+                                .name("funcionarioId")
+                                .in("path")
+                                .required(true)
+                                .description("ID do funcionário")
+                                .schema(new IntegerSchema().format("int64").example(2)))
                         .requestBody(new RequestBody()
+                                .required(true)
+                                .description("Dados do horário a ser criado/atualizado")
                                 .content(new Content()
                                         .addMediaType("application/json", new MediaType()
-                                                .schema(new Schema<>().$ref("#/components/schemas/HorarioFuncionamentoRequest")))))
+                                                .schema(new Schema<>().$ref("#/components/schemas/HorarioFuncionamentoRequest"))
+                                                .example(salvarHorarioFuncionarioExample()))))
                         .responses(new ApiResponses()
-                                .addApiResponse("200", new ApiResponse().description("Horário salvo com sucesso"))
-                                .addApiResponse("400", new ApiResponse().description("Dados inválidos"))));
+                                .addApiResponse("200", new ApiResponse()
+                                        .description("Horário salvo com sucesso")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(new Schema<>().$ref("#/components/schemas/HorarioFuncionamentoResponse")))))
+                                .addApiResponse("400", new ApiResponse()
+                                        .description("Dados inválidos (diaSemana fora de range, horários inválidos, etc.)")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("horaAbertura deve ser antes de horaFechamento"))))
+                                .addApiResponse("403", new ApiResponse()
+                                        .description("Acesso negado - apenas barbearia pode gerenciar horários")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .example("Apenas a barbearia pode gerenciar horários (por enquanto)"))))
+                                .addApiResponse("404", new ApiResponse()
+                                        .description("Funcionário não encontrado"))));
+    }
+
+    private String listarHorariosFuncionarioExample() {
+        return """
+                [
+                  {
+                    "id": 1,
+                    "funcionarioId": 2,
+                    "diaSemana": 1,
+                    "horaAbertura": "09:00:00",
+                    "horaFechamento": "18:00:00",
+                    "ativo": true
+                  },
+                  {
+                    "id": 2,
+                    "funcionarioId": 2,
+                    "diaSemana": 2,
+                    "horaAbertura": "09:00:00",
+                    "horaFechamento": "18:00:00",
+                    "ativo": true
+                  },
+                  {
+                    "id": 3,
+                    "funcionarioId": 2,
+                    "diaSemana": 5,
+                    "horaAbertura": "09:00:00",
+                    "horaFechamento": "13:00:00",
+                    "ativo": true
+                  }
+                ]
+                """;
+    }
+
+    private String salvarHorarioFuncionarioExample() {
+        return """
+                {
+                  "diaSemana": 1,
+                  "horaAbertura": "09:00",
+                  "horaFechamento": "18:00",
+                  "ativo": true
+                }
+                """;
+    }
+
+    private PathItem listarEspecialistasPorServicoPath() {
+        return new PathItem()
+                .get(new Operation()
+                        .tags(List.of("Funcionários", "Agendamentos"))
+                        .summary("Listar especialistas por serviço")
+                        .description("**ROTA ESSENCIAL PARA AGENDAMENTO**: Retorna todos os profissionais que executam um serviço específico. " +
+                                "Use esta rota após o cliente escolher o serviço para mostrar os especialistas disponíveis.\n\n" +
+                                "**Como funciona:**\n" +
+                                "1. Cliente escolhe o serviço (de GET /api/barbearias/{id}/servicos)\n" +
+                                "2. Frontend chama esta rota para listar especialistas do serviço\n" +
+                                "3. Cliente escolhe o especialista (ou deixa qualquer um)\n" +
+                                "4. Frontend chama GET /api/barbearias/{id}/horarios-disponiveis para ver horários\n" +
+                                "5. Cliente agenda com POST /api/agendamentos\n\n" +
+                                "**Acesso:** Público (não requer autenticação)")
+                        .addParametersItem(new io.swagger.v3.oas.models.parameters.Parameter()
+                                .name("servicoId")
+                                .in("path")
+                                .required(true)
+                                .description("ID do serviço")
+                                .schema(new IntegerSchema().format("int64").example(1)))
+                        .responses(new ApiResponses()
+                                .addApiResponse("200", new ApiResponse()
+                                        .description("Lista de especialistas retornada com sucesso")
+                                        .content(new Content()
+                                                .addMediaType("application/json", new MediaType()
+                                                        .schema(new ArraySchema().items(funcionarioResponseSchema()))
+                                                        .example(especialistasListResponseExample()))))
+                                .addApiResponse("404", new ApiResponse()
+                                        .description("Serviço não encontrado"))
+                                .addApiResponse("500", new ApiResponse()
+                                        .description("Erro interno do servidor"))));
+    }
+
+    private Object especialistasListResponseExample() {
+        return """
+                [
+                  {
+                    "id": 2,
+                    "nome": "Carlos Oliveira",
+                    "email": "carlos@barbearia.com",
+                    "telefone": "11987654321",
+                    "profissao": "BARBEIRO",
+                    "barbeariaId": 1,
+                    "ativo": true,
+                    "linkAcesso": "https://api.com/funcionario/abc123"
+                  },
+                  {
+                    "id": 5,
+                    "nome": "Ana Costa",
+                    "email": "ana@barbearia.com",
+                    "telefone": "11999887766",
+                    "profissao": "BARBEIRO",
+                    "barbeariaId": 1,
+                    "ativo": true,
+                    "linkAcesso": null
+                  }
+                ]
+                """;
     }
 }
