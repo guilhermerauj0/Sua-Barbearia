@@ -36,246 +36,252 @@ import static org.mockito.Mockito.*;
 @DisplayName("Testes para HorarioService - Cálculo de horários disponíveis")
 public class HorarioServiceTest {
 
-    @Mock
-    private FuncionarioRepository funcionarioRepository;
+        @Mock
+        private FuncionarioRepository funcionarioRepository;
 
-    @Mock
-    private ProfissionalServicoRepository profissionalServicoRepository;
+        @Mock
+        private ProfissionalServicoRepository profissionalServicoRepository;
 
-    @Mock
-    private HorarioFuncionamentoRepository horarioFuncionamentoRepository;
+        @Mock
+        private HorarioFuncionamentoRepository horarioFuncionamentoRepository;
 
-    @Mock
-    private AgendamentoRepository agendamentoRepository;
+        @Mock
+        private AgendamentoRepository agendamentoRepository;
 
-    @Mock
-    private ServicoRepository servicoRepository;
+        @Mock
+        private ServicoRepository servicoRepository;
 
-    private HorarioService horarioService;
+        private HorarioService horarioService;
 
-    @Mock
-    private HorarioGestaoService horarioGestaoService;
+        @Mock
+        private HorarioGestaoService horarioGestaoService;
 
-    private static final Long BARBEARIA_ID = 1L;
-    private static final Long SERVICO_ID = 1L;
-    private static final Long FUNCIONARIO_ID = 1L;
-    private LocalDate dataManhã;
+        @Mock
+        private HorarioBloqueioService horarioBloqueioService;
 
-    @BeforeEach
-    void setUp() {
-        horarioService = new HorarioService(
-                funcionarioRepository,
-                profissionalServicoRepository,
-                horarioFuncionamentoRepository,
-                agendamentoRepository,
-                servicoRepository,
-                horarioGestaoService);
-        dataManhã = LocalDate.now().plusDays(1);
-    }
+        private static final Long BARBEARIA_ID = 1L;
+        private static final Long SERVICO_ID = 1L;
+        private static final Long FUNCIONARIO_ID = 1L;
+        private LocalDate dataManhã;
 
-    @Test
-    @DisplayName("Deve retornar lista vazia quando barbeariaId é null")
-    void testObterHorariosDisponiveisComBarbeariaIdNull() {
-        // Act
-        List<HorarioDisponivelDto> resultado = horarioService.obterHorariosDisponiveis(
-                null, SERVICO_ID, dataManhã);
+        @BeforeEach
+        void setUp() {
+                horarioService = new HorarioService(
+                                funcionarioRepository,
+                                profissionalServicoRepository,
+                                horarioFuncionamentoRepository,
+                                agendamentoRepository,
+                                servicoRepository,
+                                horarioGestaoService,
+                                horarioBloqueioService);
+                dataManhã = LocalDate.now().plusDays(1);
+        }
 
-        // Assert
-        assertNotNull(resultado);
-        assertTrue(resultado.isEmpty());
-    }
+        @Test
+        @DisplayName("Deve retornar lista vazia quando barbeariaId é null")
+        void testObterHorariosDisponiveisComBarbeariaIdNull() {
+                // Act
+                List<HorarioDisponivelDto> resultado = horarioService.obterHorariosDisponiveis(
+                                null, SERVICO_ID, dataManhã);
 
-    @Test
-    @DisplayName("Deve retornar lista vazia quando servicoId é null")
-    void testObterHorariosDisponiveisComServicoIdNull() {
-        // Act
-        List<HorarioDisponivelDto> resultado = horarioService.obterHorariosDisponiveis(
-                BARBEARIA_ID, null, dataManhã);
+                // Assert
+                assertNotNull(resultado);
+                assertTrue(resultado.isEmpty());
+        }
 
-        // Assert
-        assertNotNull(resultado);
-        assertTrue(resultado.isEmpty());
-    }
+        @Test
+        @DisplayName("Deve retornar lista vazia quando servicoId é null")
+        void testObterHorariosDisponiveisComServicoIdNull() {
+                // Act
+                List<HorarioDisponivelDto> resultado = horarioService.obterHorariosDisponiveis(
+                                BARBEARIA_ID, null, dataManhã);
 
-    @Test
-    @DisplayName("Deve retornar lista vazia quando data é null")
-    void testObterHorariosDisponiveisComDataNull() {
-        // Act
-        List<HorarioDisponivelDto> resultado = horarioService.obterHorariosDisponiveis(
-                BARBEARIA_ID, SERVICO_ID, null);
+                // Assert
+                assertNotNull(resultado);
+                assertTrue(resultado.isEmpty());
+        }
 
-        // Assert
-        assertNotNull(resultado);
-        assertTrue(resultado.isEmpty());
-    }
+        @Test
+        @DisplayName("Deve retornar lista vazia quando data é null")
+        void testObterHorariosDisponiveisComDataNull() {
+                // Act
+                List<HorarioDisponivelDto> resultado = horarioService.obterHorariosDisponiveis(
+                                BARBEARIA_ID, SERVICO_ID, null);
 
-    @Test
-    @DisplayName("Deve retornar lista vazia quando data é no passado")
-    void testObterHorariosDisponiveisComDataNoPast() {
-        // Arrange
-        LocalDate dataPassada = LocalDate.now().minusDays(1);
+                // Assert
+                assertNotNull(resultado);
+                assertTrue(resultado.isEmpty());
+        }
 
-        // Act
-        List<HorarioDisponivelDto> resultado = horarioService.obterHorariosDisponiveis(
-                BARBEARIA_ID, SERVICO_ID, dataPassada);
+        @Test
+        @DisplayName("Deve retornar lista vazia quando data é no passado")
+        void testObterHorariosDisponiveisComDataNoPast() {
+                // Arrange
+                LocalDate dataPassada = LocalDate.now().minusDays(1);
 
-        // Assert
-        assertNotNull(resultado);
-        assertTrue(resultado.isEmpty());
-    }
+                // Act
+                List<HorarioDisponivelDto> resultado = horarioService.obterHorariosDisponiveis(
+                                BARBEARIA_ID, SERVICO_ID, dataPassada);
 
-    @Test
-    @DisplayName("Deve retornar lista vazia quando serviço não encontrado")
-    void testObterHorariosDisponiveisComServicoNaoEncontrado() {
-        // Arrange
-        when(horarioGestaoService.estaAberto(anyLong(), any(LocalDate.class), any(LocalTime.class)))
-                .thenReturn(true);
-        when(servicoRepository.findById(anyLong())).thenReturn(Optional.empty());
+                // Assert
+                assertNotNull(resultado);
+                assertTrue(resultado.isEmpty());
+        }
 
-        // Act
-        List<HorarioDisponivelDto> resultado = horarioService.obterHorariosDisponiveis(
-                BARBEARIA_ID, SERVICO_ID, dataManhã);
+        @Test
+        @DisplayName("Deve retornar lista vazia quando serviço não encontrado")
+        void testObterHorariosDisponiveisComServicoNaoEncontrado() {
+                // Arrange
+                when(horarioGestaoService.estaAberto(anyLong(), any(LocalDate.class), any(LocalTime.class)))
+                                .thenReturn(true);
+                when(servicoRepository.findById(anyLong())).thenReturn(Optional.empty());
+                when(horarioBloqueioService.listarBloqueiosPorData(anyLong(), any(LocalDate.class)))
+                                .thenReturn(Collections.emptyList());
 
-        // Assert
-        assertNotNull(resultado);
-        assertTrue(resultado.isEmpty());
-        verify(servicoRepository, times(1)).findById(anyLong());
-    }
+                // Act
+                List<HorarioDisponivelDto> resultado = horarioService.obterHorariosDisponiveis(
+                                BARBEARIA_ID, SERVICO_ID, dataManhã);
 
-    @Test
-    @DisplayName("Deve retornar lista vazia quando barbearia está fechada no dia")
-    void testObterHorariosDisponiveisComBarbeariaFechada() {
-        // Arrange
-        JpaServicoCorte servico = criarServicoMock();
-        int diaSemana = dataManhã.getDayOfWeek().getValue();
+                // Assert
+                assertNotNull(resultado);
+                assertTrue(resultado.isEmpty());
+                verify(servicoRepository, times(1)).findById(anyLong());
+        }
 
-        when(horarioGestaoService.estaAberto(anyLong(), any(LocalDate.class), any(LocalTime.class)))
-                .thenReturn(true);
-        when(servicoRepository.findById(anyLong())).thenReturn(Optional.of(servico));
-        when(profissionalServicoRepository.findFuncionariosByServicoIdAtivo(SERVICO_ID))
-                .thenReturn(Collections.emptyList()); // Simula sem profissionais ou sem horários
+        @Test
+        @DisplayName("Deve retornar lista vazia quando barbearia está fechada no dia")
+        void testObterHorariosDisponiveisComBarbeariaFechada() {
+                // Arrange
+                JpaServicoCorte servico = criarServicoMock();
+                int diaSemana = dataManhã.getDayOfWeek().getValue();
 
-        // Note: The original test logic was checking for empty list when barbearia is
-        // closed.
-        // But the service logic checks horarioGestaoService first.
-        // If we want to test the loop where it checks horarioFuncionamentoRepository,
-        // we need to have professionals.
+                when(horarioGestaoService.estaAberto(anyLong(), any(LocalDate.class), any(LocalTime.class)))
+                                .thenReturn(true);
+                when(servicoRepository.findById(anyLong())).thenReturn(Optional.of(servico));
+                when(profissionalServicoRepository.findFuncionariosByServicoIdAtivo(SERVICO_ID))
+                                .thenReturn(Collections.emptyList()); // Simula sem profissionais ou sem horários
 
-        // Let's adjust the test to match the service logic:
-        // If we want to test "barbearia fechada" via repository (not exception),
-        // we need a professional, but no schedule found.
+                // Note: The original test logic was checking for empty list when barbearia is
+                // closed.
+                // But the service logic checks horarioGestaoService first.
+                // If we want to test the loop where it checks horarioFuncionamentoRepository,
+                // we need to have professionals.
 
-        JpaFuncionario funcionario = criarFuncionarioMock();
-        JpaProfissionalServico ps = criarProfissionalServicoMock();
+                // Let's adjust the test to match the service logic:
+                // If we want to test "barbearia fechada" via repository (not exception),
+                // we need a professional, but no schedule found.
 
-        when(profissionalServicoRepository.findFuncionariosByServicoIdAtivo(SERVICO_ID))
-                .thenReturn(List.of(ps));
-        when(funcionarioRepository.findByIdAtivo(FUNCIONARIO_ID))
-                .thenReturn(Optional.of(funcionario));
-        when(horarioFuncionamentoRepository.findByFuncionarioIdAndDiaSemanaAtivo(FUNCIONARIO_ID, diaSemana))
-                .thenReturn(Optional.empty());
-        when(horarioFuncionamentoRepository.findByBarbeariaIdAndDiaSemanaAtivo(BARBEARIA_ID, diaSemana))
-                .thenReturn(Optional.empty());
+                JpaFuncionario funcionario = criarFuncionarioMock();
+                JpaProfissionalServico ps = criarProfissionalServicoMock();
 
-        // Act
-        List<HorarioDisponivelDto> resultado = horarioService.obterHorariosDisponiveis(
-                BARBEARIA_ID, SERVICO_ID, dataManhã);
+                when(profissionalServicoRepository.findFuncionariosByServicoIdAtivo(SERVICO_ID))
+                                .thenReturn(List.of(ps));
+                when(funcionarioRepository.findByIdAtivo(FUNCIONARIO_ID))
+                                .thenReturn(Optional.of(funcionario));
+                when(horarioFuncionamentoRepository.findByFuncionarioIdAndDiaSemanaAtivo(FUNCIONARIO_ID, diaSemana))
+                                .thenReturn(Optional.empty());
+                when(horarioFuncionamentoRepository.findByBarbeariaIdAndDiaSemanaAtivo(BARBEARIA_ID, diaSemana))
+                                .thenReturn(Optional.empty());
 
-        // Assert
-        assertNotNull(resultado);
-        assertTrue(resultado.isEmpty());
-    }
+                // Act
+                List<HorarioDisponivelDto> resultado = horarioService.obterHorariosDisponiveis(
+                                BARBEARIA_ID, SERVICO_ID, dataManhã);
 
-    @Test
-    @DisplayName("Deve retornar lista vazia quando não há profissionais qualificados")
-    void testObterHorariosDisponiveisComProfissionaisNaoQualificados() {
-        // Arrange
-        JpaServicoCorte servico = criarServicoMock();
+                // Assert
+                assertNotNull(resultado);
+                assertTrue(resultado.isEmpty());
+        }
 
-        when(horarioGestaoService.estaAberto(anyLong(), any(LocalDate.class), any(LocalTime.class)))
-                .thenReturn(true);
-        when(servicoRepository.findById(anyLong())).thenReturn(Optional.of(servico));
-        when(profissionalServicoRepository.findFuncionariosByServicoIdAtivo(SERVICO_ID))
-                .thenReturn(Collections.emptyList());
+        @Test
+        @DisplayName("Deve retornar lista vazia quando não há profissionais qualificados")
+        void testObterHorariosDisponiveisComProfissionaisNaoQualificados() {
+                // Arrange
+                JpaServicoCorte servico = criarServicoMock();
 
-        // Act
-        List<HorarioDisponivelDto> resultado = horarioService.obterHorariosDisponiveis(
-                BARBEARIA_ID, SERVICO_ID, dataManhã);
+                when(horarioGestaoService.estaAberto(anyLong(), any(LocalDate.class), any(LocalTime.class)))
+                                .thenReturn(true);
+                when(servicoRepository.findById(anyLong())).thenReturn(Optional.of(servico));
+                when(profissionalServicoRepository.findFuncionariosByServicoIdAtivo(SERVICO_ID))
+                                .thenReturn(Collections.emptyList());
 
-        // Assert
-        assertNotNull(resultado);
-        assertTrue(resultado.isEmpty());
-    }
+                // Act
+                List<HorarioDisponivelDto> resultado = horarioService.obterHorariosDisponiveis(
+                                BARBEARIA_ID, SERVICO_ID, dataManhã);
 
-    @Test
-    @DisplayName("Deve retornar horários disponíveis quando tudo está configurado corretamente")
-    void testObterHorariosDisponiveisComSucesso() {
-        // Arrange
-        JpaServicoCorte servico = criarServicoMock();
-        JpaHorarioFuncionamento horario = criarHorarioFuncionamentoMock();
-        JpaFuncionario funcionario = criarFuncionarioMock();
-        JpaProfissionalServico profissionalServico = criarProfissionalServicoMock();
-        int diaSemana = dataManhã.getDayOfWeek().getValue();
+                // Assert
+                assertNotNull(resultado);
+                assertTrue(resultado.isEmpty());
+        }
 
-        when(horarioGestaoService.estaAberto(anyLong(), any(LocalDate.class), any(LocalTime.class)))
-                .thenReturn(true);
-        when(servicoRepository.findById(anyLong())).thenReturn(Optional.of(servico));
-        when(horarioFuncionamentoRepository.findByBarbeariaIdAndDiaSemanaAtivo(BARBEARIA_ID, diaSemana))
-                .thenReturn(Optional.of(horario));
-        when(profissionalServicoRepository.findFuncionariosByServicoIdAtivo(SERVICO_ID))
-                .thenReturn(List.of(profissionalServico));
-        when(funcionarioRepository.findByIdAtivo(FUNCIONARIO_ID))
-                .thenReturn(Optional.of(funcionario));
-        when(agendamentoRepository.findByBarbeariaIdAndPeriodo(
-                eq(BARBEARIA_ID), any(LocalDateTime.class), any(LocalDateTime.class)))
-                .thenReturn(Collections.emptyList());
+        @Test
+        @DisplayName("Deve retornar horários disponíveis quando tudo está configurado corretamente")
+        void testObterHorariosDisponiveisComSucesso() {
+                // Arrange
+                JpaServicoCorte servico = criarServicoMock();
+                JpaHorarioFuncionamento horario = criarHorarioFuncionamentoMock();
+                JpaFuncionario funcionario = criarFuncionarioMock();
+                JpaProfissionalServico profissionalServico = criarProfissionalServicoMock();
+                int diaSemana = dataManhã.getDayOfWeek().getValue();
 
-        // Act
-        List<HorarioDisponivelDto> resultado = horarioService.obterHorariosDisponiveis(
-                BARBEARIA_ID, SERVICO_ID, dataManhã);
+                when(horarioGestaoService.estaAberto(anyLong(), any(LocalDate.class), any(LocalTime.class)))
+                                .thenReturn(true);
+                when(servicoRepository.findById(anyLong())).thenReturn(Optional.of(servico));
+                when(horarioFuncionamentoRepository.findByBarbeariaIdAndDiaSemanaAtivo(BARBEARIA_ID, diaSemana))
+                                .thenReturn(Optional.of(horario));
+                when(profissionalServicoRepository.findFuncionariosByServicoIdAtivo(SERVICO_ID))
+                                .thenReturn(List.of(profissionalServico));
+                when(funcionarioRepository.findByIdAtivo(FUNCIONARIO_ID))
+                                .thenReturn(Optional.of(funcionario));
+                when(agendamentoRepository.findByBarbeariaIdAndPeriodo(
+                                eq(BARBEARIA_ID), any(LocalDateTime.class), any(LocalDateTime.class)))
+                                .thenReturn(Collections.emptyList());
 
-        // Assert
-        assertNotNull(resultado);
-        assertFalse(resultado.isEmpty());
-        assertTrue(resultado.stream().allMatch(h -> "João".equals(h.getFuncionarioNome())));
-        assertTrue(resultado.stream().allMatch(h -> "BARBEIRO".equals(h.getProfissao())));
-    }
+                // Act
+                List<HorarioDisponivelDto> resultado = horarioService.obterHorariosDisponiveis(
+                                BARBEARIA_ID, SERVICO_ID, dataManhã);
 
-    // ==================== Métodos auxiliares para criar mocks ====================
+                // Assert
+                assertNotNull(resultado);
+                assertFalse(resultado.isEmpty());
+                assertTrue(resultado.stream().allMatch(h -> "João".equals(h.getFuncionarioNome())));
+                assertTrue(resultado.stream().allMatch(h -> "BARBEIRO".equals(h.getProfissao())));
+        }
 
-    private JpaServicoCorte criarServicoMock() {
-        JpaServicoCorte servico = new JpaServicoCorte();
-        servico.setId(SERVICO_ID);
-        servico.setNome("Corte de Cabelo");
-        servico.setDuracao(30);
-        servico.setPreco(new BigDecimal("50.00"));
-        servico.setAtivo(true);
-        return servico;
-    }
+        // ==================== Métodos auxiliares para criar mocks ====================
 
-    private JpaHorarioFuncionamento criarHorarioFuncionamentoMock() {
-        return new JpaHorarioFuncionamento(
-                BARBEARIA_ID,
-                dataManhã.getDayOfWeek().getValue(),
-                LocalTime.of(9, 0),
-                LocalTime.of(17, 0));
-    }
+        private JpaServicoCorte criarServicoMock() {
+                JpaServicoCorte servico = new JpaServicoCorte();
+                servico.setId(SERVICO_ID);
+                servico.setNome("Corte de Cabelo");
+                servico.setDuracao(30);
+                servico.setPreco(new BigDecimal("50.00"));
+                servico.setAtivo(true);
+                return servico;
+        }
 
-    private JpaFuncionario criarFuncionarioMock() {
-        JpaFuncionario barbeiro = new JpaFuncionario();
-        barbeiro.setId(FUNCIONARIO_ID);
-        barbeiro.setNome("João");
-        barbeiro.setEmail("joao@teste.com");
-        barbeiro.setTelefone("123456789");
-        barbeiro.setBarbeariaId(BARBEARIA_ID);
-        barbeiro.setPerfilType(com.barbearia.domain.enums.TipoPerfil.BARBEIRO);
-        barbeiro.setAtivo(true);
-        return barbeiro;
-    }
+        private JpaHorarioFuncionamento criarHorarioFuncionamentoMock() {
+                return new JpaHorarioFuncionamento(
+                                BARBEARIA_ID,
+                                dataManhã.getDayOfWeek().getValue(),
+                                LocalTime.of(9, 0),
+                                LocalTime.of(17, 0));
+        }
 
-    private JpaProfissionalServico criarProfissionalServicoMock() {
-        JpaProfissionalServico ps = new JpaProfissionalServico(FUNCIONARIO_ID, SERVICO_ID);
-        ps.setId(1L);
-        return ps;
-    }
+        private JpaFuncionario criarFuncionarioMock() {
+                JpaFuncionario barbeiro = new JpaFuncionario();
+                barbeiro.setId(FUNCIONARIO_ID);
+                barbeiro.setNome("João");
+                barbeiro.setEmail("joao@teste.com");
+                barbeiro.setTelefone("123456789");
+                barbeiro.setBarbeariaId(BARBEARIA_ID);
+                barbeiro.setPerfilType(com.barbearia.domain.enums.TipoPerfil.BARBEIRO);
+                barbeiro.setAtivo(true);
+                return barbeiro;
+        }
+
+        private JpaProfissionalServico criarProfissionalServicoMock() {
+                JpaProfissionalServico ps = new JpaProfissionalServico(FUNCIONARIO_ID, SERVICO_ID);
+                ps.setId(1L);
+                return ps;
+        }
 }

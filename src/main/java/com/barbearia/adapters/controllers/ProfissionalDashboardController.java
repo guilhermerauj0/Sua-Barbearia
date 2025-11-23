@@ -32,12 +32,14 @@ public class ProfissionalDashboardController {
 
     private final ProfissionalLinkService profissionalLinkService;
     private final HorarioBloqueioService horarioBloqueioService;
-    // AgendamentoService removed - não está sendo usado ainda
+    private final HorarioGestaoService horarioGestaoService;
 
     public ProfissionalDashboardController(ProfissionalLinkService profissionalLinkService,
-            HorarioBloqueioService horarioBloqueioService) {
+            HorarioBloqueioService horarioBloqueioService,
+            HorarioGestaoService horarioGestaoService) {
         this.profissionalLinkService = profissionalLinkService;
         this.horarioBloqueioService = horarioBloqueioService;
+        this.horarioGestaoService = horarioGestaoService;
     }
 
     /**
@@ -88,6 +90,116 @@ public class ProfissionalDashboardController {
 
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
+        }
+    }
+
+    /**
+     * Lista horários de funcionamento do profissional.
+     */
+    @Operation(summary = "Listar meus horários", description = "Profissional visualiza seus horários de funcionamento (seg-dom)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Lista de horários"),
+            @ApiResponse(responseCode = "401", description = "Token inválido ou expirado")
+    })
+    @GetMapping("/{accessToken}/horarios")
+    public ResponseEntity<?> listarMeusHorarios(
+            @Parameter(description = "Token de acesso UUID", example = "abc123def456") @PathVariable String accessToken) {
+        try {
+            JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
+
+            List<HorarioFuncionamentoResponseDto> horarios = horarioGestaoService
+                    .listarHorariosFuncionario(funcionario.getId());
+
+            return ResponseEntity.ok(horarios);
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
+        }
+    }
+
+    /**
+     * Profissional define seu horário de trabalho para um dia da semana.
+     */
+    @Operation(summary = "Definir meu horário", description = "Profissional define seu horário de trabalho para um dia da semana específico", requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(name = "Horário Segunda-feira", value = """
+            {
+              "diaSemana": "SEGUNDA",
+              "horaAbertura": "09:00",
+              "horaFechamento": "18:00",
+              "ativo": true
+            }
+            """))))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Horário salvo com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos", content = @Content(examples = @ExampleObject(value = "Horário de abertura deve ser antes do horário de fechamento"))),
+            @ApiResponse(responseCode = "401", description = "Token inválido ou expirado")
+    })
+    @PostMapping("/{accessToken}/horarios")
+    public ResponseEntity<?> definirMeuHorario(
+            @Parameter(description = "Token de acesso") @PathVariable String accessToken,
+            @Valid @RequestBody HorarioFuncionamentoRequestDto requestDto) {
+        try {
+            JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
+
+            HorarioFuncionamentoResponseDto horario = horarioGestaoService.salvarHorarioFuncionario(
+                    funcionario.getBarbeariaId(), funcionario.getId(), requestDto);
+
+            return ResponseEntity.ok(horario);
+
+        } catch (IllegalArgumentException e) {
+            if (e.getMessage().contains("Token")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
+            }
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Erro ao salvar horário: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Profissional define todos os horários da semana de uma vez.
+     */
+    @Operation(summary = "Definir horários da semana", description = "Profissional define todos os dias da semana de uma vez (seg-dom)", requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(name = "Semana Completa", value = """
+            {
+              "horarios": [
+                {"diaSemana": "SEGUNDA", "horaAbertura": "09:00", "horaFechamento": "18:00", "ativo": true},
+                {"diaSemana": "TERCA", "horaAbertura": "09:00", "horaFechamento": "18:00", "ativo": true},
+                {"diaSemana": "QUARTA", "horaAbertura": "09:00", "horaFechamento": "18:00", "ativo": true},
+                {"diaSemana": "QUINTA", "horaAbertura": "09:00", "horaFechamento": "18:00", "ativo": true},
+                {"diaSemana": "SEXTA", "horaAbertura": "09:00", "horaFechamento": "18:00", "ativo": true},
+                {"diaSemana": "SABADO", "horaAbertura": "09:00", "horaFechamento": "13:00", "ativo": true},
+                {"diaSemana": "DOMINGO", "horaAbertura": "00:00", "horaFechamento": "00:00", "ativo": false}
+              ]
+            }
+            """))))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Horários salvos com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos"),
+            @ApiResponse(responseCode = "401", description = "Token inválido ou expirado")
+    })
+    @PostMapping("/{accessToken}/horarios/lote")
+    public ResponseEntity<?> definirHorariosEmLote(
+            @PathVariable String accessToken,
+            @Valid @RequestBody HorarioLoteRequestDto requestDto) {
+        try {
+            JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
+
+            List<HorarioFuncionamentoResponseDto> horarios = new java.util.ArrayList<>();
+
+            for (HorarioFuncionamentoRequestDto horario : requestDto.getHorarios()) {
+                HorarioFuncionamentoResponseDto salvo = horarioGestaoService.salvarHorarioFuncionario(
+                        funcionario.getBarbeariaId(), funcionario.getId(), horario);
+                horarios.add(salvo);
+            }
+
+            return ResponseEntity.ok(horarios);
+
+        } catch (IllegalArgumentException e) {
+            if (e.getMessage().contains("Token")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
+            }
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Erro ao salvar horários: " + e.getMessage());
         }
     }
 

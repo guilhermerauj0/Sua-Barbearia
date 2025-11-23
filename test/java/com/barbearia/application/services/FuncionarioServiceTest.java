@@ -28,7 +28,8 @@ import static org.mockito.Mockito.*;
 /**
  * Testes unitários para FuncionarioService.
  * 
- * Testa todas as validações e regras de negócio da criação e listagem de funcionários.
+ * Testa todas as validações e regras de negócio da criação e listagem de
+ * funcionários.
  */
 @SuppressWarnings("null")
 @ExtendWith(MockitoExtension.class)
@@ -55,11 +56,10 @@ class FuncionarioServiceTest {
 
         // Request válido
         requestValido = new FuncionarioRequestDto(
-            "Carlos Silva",
-            "carlos.silva@email.com",
-            "(11) 98765-4321",
-            TipoPerfil.BARBEIRO
-        );
+                "Carlos Silva",
+                "carlos.silva@email.com",
+                "(11) 98765-4321",
+                TipoPerfil.BARBEIRO);
 
         // Entidade funcionário
         funcionarioBarbeiro = new JpaFuncionario();
@@ -75,18 +75,17 @@ class FuncionarioServiceTest {
 
         // Response DTO
         responseDto = new FuncionarioResponseDto(
-            1L,
-            barbeariaId,
-            "Carlos Silva",
-            "carlos.silva@email.com",
-            "(11) 98765-4321",
-            TipoPerfil.BARBEIRO,
-            "BARBEIRO",
-            "Cortes de cabelo e barba",
-            true,
-            LocalDateTime.now(),
-            LocalDateTime.now()
-        );
+                1L,
+                barbeariaId,
+                "Carlos Silva",
+                "carlos.silva@email.com",
+                "(11) 98765-4321",
+                TipoPerfil.BARBEIRO,
+                "BARBEIRO",
+                "Cortes de cabelo e barba",
+                true,
+                LocalDateTime.now(),
+                LocalDateTime.now());
     }
 
     // ==================== TESTES DE CRIAÇÃO ====================
@@ -96,17 +95,17 @@ class FuncionarioServiceTest {
     void deveCriarFuncionarioComSucesso() {
         // Arrange
         when(funcionarioRepository.existsByEmailAndBarbeariaId(
-            requestValido.email(), barbeariaId)).thenReturn(false);
+                requestValido.getEmail(), barbeariaId)).thenReturn(false);
         when(funcionarioMapper.toEntityFromDto(requestValido, barbeariaId))
-            .thenReturn(funcionarioBarbeiro);
+                .thenReturn(funcionarioBarbeiro);
         when(funcionarioRepository.save(any(JpaFuncionario.class)))
-            .thenReturn(funcionarioBarbeiro);
+                .thenReturn(funcionarioBarbeiro);
         when(funcionarioMapper.toResponseDto(funcionarioBarbeiro))
-            .thenReturn(responseDto);
+                .thenReturn(responseDto);
 
         // Act
         FuncionarioResponseDto resultado = funcionarioService.criarFuncionario(
-            requestValido, barbeariaId);
+                requestValido, barbeariaId);
 
         // Assert
         assertNotNull(resultado);
@@ -115,7 +114,7 @@ class FuncionarioServiceTest {
         assertEquals(TipoPerfil.BARBEIRO, resultado.perfilType());
         assertTrue(resultado.ativo());
         verify(funcionarioRepository).existsByEmailAndBarbeariaId(
-            requestValido.email(), barbeariaId);
+                requestValido.getEmail(), barbeariaId);
         verify(funcionarioRepository).save(any(JpaFuncionario.class));
         verify(funcionarioMapper).toResponseDto(funcionarioBarbeiro);
     }
@@ -125,18 +124,17 @@ class FuncionarioServiceTest {
     void deveLancarExcecaoQuandoEmailDuplicado() {
         // Arrange
         when(funcionarioRepository.existsByEmailAndBarbeariaId(
-            requestValido.email(), barbeariaId)).thenReturn(true);
+                requestValido.getEmail(), barbeariaId)).thenReturn(true);
 
         // Act & Assert
         IllegalArgumentException exception = assertThrows(
-            IllegalArgumentException.class,
-            () -> funcionarioService.criarFuncionario(requestValido, barbeariaId)
-        );
+                IllegalArgumentException.class,
+                () -> funcionarioService.criarFuncionario(requestValido, barbeariaId));
 
-        assertEquals("Já existe um funcionário com este email nesta barbearia", 
-            exception.getMessage());
+        assertEquals("Já existe um funcionário com este email nesta barbearia",
+                exception.getMessage());
         verify(funcionarioRepository).existsByEmailAndBarbeariaId(
-            requestValido.email(), barbeariaId);
+                requestValido.getEmail(), barbeariaId);
         verify(funcionarioRepository, never()).save(any(JpaFuncionario.class));
     }
 
@@ -145,11 +143,10 @@ class FuncionarioServiceTest {
     void deveCriarFuncionarioManicureComSucesso() {
         // Arrange
         FuncionarioRequestDto requestManicure = new FuncionarioRequestDto(
-            "Ana Costa",
-            "ana.costa@email.com",
-            "(11) 91234-5678",
-            TipoPerfil.MANICURE
-        );
+                "Ana Costa",
+                "ana.costa@email.com",
+                "(11) 91234-5678",
+                TipoPerfil.MANICURE);
 
         JpaFuncionario funcionarioManicure = new JpaFuncionario();
         funcionarioManicure.setId(2L);
@@ -161,24 +158,23 @@ class FuncionarioServiceTest {
         funcionarioManicure.setAtivo(true);
 
         FuncionarioResponseDto responseManicure = new FuncionarioResponseDto(
-            2L, barbeariaId, "Ana Costa", "ana.costa@email.com", 
-            "(11) 91234-5678", TipoPerfil.MANICURE, "MANICURE", 
-            "Manicure e pedicure", true, 
-            LocalDateTime.now(), LocalDateTime.now()
-        );
+                2L, barbeariaId, "Ana Costa", "ana.costa@email.com",
+                "(11) 91234-5678", TipoPerfil.MANICURE, "MANICURE",
+                "Manicure e pedicure", true,
+                LocalDateTime.now(), LocalDateTime.now());
 
         when(funcionarioRepository.existsByEmailAndBarbeariaId(
-            requestManicure.email(), barbeariaId)).thenReturn(false);
+                requestManicure.getEmail(), barbeariaId)).thenReturn(false);
         when(funcionarioMapper.toEntityFromDto(requestManicure, barbeariaId))
-            .thenReturn(funcionarioManicure);
+                .thenReturn(funcionarioManicure);
         when(funcionarioRepository.save(any(JpaFuncionario.class)))
-            .thenReturn(funcionarioManicure);
+                .thenReturn(funcionarioManicure);
         when(funcionarioMapper.toResponseDto(funcionarioManicure))
-            .thenReturn(responseManicure);
+                .thenReturn(responseManicure);
 
         // Act
         FuncionarioResponseDto resultado = funcionarioService.criarFuncionario(
-            requestManicure, barbeariaId);
+                requestManicure, barbeariaId);
 
         // Assert
         assertNotNull(resultado);
@@ -203,34 +199,30 @@ class FuncionarioServiceTest {
         funcionarioManicure.setAtivo(true);
 
         List<JpaFuncionario> funcionarios = Arrays.asList(
-            funcionarioBarbeiro, 
-            funcionarioManicure
-        );
+                funcionarioBarbeiro,
+                funcionarioManicure);
 
         FuncionarioResponseDto response1 = new FuncionarioResponseDto(
-            1L, barbeariaId, "Carlos Silva", "carlos.silva@email.com", 
-            "(11) 98765-4321", TipoPerfil.BARBEIRO, "BARBEIRO", 
-            "Cortes de cabelo e barba", true,
-            LocalDateTime.now(), LocalDateTime.now()
-        );
+                1L, barbeariaId, "Carlos Silva", "carlos.silva@email.com",
+                "(11) 98765-4321", TipoPerfil.BARBEIRO, "BARBEIRO",
+                "Cortes de cabelo e barba", true,
+                LocalDateTime.now(), LocalDateTime.now());
 
         FuncionarioResponseDto response2 = new FuncionarioResponseDto(
-            2L, barbeariaId, "Ana Costa", "ana.costa@email.com", 
-            "(11) 91234-5678", TipoPerfil.MANICURE, "MANICURE",
-            "Manicure e pedicure", true,
-            LocalDateTime.now(), LocalDateTime.now()
-        );
+                2L, barbeariaId, "Ana Costa", "ana.costa@email.com",
+                "(11) 91234-5678", TipoPerfil.MANICURE, "MANICURE",
+                "Manicure e pedicure", true,
+                LocalDateTime.now(), LocalDateTime.now());
 
         when(funcionarioRepository.findByBarbeariaIdAndAtivoTrue(barbeariaId))
-            .thenReturn(funcionarios);
+                .thenReturn(funcionarios);
         when(funcionarioMapper.toResponseDto(funcionarioBarbeiro))
-            .thenReturn(response1);
+                .thenReturn(response1);
         when(funcionarioMapper.toResponseDto(funcionarioManicure))
-            .thenReturn(response2);
+                .thenReturn(response2);
 
         // Act
-        List<FuncionarioResponseDto> resultado = 
-            funcionarioService.listarFuncionariosDaBarbearia(barbeariaId);
+        List<FuncionarioResponseDto> resultado = funcionarioService.listarFuncionariosDaBarbearia(barbeariaId);
 
         // Assert
         assertNotNull(resultado);
@@ -246,11 +238,10 @@ class FuncionarioServiceTest {
     void deveRetornarListaVaziaQuandoSemFuncionarios() {
         // Arrange
         when(funcionarioRepository.findByBarbeariaIdAndAtivoTrue(barbeariaId))
-            .thenReturn(Collections.emptyList());
+                .thenReturn(Collections.emptyList());
 
         // Act
-        List<FuncionarioResponseDto> resultado = 
-            funcionarioService.listarFuncionariosDaBarbearia(barbeariaId);
+        List<FuncionarioResponseDto> resultado = funcionarioService.listarFuncionariosDaBarbearia(barbeariaId);
 
         // Assert
         assertNotNull(resultado);
@@ -265,20 +256,17 @@ class FuncionarioServiceTest {
     @DisplayName("Deve validar profissões permitidas - BARBEIRO")
     void deveValidarProfissaoBarbeiro() {
         when(funcionarioRepository.existsByEmailAndBarbeariaId(anyString(), anyLong()))
-            .thenReturn(false);
+                .thenReturn(false);
         when(funcionarioMapper.toEntityFromDto(any(), anyLong()))
-            .thenReturn(funcionarioBarbeiro);
+                .thenReturn(funcionarioBarbeiro);
         when(funcionarioRepository.save(any()))
-            .thenReturn(funcionarioBarbeiro);
+                .thenReturn(funcionarioBarbeiro);
         when(funcionarioMapper.toResponseDto(any(JpaFuncionario.class)))
-            .thenReturn(responseDto);
+                .thenReturn(responseDto);
 
-        assertDoesNotThrow(() -> 
-            funcionarioService.criarFuncionario(
+        assertDoesNotThrow(() -> funcionarioService.criarFuncionario(
                 new FuncionarioRequestDto("Nome", "email@test.com", "11999999999", TipoPerfil.BARBEIRO),
-                barbeariaId
-            )
-        );
+                barbeariaId));
     }
 
     @Test
@@ -286,22 +274,19 @@ class FuncionarioServiceTest {
     void deveValidarProfissaoManicure() {
         JpaFuncionario func = new JpaFuncionario();
         func.setPerfilType(TipoPerfil.MANICURE);
-        
-        when(funcionarioRepository.existsByEmailAndBarbeariaId(anyString(), anyLong()))
-            .thenReturn(false);
-        when(funcionarioMapper.toEntityFromDto(any(), anyLong()))
-            .thenReturn(func);
-        when(funcionarioRepository.save(any()))
-            .thenReturn(func);
-        when(funcionarioMapper.toResponseDto(any(JpaFuncionario.class)))
-            .thenReturn(responseDto);
 
-        assertDoesNotThrow(() -> 
-            funcionarioService.criarFuncionario(
+        when(funcionarioRepository.existsByEmailAndBarbeariaId(anyString(), anyLong()))
+                .thenReturn(false);
+        when(funcionarioMapper.toEntityFromDto(any(), anyLong()))
+                .thenReturn(func);
+        when(funcionarioRepository.save(any()))
+                .thenReturn(func);
+        when(funcionarioMapper.toResponseDto(any(JpaFuncionario.class)))
+                .thenReturn(responseDto);
+
+        assertDoesNotThrow(() -> funcionarioService.criarFuncionario(
                 new FuncionarioRequestDto("Nome", "email2@test.com", "11999999999", TipoPerfil.MANICURE),
-                barbeariaId
-            )
-        );
+                barbeariaId));
     }
 
     @Test
@@ -309,22 +294,19 @@ class FuncionarioServiceTest {
     void deveValidarProfissaoEsteticista() {
         JpaFuncionario func = new JpaFuncionario();
         func.setPerfilType(TipoPerfil.ESTETICISTA);
-        
-        when(funcionarioRepository.existsByEmailAndBarbeariaId(anyString(), anyLong()))
-            .thenReturn(false);
-        when(funcionarioMapper.toEntityFromDto(any(), anyLong()))
-            .thenReturn(func);
-        when(funcionarioRepository.save(any()))
-            .thenReturn(func);
-        when(funcionarioMapper.toResponseDto(any(JpaFuncionario.class)))
-            .thenReturn(responseDto);
 
-        assertDoesNotThrow(() -> 
-            funcionarioService.criarFuncionario(
+        when(funcionarioRepository.existsByEmailAndBarbeariaId(anyString(), anyLong()))
+                .thenReturn(false);
+        when(funcionarioMapper.toEntityFromDto(any(), anyLong()))
+                .thenReturn(func);
+        when(funcionarioRepository.save(any()))
+                .thenReturn(func);
+        when(funcionarioMapper.toResponseDto(any(JpaFuncionario.class)))
+                .thenReturn(responseDto);
+
+        assertDoesNotThrow(() -> funcionarioService.criarFuncionario(
                 new FuncionarioRequestDto("Nome", "email3@test.com", "11999999999", TipoPerfil.ESTETICISTA),
-                barbeariaId
-            )
-        );
+                barbeariaId));
     }
 
     @Test
@@ -332,21 +314,18 @@ class FuncionarioServiceTest {
     void deveValidarProfissaoColorista() {
         JpaFuncionario func = new JpaFuncionario();
         func.setPerfilType(TipoPerfil.COLORISTA);
-        
-        when(funcionarioRepository.existsByEmailAndBarbeariaId(anyString(), anyLong()))
-            .thenReturn(false);
-        when(funcionarioMapper.toEntityFromDto(any(), anyLong()))
-            .thenReturn(func);
-        when(funcionarioRepository.save(any()))
-            .thenReturn(func);
-        when(funcionarioMapper.toResponseDto(any(JpaFuncionario.class)))
-            .thenReturn(responseDto);
 
-        assertDoesNotThrow(() -> 
-            funcionarioService.criarFuncionario(
+        when(funcionarioRepository.existsByEmailAndBarbeariaId(anyString(), anyLong()))
+                .thenReturn(false);
+        when(funcionarioMapper.toEntityFromDto(any(), anyLong()))
+                .thenReturn(func);
+        when(funcionarioRepository.save(any()))
+                .thenReturn(func);
+        when(funcionarioMapper.toResponseDto(any(JpaFuncionario.class)))
+                .thenReturn(responseDto);
+
+        assertDoesNotThrow(() -> funcionarioService.criarFuncionario(
                 new FuncionarioRequestDto("Nome", "email4@test.com", "11999999999", TipoPerfil.COLORISTA),
-                barbeariaId
-            )
-        );
+                barbeariaId));
     }
 }

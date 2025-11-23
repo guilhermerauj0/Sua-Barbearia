@@ -63,6 +63,55 @@ public class ClienteController {
         }
     }
 
+    @Operation(summary = "Listar agendamentos recentes", description = "Retorna agendamentos recém-criados (futuros) ou recém-concluídos dos últimos 30 dias", security = @SecurityRequirement(name = "Bearer"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Lista retornada"),
+            @ApiResponse(responseCode = "400", description = "Tipo inválido"),
+            @ApiResponse(responseCode = "401", description = "Token inválido")
+    })
+    @GetMapping("/meus-agendamentos/recentes")
+    public ResponseEntity<?> listarAgendamentosRecentes(
+            @io.swagger.v3.oas.annotations.Parameter(description = "Tipo: 'futuros' (recém-criados) ou 'concluidos_recentes' (recém-concluídos). Sem parâmetro retorna ambos.") @RequestParam(required = false) String tipo,
+            HttpServletRequest request) {
+        try {
+            Long clienteId = extrairClienteIdDoToken(request);
+
+            if (clienteId == null) {
+                return ResponseEntity.status(401).body("Token JWT inválido ou clienteId não encontrado");
+            }
+
+            List<AgendamentoBriefDto> agendamentos;
+
+            if ("futuros".equals(tipo)) {
+                // Agendamentos futuros criados nos últimos 30 dias
+                agendamentos = agendamentoService.listarAgendamentosRecentesFuturos(clienteId, 30);
+            } else if ("concluidos_recentes".equals(tipo)) {
+                // Agendamentos concluídos nos últimos 30 dias
+                agendamentos = agendamentoService.listarAgendamentosConcluídosRecentes(clienteId, 30);
+            } else if (tipo == null || tipo.isBlank()) {
+                // Retorna ambos
+                List<AgendamentoBriefDto> futuros = agendamentoService.listarAgendamentosRecentesFuturos(clienteId, 30);
+                List<AgendamentoBriefDto> concluidos = agendamentoService
+                        .listarAgendamentosConcluídosRecentes(clienteId, 30);
+
+                agendamentos = new java.util.ArrayList<>();
+                agendamentos.addAll(futuros);
+                agendamentos.addAll(concluidos);
+            } else {
+                return ResponseEntity.badRequest()
+                        .body("{\"erro\": \"Tipo deve ser 'futuros' ou 'concluidos_recentes'\"}");
+            }
+
+            return ResponseEntity.ok(agendamentos);
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body("Erro ao buscar agendamentos recentes: " + e.getMessage());
+        }
+    }
+
     @io.swagger.v3.oas.annotations.Hidden
     @GetMapping("/meu-perfil")
     public ResponseEntity<?> buscarMeuPerfil(HttpServletRequest request) {

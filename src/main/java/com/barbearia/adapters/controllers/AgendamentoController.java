@@ -214,6 +214,54 @@ public class AgendamentoController {
     }
 
     /**
+     * Repete um agendamento concluído criando um novo.
+     */
+    @Operation(summary = "Repetir agendamento", description = "CRIA UM NOVO agendamento baseado em um serviço já concluído. "
+            +
+            "Não modifica o histórico - cria um registro novo com os mesmos dados (profissional, serviço) mas nova data.", security = @SecurityRequirement(name = "Bearer"), requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(name = "Repetir Exemplo", value = """
+                    {
+                      "novaDataHora": "2025-12-05T14:00:00"
+                    }
+                    """))))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Novo agendamento criado", content = @Content(schema = @Schema(implementation = AgendamentoResponseDto.class))),
+            @ApiResponse(responseCode = "400", description = "Agendamento original não está concluído ou data inválida"),
+            @ApiResponse(responseCode = "404", description = "Agendamento original não encontrado"),
+            @ApiResponse(responseCode = "403", description = "Sem permissão"),
+            @ApiResponse(responseCode = "401", description = "Token inválido")
+    })
+    @PostMapping("/{id}/repetir")
+    public ResponseEntity<?> repetirAgendamento(
+            @PathVariable Long id,
+            @RequestBody com.barbearia.application.dto.AgendamentoReagendamentoDto dto,
+            HttpServletRequest request) {
+        try {
+            Long usuarioId = extrairUsuarioIdDoToken(request);
+            String tipoUsuario = extrairTipoUsuarioDoToken(request);
+
+            if (usuarioId == null || tipoUsuario == null) {
+                return ResponseEntity.status(401).body("Token JWT inválido");
+            }
+
+            // Criar novo agendamento baseado no concluído
+            AgendamentoResponseDto novoAgendamento = agendamentoService.repetirAgendamento(id, dto.novaDataHora(),
+                    usuarioId, tipoUsuario);
+
+            return ResponseEntity.status(201).body(novoAgendamento);
+
+        } catch (AgendamentoNaoEncontradoException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        } catch (AcessoNegadoException e) {
+            return ResponseEntity.status(403).body(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body("Erro ao repetir agendamento: " + e.getMessage());
+        }
+    }
+
+    /**
      * Confirma um agendamento.
      */
     @Operation(summary = "Confirmar agendamento", description = "Barbearia confirma agendamento PENDENTE.", security = @SecurityRequirement(name = "Bearer"))

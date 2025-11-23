@@ -27,7 +27,6 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -831,6 +830,55 @@ public class BarbeariaController {
         } catch (Exception e) {
             return ResponseEntity.internalServerError()
                     .body("Erro ao remover exceção: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Criar agendamento direto (sem cliente ter conta).
+     */
+    @Operation(summary = "Criar agendamento direto", description = "Barbearia agenda cliente sem que ele precise ter conta. "
+            +
+            "Se o telefone já existir, reutiliza o cliente. Caso contrário, cria novo cliente automaticamente.", requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(name = "Agendamento Direto", value = """
+                    {
+                      "clienteNome": "João Silva",
+                      "clienteTelefone": "87999998888",
+                      "clienteEmail": "joao@email.com",
+                      "servicoId": 1,
+                      "funcionarioId": 1,
+                      "dataHora": "2025-11-25T14:30:00",
+                      "observacoes": "Cliente preferencial"
+                    }
+                    """))))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Agendamento criado", content = @Content(schema = @Schema(implementation = AgendamentoResponseDto.class))),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos ou horário indisponível"),
+            @ApiResponse(responseCode = "422", description = "Funcionário não pertence à barbearia"),
+            @ApiResponse(responseCode = "401", description = "Token inválido")
+    })
+    @PostMapping("/agendamentos-diretos")
+    @PreAuthorize("hasRole('BARBEARIA')")
+    public ResponseEntity<?> criarAgendamentoDireto(
+            @org.springframework.web.bind.annotation.RequestBody com.barbearia.application.dto.AgendamentoDiretoRequestDto requestDto,
+            HttpServletRequest request) {
+        try {
+            Long barbeariaId = extrairBarbeariaId(request);
+
+            if (barbeariaId == null) {
+                return ResponseEntity.status(401).body("Token JWT inválido ou barbeariaId não encontrado");
+            }
+
+            AgendamentoResponseDto agendamento = agendamentoService.criarAgendamentoDireto(barbeariaId, requestDto);
+
+            return ResponseEntity.status(201).body(agendamento);
+
+        } catch (IllegalArgumentException e) {
+            if (e.getMessage().contains("não pertence")) {
+                return ResponseEntity.status(422).body(e.getMessage());
+            }
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body("Erro ao criar agendamento direto: " + e.getMessage());
         }
     }
 

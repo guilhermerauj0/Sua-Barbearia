@@ -38,7 +38,7 @@ public class FuncionarioService {
     @Transactional
     public FuncionarioResponseDto criarFuncionario(FuncionarioRequestDto dto, Long barbeariaId) {
         // Verifica se já existe funcionário com mesmo email na barbearia
-        if (funcionarioRepository.existsByEmailAndBarbeariaId(dto.email(), barbeariaId)) {
+        if (funcionarioRepository.existsByEmailAndBarbeariaId(dto.getEmail(), barbeariaId)) {
             throw new IllegalArgumentException("Já existe um funcionário com este email nesta barbearia");
         }
 
