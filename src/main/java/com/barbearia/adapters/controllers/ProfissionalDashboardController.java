@@ -5,8 +5,10 @@ import com.barbearia.application.services.*;
 import com.barbearia.infrastructure.persistence.entities.JpaFuncionario;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,6 +16,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -30,322 +33,322 @@ import java.util.List;
 @CrossOrigin(origins = "*")
 public class ProfissionalDashboardController {
 
-    private final ProfissionalLinkService profissionalLinkService;
-    private final HorarioBloqueioService horarioBloqueioService;
-    private final HorarioGestaoService horarioGestaoService;
+        private final ProfissionalLinkService profissionalLinkService;
+        private final HorarioBloqueioService horarioBloqueioService;
+        private final HorarioGestaoService horarioGestaoService;
+        private final AgendamentoService agendamentoService;
 
-    public ProfissionalDashboardController(ProfissionalLinkService profissionalLinkService,
-            HorarioBloqueioService horarioBloqueioService,
-            HorarioGestaoService horarioGestaoService) {
-        this.profissionalLinkService = profissionalLinkService;
-        this.horarioBloqueioService = horarioBloqueioService;
-        this.horarioGestaoService = horarioGestaoService;
-    }
-
-    /**
-     * Dashboard do profissional.
-     */
-    @Operation(summary = "Dashboard do profissional", description = "Retorna informações básicas do profissional via accessToken (gerado pela barbearia)")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Dashboard carregado"),
-            @ApiResponse(responseCode = "401", description = "Token inválido, expirado ou desativado")
-    })
-    @GetMapping("/{accessToken}/dashboard")
-    public ResponseEntity<?> obterDashboard(
-            @Parameter(description = "Token de acesso UUID gerado pela barbearia", example = "abc123def456") @PathVariable String accessToken) {
-        try {
-            JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
-
-            // Retorna dados básicos
-            return ResponseEntity.ok(new DashboardResponseDto(
-                    funcionario.getId(),
-                    funcionario.getNome(),
-                    funcionario.getEmail(),
-                    funcionario.getPerfilType().name(),
-                    "Link válido até: "
-                            + (funcionario.getTokenExpiraEm() != null ? funcionario.getTokenExpiraEm().toString()
-                                    : "Sem expiração")));
-
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
+        public ProfissionalDashboardController(
+                        ProfissionalLinkService profissionalLinkService,
+                        HorarioBloqueioService horarioBloqueioService,
+                        HorarioGestaoService horarioGestaoService,
+                        AgendamentoService agendamentoService) {
+                this.profissionalLinkService = profissionalLinkService;
+                this.horarioBloqueioService = horarioBloqueioService;
+                this.horarioGestaoService = horarioGestaoService;
+                this.agendamentoService = agendamentoService;
         }
-    }
 
-    /**
-     * Lista agendamentos do profissional com filtros.
-     */
-    @GetMapping("/{accessToken}/agendamentos")
-    public ResponseEntity<?> listarAgendamentos(
-            @PathVariable String accessToken,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String dataInicio,
-            @RequestParam(required = false) String dataFim) {
-        try {
-            JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
-
-            // Delega para AgendamentoService (assumindo que existe método
-            // listByFuncionarioId)
-            // Por simplicidade, retornando mensagem aqui
-            return ResponseEntity.ok("Lista de agendamentos do profissional " + funcionario.getId());
-
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
+        /**
+         * Dashboard do profissional.
+         */
+        @Operation(summary = "Obter dashboard", description = "Retorna dados do profissional e resumo")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Dashboard retornado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = DashboardResponseDto.class))),
+                        @ApiResponse(responseCode = "401", description = "Link inválido ou expirado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
+        })
+        @GetMapping("/{accessToken}")
+        public ResponseEntity<?> obterDashboard(
+                        @Parameter(description = "Token de acesso UUID gerado pela barbearia", example = "abc123def456") @PathVariable String accessToken) {
+                JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
+                return ResponseEntity.ok(new DashboardResponseDto(
+                                funcionario.getId(),
+                                funcionario.getNome(),
+                                funcionario.getEmail(),
+                                funcionario.getPerfilType().toString(),
+                                "Link válido"));
         }
-    }
 
-    /**
-     * Lista horários de funcionamento do profissional.
-     */
-    @Operation(summary = "Listar meus horários", description = "Profissional visualiza seus horários de funcionamento (seg-dom)")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Lista de horários"),
-            @ApiResponse(responseCode = "401", description = "Token inválido ou expirado")
-    })
-    @GetMapping("/{accessToken}/horarios")
-    public ResponseEntity<?> listarMeusHorarios(
-            @Parameter(description = "Token de acesso UUID", example = "abc123def456") @PathVariable String accessToken) {
-        try {
-            JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
-
-            List<HorarioFuncionamentoResponseDto> horarios = horarioGestaoService
-                    .listarHorariosFuncionario(funcionario.getId());
-
-            return ResponseEntity.ok(horarios);
-
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
+        /**
+         * Lista agendamentos do profissional com filtros.
+         */
+        @Operation(summary = "Listar agendamentos", description = "Lista agendamentos do profissional")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Lista de agendamentos", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AgendamentoBriefDto.class)))),
+                        @ApiResponse(responseCode = "401", description = "Link inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
+        })
+        @GetMapping("/{accessToken}/agendamentos")
+        public ResponseEntity<?> listarAgendamentos(
+                        @PathVariable String accessToken,
+                        @RequestParam(required = false) String status,
+                        @RequestParam(required = false) String dataInicio,
+                        @RequestParam(required = false) String dataFim) {
+                JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
+                List<AgendamentoBriefDto> agendamentos = agendamentoService
+                                .listarAgendamentosProfissional(funcionario.getId());
+                return ResponseEntity.ok(agendamentos);
         }
-    }
 
-    /**
-     * Profissional define seu horário de trabalho para um dia da semana.
-     */
-    @Operation(summary = "Definir meu horário", description = "Profissional define seu horário de trabalho para um dia da semana específico", requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(name = "Horário Segunda-feira", value = """
-            {
-              "diaSemana": "SEGUNDA",
-              "horaAbertura": "09:00",
-              "horaFechamento": "18:00",
-              "ativo": true
-            }
-            """))))
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Horário salvo com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados inválidos", content = @Content(examples = @ExampleObject(value = "Horário de abertura deve ser antes do horário de fechamento"))),
-            @ApiResponse(responseCode = "401", description = "Token inválido ou expirado")
-    })
-    @PostMapping("/{accessToken}/horarios")
-    public ResponseEntity<?> definirMeuHorario(
-            @Parameter(description = "Token de acesso") @PathVariable String accessToken,
-            @Valid @RequestBody HorarioFuncionamentoRequestDto requestDto) {
-        try {
-            JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
+        /**
+         * Lista horários de funcionamento do profissional.
+         */
+        @Operation(summary = "Listar horários", description = "Lista horários de trabalho")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Lista de horários", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = HorarioFuncionamentoResponseDto.class)))),
+                        @ApiResponse(responseCode = "401", description = "Link inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
+        })
+        @GetMapping("/{accessToken}/horarios")
+        public ResponseEntity<?> listarMeusHorarios(
+                        @Parameter(description = "Token de acesso UUID", example = "abc123def456") @PathVariable String accessToken) {
+                JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
 
-            HorarioFuncionamentoResponseDto horario = horarioGestaoService.salvarHorarioFuncionario(
-                    funcionario.getBarbeariaId(), funcionario.getId(), requestDto);
+                List<HorarioFuncionamentoResponseDto> horarios = horarioGestaoService
+                                .listarHorariosFuncionario(funcionario.getId());
 
-            return ResponseEntity.ok(horario);
-
-        } catch (IllegalArgumentException e) {
-            if (e.getMessage().contains("Token")) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
-            }
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Erro ao salvar horário: " + e.getMessage());
+                return ResponseEntity.ok(horarios);
         }
-    }
 
-    /**
-     * Profissional define todos os horários da semana de uma vez.
-     */
-    @Operation(summary = "Definir horários da semana", description = "Profissional define todos os dias da semana de uma vez (seg-dom)", requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(name = "Semana Completa", value = """
-            {
-              "horarios": [
-                {"diaSemana": "SEGUNDA", "horaAbertura": "09:00", "horaFechamento": "18:00", "ativo": true},
-                {"diaSemana": "TERCA", "horaAbertura": "09:00", "horaFechamento": "18:00", "ativo": true},
-                {"diaSemana": "QUARTA", "horaAbertura": "09:00", "horaFechamento": "18:00", "ativo": true},
-                {"diaSemana": "QUINTA", "horaAbertura": "09:00", "horaFechamento": "18:00", "ativo": true},
-                {"diaSemana": "SEXTA", "horaAbertura": "09:00", "horaFechamento": "18:00", "ativo": true},
-                {"diaSemana": "SABADO", "horaAbertura": "09:00", "horaFechamento": "13:00", "ativo": true},
-                {"diaSemana": "DOMINGO", "horaAbertura": "00:00", "horaFechamento": "00:00", "ativo": false}
-              ]
-            }
-            """))))
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Horários salvos com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados inválidos"),
-            @ApiResponse(responseCode = "401", description = "Token inválido ou expirado")
-    })
-    @PostMapping("/{accessToken}/horarios/lote")
-    public ResponseEntity<?> definirHorariosEmLote(
-            @PathVariable String accessToken,
-            @Valid @RequestBody HorarioLoteRequestDto requestDto) {
-        try {
-            JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
-
-            List<HorarioFuncionamentoResponseDto> horarios = new java.util.ArrayList<>();
-
-            for (HorarioFuncionamentoRequestDto horario : requestDto.getHorarios()) {
-                HorarioFuncionamentoResponseDto salvo = horarioGestaoService.salvarHorarioFuncionario(
-                        funcionario.getBarbeariaId(), funcionario.getId(), horario);
-                horarios.add(salvo);
-            }
-
-            return ResponseEntity.ok(horarios);
-
-        } catch (IllegalArgumentException e) {
-            if (e.getMessage().contains("Token")) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
-            }
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Erro ao salvar horários: " + e.getMessage());
+        /**
+         * Profissional define seu horário de trabalho para um dia da semana.
+         */
+        @Operation(summary = "Definir horário", description = "Define horário de trabalho para um dia")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Horário salvo", content = @Content(mediaType = "application/json", schema = @Schema(implementation = HorarioFuncionamentoResponseDto.class))),
+                        @ApiResponse(responseCode = "400", description = "Dados inválidos", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "401", description = "Link inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
+        })
+        @PostMapping("/{accessToken}/horarios")
+        public ResponseEntity<?> definirMeuHorario(
+                        @Parameter(description = "Token de acesso") @PathVariable String accessToken,
+                        @Valid @RequestBody HorarioFuncionamentoRequestDto requestDto) {
+                JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
+                // Profissional define seu próprio horário -> usa ID da barbearia associada ao
+                // funcionário
+                Long barbeariaId = funcionario.getBarbeariaId();
+                var horario = horarioGestaoService.salvarHorarioFuncionario(barbeariaId, funcionario.getId(),
+                                requestDto);
+                return ResponseEntity.ok(horario);
         }
-    }
 
-    /**
-     * Criar bloqueio de horário.
-     */
-    @Operation(summary = "Criar bloqueio", description = "Profissional bloqueia horário específico (almoço, reunião, etc)", requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(name = "Bloqueio Almoço", value = """
-            {
-              "data": "2025-11-25",
-              "horarioInicio": "12:00",
-              "horarioFim": "13:00",
-              "motivo": "Almoço"
-            }
-            """))))
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "Bloqueio criado"),
-            @ApiResponse(responseCode = "400", description = "Sobreposição com bloqueio existente"),
-            @ApiResponse(responseCode = "401", description = "Token inválido")
-    })
-    @PostMapping("/{accessToken}/bloqueios")
-    public ResponseEntity<?> criarBloqueio(
-            @Parameter(description = "Token de acesso") @PathVariable String accessToken,
-            @Valid @RequestBody HorarioBloqueadoRequestDto requestDto) {
-        try {
-            JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
-
-            HorarioBloqueadoResponseDto bloqueio = horarioBloqueioService.criarBloqueio(
-                    funcionario.getId(),
-                    requestDto,
-                    "PROFISSIONAL");
-
-            return ResponseEntity.status(HttpStatus.CREATED).body(bloqueio);
-
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Erro: " + e.getMessage());
+        /**
+         * Profissional define todos os horários da semana de uma vez.
+         */
+        @Operation(summary = "Definir horários em lote", description = "Define horários para a semana toda")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Horários salvos", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = HorarioFuncionamentoResponseDto.class)))),
+                        @ApiResponse(responseCode = "400", description = "Dados inválidos", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "401", description = "Link inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
+        })
+        @PostMapping("/{accessToken}/horarios/lote")
+        public ResponseEntity<?> definirHorariosEmLote(
+                        @PathVariable String accessToken,
+                        @Valid @RequestBody HorarioLoteRequestDto requestDto) {
+                JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
+                Long barbeariaId = funcionario.getBarbeariaId();
+                List<HorarioFuncionamentoResponseDto> horarios = horarioGestaoService.salvarHorariosEmLote(barbeariaId,
+                                funcionario.getId(), requestDto);
+                return ResponseEntity.ok(horarios);
         }
-    }
 
-    /**
-     * Cria múltiplos bloqueios em lote.
-     */
-    @Operation(summary = "Criar bloqueios em lote", description = "Profissional cria múltiplos bloqueios de uma vez (ex: todos os almoços da semana)")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "Bloqueios criados"),
-            @ApiResponse(responseCode = "400", description = "Sobreposição detectada"),
-            @ApiResponse(responseCode = "401", description = "Token inválido")
-    })
-    @PostMapping("/{accessToken}/bloqueios/lote")
-    public ResponseEntity<?> criarBloqueiosEmLote(
-            @PathVariable String accessToken,
-            @Valid @RequestBody HorarioBloqueadoLoteRequestDto requestDto) {
-        try {
-            JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
+        /**
+         * Criar bloqueio de horário.
+         */
+        @Operation(summary = "Criar bloqueio", description = "Profissional bloqueia horário específico (almoço, reunião, etc)", requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(name = "Bloqueio Almoço", value = """
+                        {
+                          "data": "2025-11-25",
+                          "horarioInicio": "12:00",
+                          "horarioFim": "13:00",
+                          "motivo": "Almoço"
+                        }
+                        """))))
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "201", description = "Bloqueio criado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = HorarioBloqueadoResponseDto.class))),
+                        @ApiResponse(responseCode = "400", description = "Dados inválidos ou sobreposição", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "401", description = "Link inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
+        })
+        @PostMapping("/{accessToken}/bloqueios")
+        public ResponseEntity<?> criarBloqueio(
+                        @Parameter(description = "Token de acesso") @PathVariable String accessToken,
+                        @Valid @RequestBody HorarioBloqueadoRequestDto requestDto) {
+                JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
 
-            List<HorarioBloqueadoResponseDto> bloqueios = horarioBloqueioService.criarBloqueiosEmLote(
-                    funcionario.getId(),
-                    requestDto,
-                    "PROFISSIONAL");
+                HorarioBloqueadoResponseDto bloqueio = horarioBloqueioService.criarBloqueio(
+                                funcionario.getId(), requestDto, "PROFISSIONAL");
 
-            return ResponseEntity.status(HttpStatus.CREATED).body(bloqueios);
-
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Erro: " + e.getMessage());
+                return ResponseEntity.status(HttpStatus.CREATED).body(bloqueio);
         }
-    }
 
-    /**
-     * Lista bloqueios do profisional.
-     */
-    @Operation(summary = "Listar bloqueios", description = "Profissional lista todos seus bloqueios ativos")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Lista de bloqueios"),
-            @ApiResponse(responseCode = "401", description = "Token inválido")
-    })
-    @GetMapping("/{accessToken}/bloqueios")
-    public ResponseEntity<?> listarBloqueios(
-            @PathVariable String accessToken,
-            @RequestParam(required = false) String dataInicio,
-            @RequestParam(required = false) String dataFim) {
-        try {
-            JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
+        /**
+         * Cria múltiplos bloqueios em lote.
+         */
+        @Operation(summary = "Criar bloqueios em lote", description = "Profissional cria múltiplos bloqueios de uma vez (ex: todos os almoços da semana)")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "201", description = "Bloqueios criados", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = HorarioBloqueadoResponseDto.class)))),
+                        @ApiResponse(responseCode = "400", description = "Dados inválidos ou sobreposição", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "401", description = "Link inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
+        })
+        @PostMapping("/{accessToken}/bloqueios/lote")
+        public ResponseEntity<?> criarBloqueiosEmLote(
+                        @PathVariable String accessToken,
+                        @Valid @RequestBody HorarioBloqueadoLoteRequestDto requestDto) {
+                JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
 
-            LocalDate inicio = dataInicio != null ? LocalDate.parse(dataInicio) : LocalDate.now();
-            LocalDate fim = dataFim != null ? LocalDate.parse(dataFim) : LocalDate.now().plusMonths(1);
+                List<HorarioBloqueadoResponseDto> bloqueios = horarioBloqueioService.criarBloqueiosEmLote(
+                                funcionario.getId(), requestDto, "PROFISSIONAL");
 
-            List<HorarioBloqueadoResponseDto> bloqueios = horarioBloqueioService.listarBloqueiosPorPeriodo(
-                    funcionario.getId(),
-                    inicio,
-                    fim);
-
-            return ResponseEntity.ok(bloqueios);
-
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Erro: " + e.getMessage());
+                return ResponseEntity.status(HttpStatus.CREATED).body(bloqueios);
         }
-    }
 
-    /**
-     * Remove bloqueio (apenas os criados pelo profissional).
-     */
-    @Operation(summary = "Remover bloqueio", description = "Profissional remove bloqueio específico. Apenas bloqueios criados por ele podem ser removidos.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "204", description = "Bloqueio removido"),
-            @ApiResponse(responseCode = "404", description = "Bloqueio não encontrado"),
-            @ApiResponse(responseCode = "403", description = "Bloqueio criado pela barbearia (não pode remover)"),
-            @ApiResponse(responseCode = "401", description = "Token inválido")
-    })
-    @DeleteMapping("/{accessToken}/bloqueios/{bloqueioId}")
-    public ResponseEntity<?> removerBloqueio(
-            @PathVariable String accessToken,
-            @PathVariable Long bloqueioId) {
-        try {
-            JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
+        /**
+         * Lista bloqueios do profisional.
+         */
+        @Operation(summary = "Listar bloqueios", description = "Profissional lista todos seus bloqueios ativos")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Lista de bloqueios", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = HorarioBloqueadoResponseDto.class)))),
+                        @ApiResponse(responseCode = "401", description = "Link inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
+        })
+        @GetMapping("/{accessToken}/bloqueios")
+        public ResponseEntity<?> listarBloqueios(
+                        @PathVariable String accessToken,
+                        @RequestParam(required = false) String dataInicio,
+                        @RequestParam(required = false) String dataFim) {
+                JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
 
-            horarioBloqueioService.removerBloqueio(bloqueioId, funcionario.getId(), "PROFISSIONAL");
-
-            return ResponseEntity.noContent().build();
-
-        } catch (IllegalArgumentException e) {
-            if (e.getMessage().contains("Token")) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
-            }
-            return ResponseEntity.badRequest().body(e.getMessage());
+                LocalDate inicio = dataInicio != null ? LocalDate.parse(dataInicio) : null;
+                LocalDate fim = dataFim != null ? LocalDate.parse(dataFim) : null;
+                List<HorarioBloqueadoResponseDto> bloqueios;
+                if (inicio != null && fim != null) {
+                        bloqueios = horarioBloqueioService.listarBloqueiosPorPeriodo(funcionario.getId(), inicio, fim);
+                } else {
+                        // Se não passar datas, lista futuros ou todos (depende da regra, aqui listando
+                        // tudo por enquanto)
+                        // Como não tem método listarTodos sem barbeariaId no service exposto aqui,
+                        // vamos usar o por periodo com range grande ou criar metodo novo.
+                        // Usando periodo padrao de 1 ano para frente se nao informado
+                        bloqueios = horarioBloqueioService.listarBloqueiosPorPeriodo(funcionario.getId(),
+                                        LocalDate.now(),
+                                        LocalDate.now().plusYears(1));
+                }
+                return ResponseEntity.ok(bloqueios);
         }
-    }
 
-    // DTO interno para Dashboard
-    static class DashboardResponseDto {
-        public final Long funcionarioId;
-        public final String nome;
-        public final String email;
-        public final String perfil;
-        public final String linkInfo;
-
-        public DashboardResponseDto(Long id, String nome, String email, String perfil, String linkInfo) {
-            this.funcionarioId = id;
-            this.nome = nome;
-            this.email = email;
-            this.perfil = perfil;
-            this.linkInfo = linkInfo;
+        /**
+         * Remove bloqueio (apenas os criados pelo profissional).
+         */
+        @Operation(summary = "Remover bloqueio", description = "Remove um bloqueio (apenas se criado pelo profissional)")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "204", description = "Bloqueio removido"),
+                        @ApiResponse(responseCode = "401", description = "Link inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "403", description = "Não autorizado a remover este bloqueio", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "404", description = "Bloqueio não encontrado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
+        })
+        @DeleteMapping("/{accessToken}/bloqueios/{bloqueioId}")
+        public ResponseEntity<?> removerBloqueio(
+                        @PathVariable String accessToken,
+                        @PathVariable Long bloqueioId) {
+                JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
+                horarioBloqueioService.removerBloqueio(bloqueioId, funcionario.getId(), "PROFISSIONAL");
+                return ResponseEntity.noContent().build();
         }
-    }
+
+        // ===== ENDPOINTS Para EXCEÇÕES DE HORÁRIO =====
+
+        @Operation(summary = "Listar exceções de horário", description = "Profissional lista suas exceções (disponibilidade extra em datas específicas)")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Lista de exceções", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = HorarioExcecaoResponseDto.class)))),
+                        @ApiResponse(responseCode = "401", description = "Link inválido ou expirado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
+        })
+        @GetMapping("/{accessToken}/excecoes")
+        public ResponseEntity<?> listarExcecoes(
+                        @PathVariable String accessToken,
+                        @RequestParam(required = false) String dataInicio,
+                        @RequestParam(required = false) String dataFim) {
+                JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
+                LocalDate inicio = dataInicio != null ? LocalDate.parse(dataInicio) : LocalDate.now();
+                LocalDate fim = dataFim != null ? LocalDate.parse(dataFim) : LocalDate.now().plusYears(1);
+                List<HorarioExcecaoResponseDto> excecoes = horarioGestaoService.listarExcecoesPorPeriodo(
+                                funcionario.getId(), inicio, fim);
+                return ResponseEntity.ok(excecoes);
+        }
+
+        @Operation(summary = "Criar exceção de horário", description = "Profissional adiciona disponibilidade extra em data específica (ex: trabalhar no domingo)", requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(name = "Trabalhar Domingo", value = """
+                        {
+                          "data": "2025-12-01",
+                          "horaAbertura": "10:00",
+                          "horaFechamento": "14:00",
+                          "motivo": "Trabalhando domingo por demanda"
+                        }
+                        """))))
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "201", description = "Exceção criada", content = @Content(mediaType = "application/json", schema = @Schema(implementation = HorarioExcecaoResponseDto.class))),
+                        @ApiResponse(responseCode = "400", description = "Dados inválidos ou já existe exceção nesta data", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "401", description = "Link inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
+        })
+        @PostMapping("/{accessToken}/excecoes")
+        public ResponseEntity<?> criarExcecao(
+                        @PathVariable String accessToken,
+                        @Valid @RequestBody HorarioExcecaoRequestDto requestDto) {
+                JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
+
+                HorarioExcecaoResponseDto excecao = horarioGestaoService.criarExcecao(
+                                funcionario.getId(), requestDto, "PROFISSIONAL");
+
+                return ResponseEntity.status(HttpStatus.CREATED).body(excecao);
+        }
+
+        @Operation(summary = "Criar exceções em lote", description = "Profissional cria múltiplas exceções de uma vez")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "201", description = "Exceções criadas", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = HorarioExcecaoResponseDto.class)))),
+                        @ApiResponse(responseCode = "400", description = "Dados inválidos", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "401", description = "Link inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
+        })
+        @PostMapping("/{accessToken}/excecoes/lote")
+        public ResponseEntity<?> criarExcecoesEmLote(
+                        @PathVariable String accessToken,
+                        @Valid @RequestBody HorarioExcecaoLoteRequestDto requestDto) {
+                JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
+                List<HorarioExcecaoResponseDto> excecoes = horarioGestaoService.criarExcecoesEmLote(
+                                funcionario.getId(), requestDto, "PROFISSIONAL");
+                return ResponseEntity.status(HttpStatus.CREATED).body(excecoes);
+        }
+
+        @Operation(summary = "Remover exceção", description = "Remove uma exceção (apenas se criada pelo profissional)")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "204", description = "Exceção removida"),
+                        @ApiResponse(responseCode = "401", description = "Link inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "403", description = "Não autorizado a remover esta exceção", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "404", description = "Exceção não encontrada", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
+        })
+        @DeleteMapping("/{accessToken}/excecoes/{excecaoId}")
+        public ResponseEntity<?> removerExcecao(
+                        @PathVariable String accessToken,
+                        @PathVariable Long excecaoId) {
+                JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
+                horarioGestaoService.removerExcecao(excecaoId, funcionario.getId(), "PROFISSIONAL");
+                return ResponseEntity.noContent().build();
+        }
+
+        @ExceptionHandler(IllegalArgumentException.class)
+        public ResponseEntity<ApiErrorDto> handleIllegalArgumentException(IllegalArgumentException ex,
+                        HttpServletRequest request) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiErrorDto(
+                                java.time.LocalDateTime.now(),
+                                401,
+                                "Unauthorized",
+                                ex.getMessage(),
+                                request.getRequestURI()));
+        }
 }
