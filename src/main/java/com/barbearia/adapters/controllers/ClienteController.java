@@ -7,6 +7,10 @@ import com.barbearia.application.security.JwtService;
 import com.barbearia.application.services.AgendamentoService;
 import com.barbearia.application.services.ClienteService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -38,127 +42,121 @@ public class ClienteController {
         this.clienteService = clienteService;
     }
 
-    @Operation(summary = "Histórico de agendamentos", description = "Lista agendamentos passados do cliente autenticado", security = @SecurityRequirement(name = "Bearer"))
+    @Operation(summary = "Histórico de agendamentos", description = "Retorna todos os agendamentos do cliente (passados e futuros)", security = @SecurityRequirement(name = "Bearer"))
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Lista retornada"),
-            @ApiResponse(responseCode = "401", description = "Token inválido")
+            @ApiResponse(responseCode = "200", description = "Histórico retornado", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AgendamentoBriefDto.class)))),
+            @ApiResponse(responseCode = "401", description = "Token JWT inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class))),
+            @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class)))
     })
     @GetMapping("/meus-agendamentos/historico")
     public ResponseEntity<?> listarHistorico(HttpServletRequest request) {
-        try {
-            Long clienteId = extrairClienteIdDoToken(request);
-
-            if (clienteId == null) {
-                return ResponseEntity.status(401).body("Token JWT inválido ou clienteId não encontrado");
-            }
-
-            List<AgendamentoBriefDto> historico = agendamentoService.listarHistoricoCliente(clienteId);
-
-            return ResponseEntity.ok(historico);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError()
-                    .body("Erro ao buscar histórico: " + e.getMessage());
+        Long clienteId = extrairClienteIdDoToken(request);
+        if (clienteId == null) {
+            return ResponseEntity.status(401).body(new com.barbearia.application.dto.ApiErrorDto(
+                    java.time.LocalDateTime.now(),
+                    401,
+                    "Unauthorized",
+                    "Token inválido ou ausente",
+                    request.getRequestURI()));
         }
+        List<AgendamentoBriefDto> historico = agendamentoService.listarHistoricoCliente(clienteId);
+        return ResponseEntity.ok(historico);
     }
 
-    @Operation(summary = "Listar agendamentos recentes", description = "Retorna agendamentos recém-criados (futuros) ou recém-concluídos dos últimos 30 dias", security = @SecurityRequirement(name = "Bearer"))
+    @Operation(summary = "Agendamentos recentes", description = "Retorna agendamentos recentes (futuros ou recém-concluídos)", security = @SecurityRequirement(name = "Bearer"))
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Lista retornada"),
-            @ApiResponse(responseCode = "400", description = "Tipo inválido"),
-            @ApiResponse(responseCode = "401", description = "Token inválido")
+            @ApiResponse(responseCode = "200", description = "Lista retornada", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AgendamentoBriefDto.class)))),
+            @ApiResponse(responseCode = "401", description = "Token JWT inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class))),
+            @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class)))
     })
     @GetMapping("/meus-agendamentos/recentes")
     public ResponseEntity<?> listarAgendamentosRecentes(
             @io.swagger.v3.oas.annotations.Parameter(description = "Tipo: 'futuros' (recém-criados) ou 'concluidos_recentes' (recém-concluídos). Sem parâmetro retorna ambos.") @RequestParam(required = false) String tipo,
             HttpServletRequest request) {
-        try {
-            Long clienteId = extrairClienteIdDoToken(request);
-
-            if (clienteId == null) {
-                return ResponseEntity.status(401).body("Token JWT inválido ou clienteId não encontrado");
-            }
-
-            List<AgendamentoBriefDto> agendamentos;
-
-            if ("futuros".equals(tipo)) {
-                // Agendamentos futuros criados nos últimos 30 dias
-                agendamentos = agendamentoService.listarAgendamentosRecentesFuturos(clienteId, 30);
-            } else if ("concluidos_recentes".equals(tipo)) {
-                // Agendamentos concluídos nos últimos 30 dias
-                agendamentos = agendamentoService.listarAgendamentosConcluídosRecentes(clienteId, 30);
-            } else if (tipo == null || tipo.isBlank()) {
-                // Retorna ambos
-                List<AgendamentoBriefDto> futuros = agendamentoService.listarAgendamentosRecentesFuturos(clienteId, 30);
-                List<AgendamentoBriefDto> concluidos = agendamentoService
-                        .listarAgendamentosConcluídosRecentes(clienteId, 30);
-
-                agendamentos = new java.util.ArrayList<>();
-                agendamentos.addAll(futuros);
-                agendamentos.addAll(concluidos);
-            } else {
-                return ResponseEntity.badRequest()
-                        .body("{\"erro\": \"Tipo deve ser 'futuros' ou 'concluidos_recentes'\"}");
-            }
-
-            return ResponseEntity.ok(agendamentos);
-
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError()
-                    .body("Erro ao buscar agendamentos recentes: " + e.getMessage());
+        Long clienteId = extrairClienteIdDoToken(request);
+        if (clienteId == null) {
+            return ResponseEntity.status(401).body(new com.barbearia.application.dto.ApiErrorDto(
+                    java.time.LocalDateTime.now(),
+                    401,
+                    "Unauthorized",
+                    "Token inválido ou ausente",
+                    request.getRequestURI()));
         }
+        List<AgendamentoBriefDto> agendamentos;
+
+        if ("futuros".equals(tipo)) {
+            // Agendamentos futuros criados nos últimos 30 dias
+            agendamentos = agendamentoService.listarAgendamentosRecentesFuturos(clienteId, 30);
+        } else if ("concluidos_recentes".equals(tipo)) {
+            // Agendamentos concluídos nos últimos 30 dias
+            agendamentos = agendamentoService.listarAgendamentosConcluídosRecentes(clienteId, 30);
+        } else if (tipo == null || tipo.isBlank()) {
+            // Retorna ambos
+            List<AgendamentoBriefDto> futuros = agendamentoService.listarAgendamentosRecentesFuturos(clienteId, 30);
+            List<AgendamentoBriefDto> concluidos = agendamentoService
+                    .listarAgendamentosConcluídosRecentes(clienteId, 30);
+
+            agendamentos = new java.util.ArrayList<>();
+            agendamentos.addAll(futuros);
+            agendamentos.addAll(concluidos);
+        } else {
+            throw new IllegalArgumentException("Tipo deve ser 'futuros' ou 'concluidos_recentes'");
+        }
+
+        return ResponseEntity.ok(agendamentos);
     }
 
-    @io.swagger.v3.oas.annotations.Hidden
+    @Operation(summary = "Meu perfil", description = "Retorna dados do perfil do cliente autenticado", security = @SecurityRequirement(name = "Bearer"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Perfil retornado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ClienteProfileDto.class))),
+            @ApiResponse(responseCode = "401", description = "Token JWT inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class))),
+            @ApiResponse(responseCode = "404", description = "Cliente não encontrado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class)))
+    })
     @GetMapping("/meu-perfil")
     public ResponseEntity<?> buscarMeuPerfil(HttpServletRequest request) {
-        try {
-            Long clienteId = extrairClienteIdDoToken(request);
-
-            if (clienteId == null) {
-                return ResponseEntity.status(401).body("Token JWT inválido ou clienteId não encontrado");
-            }
-
-            ClienteProfileDto perfil = clienteService.buscarMeuPerfil(clienteId);
-
-            return ResponseEntity.ok(perfil);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(404).body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError()
-                    .body("Erro ao buscar perfil: " + e.getMessage());
+        Long clienteId = extrairClienteIdDoToken(request);
+        if (clienteId == null) {
+            return ResponseEntity.status(401).body(new com.barbearia.application.dto.ApiErrorDto(
+                    java.time.LocalDateTime.now(),
+                    401,
+                    "Unauthorized",
+                    "Token inválido ou ausente",
+                    request.getRequestURI()));
         }
+        ClienteProfileDto perfil = clienteService.buscarMeuPerfil(clienteId);
+        return ResponseEntity.ok(perfil);
     }
 
     @Operation(summary = "Atualizar perfil", description = "Atualiza dados do cliente (nome, email, telefone)", security = @SecurityRequirement(name = "Bearer"))
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Perfil atualizado"),
-            @ApiResponse(responseCode = "400", description = "Email já em uso ou dados inválidos"),
-            @ApiResponse(responseCode = "401", description = "Token inválido")
+            @ApiResponse(responseCode = "200", description = "Perfil atualizado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ClienteProfileDto.class))),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class), examples = @ExampleObject(name = "Validação", value = """
+                    {
+                      "timestamp": "2025-11-25T17:00:00",
+                      "status": 400,
+                      "error": "Bad Request",
+                      "message": "Email inválido",
+                      "path": "/api/clientes/meu-perfil"
+                    }
+                    """))),
+            @ApiResponse(responseCode = "401", description = "Token JWT inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class))),
+            @ApiResponse(responseCode = "404", description = "Cliente não encontrado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class)))
     })
     @PutMapping("/meu-perfil")
     public ResponseEntity<?> atualizarMeuPerfil(
             HttpServletRequest request,
             @RequestBody ClienteUpdateDto updateDto) {
-        try {
-            Long clienteId = extrairClienteIdDoToken(request);
-
-            if (clienteId == null) {
-                return ResponseEntity.status(401).body("Token JWT inválido ou clienteId não encontrado");
-            }
-
-            ClienteProfileDto perfilAtualizado = clienteService.atualizarMeuPerfil(clienteId, updateDto);
-
-            return ResponseEntity.ok(perfilAtualizado);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError()
-                    .body("Erro ao atualizar perfil: " + e.getMessage());
+        Long clienteId = extrairClienteIdDoToken(request);
+        if (clienteId == null) {
+            return ResponseEntity.status(401).body(new com.barbearia.application.dto.ApiErrorDto(
+                    java.time.LocalDateTime.now(),
+                    401,
+                    "Unauthorized",
+                    "Token inválido ou ausente",
+                    request.getRequestURI()));
         }
+        ClienteProfileDto perfil = clienteService.atualizarMeuPerfil(clienteId, updateDto);
+        return ResponseEntity.ok(perfil);
     }
 
     private Long extrairClienteIdDoToken(HttpServletRequest request) {
