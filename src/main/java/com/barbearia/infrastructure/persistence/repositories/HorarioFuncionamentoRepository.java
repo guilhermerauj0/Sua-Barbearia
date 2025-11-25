@@ -10,46 +10,62 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Repositório para HorarioFuncionamento (horário de funcionamento por dia da semana).
+ * Repositório para HorarioFuncionamento (horário de funcionamento por dia da
+ * semana).
  */
 @Repository
 public interface HorarioFuncionamentoRepository extends JpaRepository<JpaHorarioFuncionamento, Long> {
-    
+
     /**
      * Encontra todos os horários de uma barbearia (apenas ativos).
      */
     @Query("SELECT h FROM JpaHorarioFuncionamento h WHERE h.barbeariaId = :barbeariaId AND h.ativo = true ORDER BY h.diaSemana ASC")
     List<JpaHorarioFuncionamento> findByBarbeariaIdAtivo(@Param("barbeariaId") Long barbeariaId);
-    
+
+    List<JpaHorarioFuncionamento> findByBarbeariaIdAndFuncionarioId(Long barbeariaId, Long funcionarioId);
+
+    List<JpaHorarioFuncionamento> findByBarbeariaIdAndFuncionarioIdAndDiaSemana(
+            Long barbeariaId, Long funcionarioId, Integer diaSemana);
+
+    void deleteByBarbeariaIdAndFuncionarioId(Long barbeariaId, Long funcionarioId);
+
     /**
      * Encontra todos os horários de uma barbearia (ativos ou não).
      */
     @Query("SELECT h FROM JpaHorarioFuncionamento h WHERE h.barbeariaId = :barbeariaId ORDER BY h.diaSemana ASC")
     List<JpaHorarioFuncionamento> findByBarbeariaId(@Param("barbeariaId") Long barbeariaId);
-    
-    /**
-     * Encontra o horário de funcionamento de uma barbearia para um dia específico (apenas ativo).
-     */
-    @Query("SELECT h FROM JpaHorarioFuncionamento h WHERE h.barbeariaId = :barbeariaId AND h.diaSemana = :diaSemana AND h.ativo = true")
-    Optional<JpaHorarioFuncionamento> findByBarbeariaIdAndDiaSemanaAtivo(@Param("barbeariaId") Long barbeariaId, @Param("diaSemana") Integer diaSemana);
-    
-    /**
-     * Encontra o horário de funcionamento de uma barbearia para um dia específico (ignora status ativo).
-     */
-    @Query("SELECT h FROM JpaHorarioFuncionamento h WHERE h.barbeariaId = :barbeariaId AND h.diaSemana = :diaSemana")
-    Optional<JpaHorarioFuncionamento> findByBarbeariaIdAndDiaSemana(@Param("barbeariaId") Long barbeariaId, @Param("diaSemana") Integer diaSemana);
-    
-    /**
-     * Verifica se uma barbearia possui horários configurados para um dia específico.
-     */
-    @Query("SELECT COUNT(h) > 0 FROM JpaHorarioFuncionamento h WHERE h.barbeariaId = :barbeariaId AND h.diaSemana = :diaSemana AND h.ativo = true")
-    boolean existsForBarbeariaAndDiaAtivo(@Param("barbeariaId") Long barbeariaId, @Param("diaSemana") Integer diaSemana);
 
     /**
-     * Encontra o horário de funcionamento de um funcionário para um dia específico (apenas ativo).
+     * Encontra o horário de funcionamento de uma barbearia para um dia específico
+     * (apenas ativo).
+     */
+    @Query("SELECT h FROM JpaHorarioFuncionamento h WHERE h.barbeariaId = :barbeariaId AND h.diaSemana = :diaSemana AND h.ativo = true")
+    Optional<JpaHorarioFuncionamento> findByBarbeariaIdAndDiaSemanaAtivo(@Param("barbeariaId") Long barbeariaId,
+            @Param("diaSemana") Integer diaSemana);
+
+    /**
+     * Encontra o horário de funcionamento de uma barbearia para um dia específico
+     * (ignora status ativo).
+     */
+    @Query("SELECT h FROM JpaHorarioFuncionamento h WHERE h.barbeariaId = :barbeariaId AND h.diaSemana = :diaSemana")
+    Optional<JpaHorarioFuncionamento> findByBarbeariaIdAndDiaSemana(@Param("barbeariaId") Long barbeariaId,
+            @Param("diaSemana") Integer diaSemana);
+
+    /**
+     * Verifica se uma barbearia possui horários configurados para um dia
+     * específico.
+     */
+    @Query("SELECT COUNT(h) > 0 FROM JpaHorarioFuncionamento h WHERE h.barbeariaId = :barbeariaId AND h.diaSemana = :diaSemana AND h.ativo = true")
+    boolean existsForBarbeariaAndDiaAtivo(@Param("barbeariaId") Long barbeariaId,
+            @Param("diaSemana") Integer diaSemana);
+
+    /**
+     * Encontra o horário de funcionamento de um funcionário para um dia específico
+     * (apenas ativo).
      */
     @Query("SELECT h FROM JpaHorarioFuncionamento h WHERE h.funcionarioId = :funcionarioId AND h.diaSemana = :diaSemana AND h.ativo = true")
-    Optional<JpaHorarioFuncionamento> findByFuncionarioIdAndDiaSemanaAtivo(@Param("funcionarioId") Long funcionarioId, @Param("diaSemana") Integer diaSemana);
+    Optional<JpaHorarioFuncionamento> findByFuncionarioIdAndDiaSemanaAtivo(@Param("funcionarioId") Long funcionarioId,
+            @Param("diaSemana") Integer diaSemana);
 
     /**
      * Encontra todos os horários de um funcionário (apenas ativos).
@@ -58,8 +74,10 @@ public interface HorarioFuncionamentoRepository extends JpaRepository<JpaHorario
     List<JpaHorarioFuncionamento> findByFuncionarioIdAtivo(@Param("funcionarioId") Long funcionarioId);
 
     /**
-     * Encontra o horário de funcionamento de um funcionário para um dia específico (ignora status ativo).
+     * Encontra o horário de funcionamento de um funcionário para um dia específico
+     * (ignora status ativo).
      */
     @Query("SELECT h FROM JpaHorarioFuncionamento h WHERE h.funcionarioId = :funcionarioId AND h.diaSemana = :diaSemana")
-    Optional<JpaHorarioFuncionamento> findByFuncionarioIdAndDiaSemana(@Param("funcionarioId") Long funcionarioId, @Param("diaSemana") Integer diaSemana);
+    Optional<JpaHorarioFuncionamento> findByFuncionarioIdAndDiaSemana(@Param("funcionarioId") Long funcionarioId,
+            @Param("diaSemana") Integer diaSemana);
 }
