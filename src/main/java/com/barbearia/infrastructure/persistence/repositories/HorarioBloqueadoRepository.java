@@ -17,42 +17,47 @@ import java.util.List;
 @Repository
 public interface HorarioBloqueadoRepository extends JpaRepository<JpaHorarioBloqueado, Long> {
 
-    /**
-     * Lista todos os bloqueios de um funcionário em uma data específica.
-     */
-    List<JpaHorarioBloqueado> findByFuncionarioIdAndData(Long funcionarioId, LocalDate data);
+        /**
+         * Lista todos os bloqueios de um funcionário em uma data específica.
+         */
+        List<JpaHorarioBloqueado> findByFuncionarioIdAndData(Long funcionarioId, LocalDate data);
 
-    /**
-     * Lista bloqueios de um funcionário em um período.
-     */
-    @Query("SELECT h FROM JpaHorarioBloqueado h WHERE h.funcionarioId = :funcionarioId " +
-            "AND h.data BETWEEN :dataInicio AND :dataFim " +
-            "ORDER BY h.data, h.horarioInicio")
-    List<JpaHorarioBloqueado> findByFuncionarioIdAndPeriodo(
-            @Param("funcionarioId") Long funcionarioId,
-            @Param("dataInicio") LocalDate dataInicio,
-            @Param("dataFim") LocalDate dataFim);
+        /**
+         * Lista bloqueios de um funcionário em um período.
+         */
+        @Query("SELECT h FROM JpaHorarioBloqueado h WHERE h.funcionarioId = :funcionarioId " +
+                        "AND h.data BETWEEN :dataInicio AND :dataFim " +
+                        "ORDER BY h.data, h.horarioInicio")
+        List<JpaHorarioBloqueado> findByFuncionarioIdAndPeriodo(
+                        @Param("funcionarioId") Long funcionarioId,
+                        @Param("dataInicio") LocalDate dataInicio,
+                        @Param("dataFim") LocalDate dataFim);
 
-    /**
-     * Lista bloqueios de um funcionário criados por origem específica.
-     */
-    List<JpaHorarioBloqueado> findByFuncionarioIdAndCriadoPor(Long funcionarioId, String criadoPor);
+        /**
+         * Lista bloqueios de um funcionário criados por origem específica.
+         */
+        List<JpaHorarioBloqueado> findByFuncionarioIdAndCriadoPor(Long funcionarioId, String criadoPor);
 
-    /**
-     * Remove todos os bloqueios de um funcionário em uma data específica.
-     */
-    void deleteByFuncionarioIdAndData(Long funcionarioId, LocalDate data);
+        /**
+         * Lista todos os bloqueios de um funcionário.
+         */
+        List<JpaHorarioBloqueado> findByFuncionarioId(Long funcionarioId);
 
-    /**
-     * Verifica se existe sobreposição de horário bloqueado.
-     */
-    @Query("SELECT COUNT(h) > 0 FROM JpaHorarioBloqueado h " +
-            "WHERE h.funcionarioId = :funcionarioId " +
-            "AND h.data = :data " +
-            "AND ((h.horarioInicio < :horarioFim AND h.horarioFim > :horarioInicio))")
-    boolean existsSobreposicao(
-            @Param("funcionarioId") Long funcionarioId,
-            @Param("data") LocalDate data,
-            @Param("horarioInicio") java.time.LocalTime horarioInicio,
-            @Param("horarioFim") java.time.LocalTime horarioFim);
+        /**
+         * Remove todos os bloqueios de um funcionário em uma data específica.
+         */
+        void deleteByFuncionarioIdAndData(Long funcionarioId, LocalDate data);
+
+        /**
+         * Verifica se existe sobreposição de horário bloqueado.
+         */
+        @Query("SELECT COUNT(h) > 0 FROM JpaHorarioBloqueado h " +
+                        "WHERE h.funcionarioId = :funcionarioId " +
+                        "AND h.data = :data " +
+                        "AND ((h.horarioInicio < :horarioFim AND h.horarioFim > :horarioInicio))")
+        boolean existsSobreposicao(
+                        @Param("funcionarioId") Long funcionarioId,
+                        @Param("data") LocalDate data,
+                        @Param("horarioInicio") java.time.LocalTime horarioInicio,
+                        @Param("horarioFim") java.time.LocalTime horarioFim);
 }
