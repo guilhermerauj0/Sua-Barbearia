@@ -6,8 +6,10 @@ import com.barbearia.application.services.HorarioGestaoService;
 import com.barbearia.application.security.JwtService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -37,7 +39,8 @@ public class HorarioController {
 
     @Operation(summary = "Listar horários do funcionário", description = "Retorna horários base de funcionamento de um profissional (seg-dom)")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Lista de horários")
+            @ApiResponse(responseCode = "200", description = "Lista de horários", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = HorarioFuncionamentoResponseDto.class)))),
+            @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class)))
     })
     @GetMapping("/funcionario/{funcionarioId}")
     public ResponseEntity<List<HorarioFuncionamentoResponseDto>> listarHorariosFuncionario(
@@ -54,30 +57,30 @@ public class HorarioController {
             }
             """))))
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Horário salvo"),
-            @ApiResponse(responseCode = "400", description = "Dados inválidos"),
-            @ApiResponse(responseCode = "401", description = "Token inválido")
+            @ApiResponse(responseCode = "200", description = "Horário salvo", content = @Content(mediaType = "application/json", schema = @Schema(implementation = HorarioFuncionamentoResponseDto.class))),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class), examples = @ExampleObject(name = "Validação", value = """
+                    {
+                      "timestamp": "2025-11-25T17:00:00",
+                      "status": 400,
+                      "error": "Bad Request",
+                      "message": "Horário de abertura inválido",
+                      "path": "/api/barbearias/horarios/funcionario/1"
+                    }
+                    """))),
+            @ApiResponse(responseCode = "401", description = "Token inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class))),
+            @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class)))
     })
     @PostMapping("/funcionario/{funcionarioId}")
     public ResponseEntity<?> salvarHorarioFuncionario(
             @Parameter(description = "ID do funcionário") @PathVariable Long funcionarioId,
             @RequestBody HorarioFuncionamentoRequestDto dto,
             HttpServletRequest request) {
-        try {
-            Long barbeariaId = extrairBarbeariaIdDoToken(request);
-
-            if (barbeariaId == null) {
-                return ResponseEntity.status(401).body("Token JWT inválido");
-            }
-
-            var horario = horarioGestaoService.salvarHorarioFuncionario(barbeariaId, funcionarioId, dto);
-            return ResponseEntity.ok(horario);
-
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Erro: " + e.getMessage());
+        Long barbeariaId = extrairBarbeariaIdDoToken(request);
+        if (barbeariaId == null) {
+            throw new IllegalArgumentException("Token JWT inválido ou barbearia não encontrada");
         }
+        var horario = horarioGestaoService.salvarHorarioFuncionario(barbeariaId, funcionarioId, dto);
+        return ResponseEntity.ok(horario);
     }
 
     private Long extrairBarbeariaIdDoToken(HttpServletRequest request) {
