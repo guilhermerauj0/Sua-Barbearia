@@ -12,6 +12,8 @@ public class FuncionarioLinkRequestDto {
 
     private LocalDateTime dataExpiracao; // opcional, null = sem expiração
 
+    private Integer diasExpiracao; // opcional, usado para calcular dataExpiracao
+
     public FuncionarioLinkRequestDto() {
     }
 
@@ -27,5 +29,13 @@ public class FuncionarioLinkRequestDto {
 
     public void setDataExpiracao(LocalDateTime dataExpiracao) {
         this.dataExpiracao = dataExpiracao;
+    }
+
+    public Integer getDiasExpiracao() {
+        return diasExpiracao;
+    }
+
+    public void setDiasExpiracao(Integer diasExpiracao) {
+        this.diasExpiracao = diasExpiracao;
     }
 }
