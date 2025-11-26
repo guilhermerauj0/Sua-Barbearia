@@ -38,25 +38,26 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
-    
+
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CorsConfigurationSource corsConfigurationSource;
-    
+
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
-                         CorsConfigurationSource corsConfigurationSource) {
+            CorsConfigurationSource corsConfigurationSource) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.corsConfigurationSource = corsConfigurationSource;
     }
 
     /**
      * Bean para suprimir o log de senha gerada e desabilitar o usuário padrão.
-     * Como usamos JWT, não precisamos de usuários em memória ou JDBC padrão do Spring Security.
+     * Como usamos JWT, não precisamos de usuários em memória ou JDBC padrão do
+     * Spring Security.
      */
     @Bean
     public UserDetailsService userDetailsService() {
         return new InMemoryUserDetailsManager();
     }
-    
+
     /**
      * Configura a cadeia de filtros de segurança com JWT.
      * 
@@ -66,45 +67,45 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            // Habilita CORS com a configuração personalizada
-            .cors(cors -> cors.configurationSource(corsConfigurationSource))
-            
-            // Desabilita CSRF (não necessário para APIs REST stateless com JWT)
-            .csrf(AbstractHttpConfigurer::disable)
-            
-            // Configura autorização de requisições
-            .authorizeHttpRequests(auth -> auth
-                // Endpoints públicos (não exigem autenticação)
-                .requestMatchers(
-                    "/",
-                    "/error",
-                    "/docs",
-                    "/api/auth/**",
-                    "/api/hello",
-                    // Swagger UI e documentação
-                    "/swagger-ui/**",
-                    "/swagger-ui.html",
-                    "/v3/api-docs/**",
-                    "/swagger-resources/**",
-                    "/webjars/**",
-                    "/api-docs/**"
-                ).permitAll()
-                
-                // Todos os demais endpoints exigem autenticação
-                .anyRequest().authenticated()
-            )
-            
-            // Configura política de sessão (stateless - não mantém sessão no servidor)
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            )
-            
-            // Adiciona o filtro JWT antes do filtro de autenticação padrão
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-        
+                // Habilita CORS com a configuração personalizada
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
+
+                // Desabilita CSRF (não necessário para APIs REST stateless com JWT)
+                .csrf(AbstractHttpConfigurer::disable)
+
+                // Configura autorização de requisições
+                .authorizeHttpRequests(auth -> auth
+                        // Endpoints públicos (não exigem autenticação)
+                        .requestMatchers(
+                                "/",
+                                "/error",
+                                "/docs",
+                                "/api/auth/**",
+                                "/api/hello",
+                                // Dashboard profissional (autenticação via UUID token na URL)
+                                "/api/profissional/**",
+                                // Swagger UI e documentação
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**",
+                                "/swagger-resources/**",
+                                "/webjars/**",
+                                "/api-docs/**")
+                        .permitAll()
+
+                        // Todos os demais endpoints exigem autenticação
+                        .anyRequest().authenticated())
+
+                // Configura política de sessão (stateless - não mantém sessão no servidor)
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+                // Adiciona o filtro JWT antes do filtro de autenticação padrão
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
     }
-    
+
     /**
      * Bean do BCryptPasswordEncoder para criptografia de senhas.
      * 

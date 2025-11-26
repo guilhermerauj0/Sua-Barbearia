@@ -341,6 +341,59 @@ public class ProfissionalDashboardController {
                 return ResponseEntity.noContent().build();
         }
 
+        // ===== ENDPOINTS Para GERENCIAR AGENDAMENTOS =====
+
+        @Operation(summary = "Confirmar agendamento", description = "Profissional confirma um agendamento PENDENTE do seu calendário")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Agendamento confirmado"),
+                        @ApiResponse(responseCode = "401", description = "Link inválido ou expirado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "403", description = "Sem permissão para confirmar este agendamento", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "404", description = "Agendamento não encontrado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
+        })
+        @PostMapping("/{accessToken}/agendamentos/{agendamentoId}/confirmar")
+        public ResponseEntity<?> confirmarAgendamento(
+                        @PathVariable String accessToken,
+                        @PathVariable Long agendamentoId) {
+                JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
+                agendamentoService.confirmarAgendamento(agendamentoId, funcionario.getId(), "BARBEIRO");
+                return ResponseEntity.ok().build();
+        }
+
+        @Operation(summary = "Concluir agendamento", description = "Profissional marca agendamento como CONCLUÍDO após atendimento")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Agendamento concluído"),
+                        @ApiResponse(responseCode = "401", description = "Link inválido ou expirado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "403", description = "Sem permissão para concluir este agendamento", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "404", description = "Agendamento não encontrado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
+        })
+        @PostMapping("/{accessToken}/agendamentos/{agendamentoId}/concluir")
+        public ResponseEntity<?> concluirAgendamento(
+                        @PathVariable String accessToken,
+                        @PathVariable Long agendamentoId) {
+                JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
+                agendamentoService.concluirAgendamento(agendamentoId, funcionario.getId(), "BARBEIRO");
+                return ResponseEntity.ok().build();
+        }
+
+        @Operation(summary = "Cancelar agendamento", description = "Profissional cancela um agendamento do seu calendário")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "204", description = "Agendamento cancelado"),
+                        @ApiResponse(responseCode = "401", description = "Link inválido ou expirado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "403", description = "Sem permissão para cancelar este agendamento", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "404", description = "Agendamento não encontrado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
+        })
+        @PostMapping("/{accessToken}/agendamentos/{agendamentoId}/cancelar")
+        public ResponseEntity<?> cancelarAgendamento(
+                        @PathVariable String accessToken,
+                        @PathVariable Long agendamentoId) {
+                JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
+                agendamentoService.cancelarAgendamento(agendamentoId, funcionario.getId(), "BARBEIRO");
+                return ResponseEntity.noContent().build();
+        }
+
         @ExceptionHandler(IllegalArgumentException.class)
         public ResponseEntity<ApiErrorDto> handleIllegalArgumentException(IllegalArgumentException ex,
                         HttpServletRequest request) {
