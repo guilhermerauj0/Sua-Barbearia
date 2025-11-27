@@ -680,6 +680,26 @@ public class AgendamentoService {
     }
 
     /**
+     * Lista agendamentos futuros da barbearia.
+     * 
+     * @param barbeariaId ID da barbearia
+     * @return Lista de agendamentos futuros
+     */
+    public List<AgendamentoBarbeariaDto> listarAgendamentosFuturosBarbearia(Long barbeariaId) {
+        if (barbeariaId == null) {
+            throw new IllegalArgumentException("ID da barbearia não pode ser nulo");
+        }
+
+        LocalDateTime agora = LocalDateTime.now();
+        List<JpaAgendamento> agendamentos = agendamentoRepository.findByBarbeariaIdAndDataHoraAfterOrderByDataHoraAsc(
+                barbeariaId, agora);
+
+        return agendamentos.stream()
+                .map(this::converterParaBarbeariaDto)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * statusNovo,
      * agendamento.getClienteId(),
      * barbeariaId);
@@ -1105,7 +1125,6 @@ public class AgendamentoService {
             }
         }
 
-        @SuppressWarnings("null")
         long totalServicos = (long) agendamentos.size();
 
         return new com.barbearia.application.dto.ComissaoProfissionalDto(
@@ -1136,5 +1155,53 @@ public class AgendamentoService {
         }
 
         return converterParaBarbeariaDto(agendamento);
+    }
+
+    /**
+     * Lista a agenda de um profissional específico para a barbearia.
+     * 
+     * @param barbeariaId   ID da barbearia autenticada
+     * @param funcionarioId ID do funcionário
+     * @param data          Data para filtrar (opcional)
+     * @return Lista de agendamentos detalhados
+     */
+    public List<AgendamentoBarbeariaDto> listarAgendaProfissionalParaBarbearia(
+            Long barbeariaId,
+            Long funcionarioId,
+            LocalDate data) {
+
+        if (barbeariaId == null) {
+            throw new IllegalArgumentException("ID da barbearia não pode ser nulo");
+        }
+        if (funcionarioId == null) {
+            throw new IllegalArgumentException("ID do funcionário não pode ser nulo");
+        }
+
+        // Verificar se funcionário pertence à barbearia
+        @SuppressWarnings("null")
+        JpaFuncionario funcionario = funcionarioRepository.findById(funcionarioId)
+                .orElseThrow(() -> new IllegalArgumentException("Funcionário não encontrado"));
+
+        if (!funcionario.getBarbeariaId().equals(barbeariaId)) {
+            throw new IllegalArgumentException("Funcionário não pertence a esta barbearia");
+        }
+
+        List<JpaAgendamento> agendamentos;
+
+        if (data != null) {
+            // Filtrar por data específica
+            LocalDateTime inicioDia = data.atStartOfDay();
+            LocalDateTime fimDia = data.atTime(LocalTime.MAX);
+            agendamentos = agendamentoRepository.findByBarbeiroIdAndDataHoraBetweenOrderByDataHoraAsc(
+                    funcionarioId, inicioDia, fimDia);
+        } else {
+            // Retornar todos os agendamentos (futuros e passados) ordenados por data
+            // (mais recentes primeiro)
+            agendamentos = agendamentoRepository.findByBarbeiroIdOrderByDataHoraDesc(funcionarioId);
+        }
+
+        return agendamentos.stream()
+                .map(this::converterParaBarbeariaDto)
+                .collect(Collectors.toList());
     }
 }

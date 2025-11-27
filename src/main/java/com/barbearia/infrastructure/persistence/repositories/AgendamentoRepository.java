@@ -138,6 +138,17 @@ public interface AgendamentoRepository extends JpaRepository<JpaAgendamento, Lon
         List<JpaAgendamento> findByBarbeariaIdOrderByDataHoraDesc(Long barbeariaId);
 
         /**
+         * Busca agendamentos futuros de uma barbearia.
+         * 
+         * @param barbeariaId ID da barbearia
+         * @param dataHora    Data/hora atual
+         * @return Lista de agendamentos futuros
+         */
+        List<JpaAgendamento> findByBarbeariaIdAndDataHoraAfterOrderByDataHoraAsc(
+                        Long barbeariaId,
+                        LocalDateTime dataHora);
+
+        /**
          * Calcula o faturamento total da barbearia em um período.
          * 
          * Query nativa SQL para melhor performance.
@@ -332,6 +343,20 @@ public interface AgendamentoRepository extends JpaRepository<JpaAgendamento, Lon
         List<JpaAgendamento> findByBarbeiroIdAndStatusAndDataHoraBetween(
                         Long barbeiroId,
                         com.barbearia.domain.enums.StatusAgendamento status,
+                        LocalDateTime dataInicio,
+                        LocalDateTime dataFim);
+
+        /**
+         * Busca agendamentos de um profissional em um intervalo de datas ordenados por
+         * data ascendente.
+         * 
+         * @param barbeiroId ID do profissional/barbeiro
+         * @param dataInicio Data/hora inicial
+         * @param dataFim    Data/hora final
+         * @return Lista de agendamentos no intervalo especificado
+         */
+        List<JpaAgendamento> findByBarbeiroIdAndDataHoraBetweenOrderByDataHoraAsc(
+                        Long barbeiroId,
                         LocalDateTime dataInicio,
                         LocalDateTime dataFim);
 }
