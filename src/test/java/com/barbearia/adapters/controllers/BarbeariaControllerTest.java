@@ -1,6 +1,5 @@
 package com.barbearia.adapters.controllers;
 
-import com.barbearia.application.dto.BarbeariaListItemDto;
 import com.barbearia.application.dto.ServicoDto;
 import com.barbearia.application.dto.HorarioExcecaoRequestDto;
 import com.barbearia.application.dto.HorarioExcecaoResponseDto;
@@ -54,56 +53,6 @@ class BarbeariaControllerTest {
     @BeforeEach
     void setUp() {
         // Inicialização comum para cada teste
-    }
-
-    @Test
-    @DisplayName("GET /api/barbearias - Deve listar barbearias ativas com sucesso")
-    void deveListarBarbeariaComSucesso() {
-        // Arrange
-        BarbeariaListItemDto barbearia1 = new BarbeariaListItemDto();
-        barbearia1.setId(1L);
-        barbearia1.setNome("Barbearia Premium");
-        barbearia1.setNomeFantasia("Premium Cuts");
-        barbearia1.setTelefone("(11) 98765-4321");
-
-        BarbeariaListItemDto barbearia2 = new BarbeariaListItemDto();
-        barbearia2.setId(2L);
-        barbearia2.setNome("Barbearia Elegance");
-        barbearia2.setNomeFantasia("Elegance Barber");
-        barbearia2.setTelefone("(11) 99876-5432");
-
-        when(barbeariaService.listarBarbearias())
-                .thenReturn(Arrays.asList(barbearia1, barbearia2));
-
-        // Act
-        ResponseEntity<?> response = barbeariaController.listarBarbearias();
-
-        // Assert
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        @SuppressWarnings("unchecked")
-        List<BarbeariaListItemDto> resultado = (List<BarbeariaListItemDto>) response.getBody();
-        assertEquals(2, resultado.size());
-        assertEquals("Barbearia Premium", resultado.get(0).getNome());
-
-        verify(barbeariaService, times(1)).listarBarbearias();
-    }
-
-    @Test
-    @DisplayName("GET /api/barbearias - Deve retornar lista vazia quando não há barbearias")
-    void deveRetornarListaVaziaQuandoNaoHaBarbearias() {
-        // Arrange
-        when(barbeariaService.listarBarbearias())
-                .thenReturn(Collections.emptyList());
-
-        // Act
-        ResponseEntity<?> response = barbeariaController.listarBarbearias();
-
-        // Assert
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        @SuppressWarnings("unchecked")
-        List<BarbeariaListItemDto> resultado = (List<BarbeariaListItemDto>) response.getBody();
-        assertTrue(resultado.isEmpty());
     }
 
     @Test

@@ -1,31 +1,21 @@
 package com.barbearia.adapters.controllers;
 
 import com.barbearia.application.dto.ApiErrorDto;
-import com.barbearia.application.dto.BarbeariaListItemDto;
 import com.barbearia.application.dto.ServicoDto;
 import com.barbearia.application.dto.FuncionarioRequestDto;
 import com.barbearia.application.dto.FuncionarioResponseDto;
 import com.barbearia.application.dto.AgendamentoBarbeariaDto;
 import com.barbearia.application.dto.AgendamentoResponseDto;
 import com.barbearia.application.dto.AgendamentoReagendamentoDto;
-import com.barbearia.application.dto.DashboardMetricasDto;
-import com.barbearia.application.dto.ServicoPopularDto;
-import com.barbearia.application.dto.HorarioPicoDto;
-import com.barbearia.application.dto.RelatorioFinanceiroDto;
-import com.barbearia.application.dto.RelatorioComissoesDto;
 import com.barbearia.application.dto.ClienteAtendidoDto;
 import com.barbearia.application.dto.ClienteDetalhesDto;
 import com.barbearia.application.dto.HorarioDisponivelDto;
 import com.barbearia.application.services.BarbeariaService;
 import com.barbearia.application.services.FuncionarioService;
 import com.barbearia.application.services.AgendamentoService;
-import com.barbearia.application.services.FinanceiroService;
-import com.barbearia.application.services.ComissaoService;
 import com.barbearia.application.services.ClienteGestaoService;
 import com.barbearia.application.services.HorarioService;
-import com.barbearia.application.services.RelatorioService;
 import com.barbearia.application.security.JwtService;
-import com.barbearia.domain.enums.PeriodoRelatorio;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -48,12 +38,13 @@ import com.barbearia.application.dto.HorarioExcecaoResponseDto;
 import com.barbearia.application.services.HorarioGestaoService;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
  * Gestão de Barbearias.
  */
-@Tag(name = "Barbearias", description = "Gestão completa de barbearias: públicos, serviços, funcionários, agendamentos, financeiro")
+@Tag(name = "Barbearias", description = "Gestão completa de barbearias: públicos, serviços, funcionários, agendamentos")
 @RestController
 @RequestMapping("/api/barbearias")
 @CrossOrigin(origins = "*")
@@ -62,11 +53,8 @@ public class BarbeariaController {
         private final BarbeariaService barbeariaService;
         private final FuncionarioService funcionarioService;
         private final AgendamentoService agendamentoService;
-        private final FinanceiroService financeiroService;
-        private final ComissaoService comissaoService;
         private final ClienteGestaoService clienteGestaoService;
         private final HorarioService horarioService;
-        private final RelatorioService relatorioService;
         private final HorarioGestaoService horarioGestaoService;
         private final JwtService jwtService;
 
@@ -74,21 +62,15 @@ public class BarbeariaController {
                         BarbeariaService barbeariaService,
                         FuncionarioService funcionarioService,
                         AgendamentoService agendamentoService,
-                        FinanceiroService financeiroService,
-                        ComissaoService comissaoService,
                         ClienteGestaoService clienteGestaoService,
                         HorarioService horarioService,
-                        RelatorioService relatorioService,
                         HorarioGestaoService horarioGestaoService,
                         JwtService jwtService) {
                 this.barbeariaService = barbeariaService;
                 this.funcionarioService = funcionarioService;
                 this.agendamentoService = agendamentoService;
-                this.financeiroService = financeiroService;
-                this.comissaoService = comissaoService;
                 this.clienteGestaoService = clienteGestaoService;
                 this.horarioService = horarioService;
-                this.relatorioService = relatorioService;
                 this.horarioGestaoService = horarioGestaoService;
                 this.jwtService = jwtService;
         }
@@ -164,22 +146,6 @@ public class BarbeariaController {
                 return ResponseEntity.ok(datas);
         }
 
-        @Operation(summary = "Listar todas as barbearias ativas", description = "Retorna uma lista de barbearias ativas no sistema. Endpoint público, não requer autenticação.")
-        @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = BarbeariaListItemDto.class)), examples = @ExampleObject(name = "Lista de Barbearias", value = "[{\"id\":1,\"nome\":\"Barbearia Elite\",\"ativo\":true},{\"id\":2,\"nome\":\"Salão Premium\",\"ativo\":true}]"))),
-                        @ApiResponse(responseCode = "500", description = "Erro interno do servidor", content = @Content(schema = @Schema(implementation = ApiErrorDto.class)))
-        })
-        @GetMapping
-        public ResponseEntity<?> listarBarbearias() {
-                try {
-                        List<BarbeariaListItemDto> barbearias = barbeariaService.listarBarbearias();
-                        return ResponseEntity.ok(barbearias);
-                } catch (Exception e) {
-                        return ResponseEntity.internalServerError()
-                                        .body("Erro ao listar barbearias: " + e.getMessage());
-                }
-        }
-
         @Operation(summary = "Listar serviços de uma barbearia", description = "Retorna todos os serviços ativos de uma barbearia específica. Endpoint público.")
         @ApiResponses(value = {
                         @ApiResponse(responseCode = "200", description = "Lista de serviços retornada com sucesso", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = ServicoDto.class)), examples = @ExampleObject(name = "Serviços da Barbearia", value = "[{\"id\":1,\"nome\":\"Corte Masculino\",\"descricao\":\"Corte clássico\",\"preco\":30.0,\"duracao\":30,\"ativo\":true},{\"id\":2,\"nome\":\"Barba\",\"descricao\":\"Aparar e modelar\",\"preco\":25.0,\"duracao\":20,\"ativo\":true}]"))),
@@ -206,8 +172,18 @@ public class BarbeariaController {
         @GetMapping("/{id}/servicos")
         public ResponseEntity<?> listarServicosPorBarbearia(
                         @Parameter(description = "ID da barbearia", required = true, example = "1") @PathVariable Long id) {
-                List<ServicoDto> servicos = barbeariaService.listarServicosPorBarbearia(id);
-                return ResponseEntity.ok(servicos);
+                try {
+                        List<ServicoDto> servicos = barbeariaService.listarServicosPorBarbearia(id);
+                        return ResponseEntity.ok(servicos);
+                } catch (IllegalArgumentException e) {
+                        if (e.getMessage().contains("não encontrada")) {
+                                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+                        }
+                        return ResponseEntity.badRequest().body(e.getMessage());
+                } catch (Exception e) {
+                        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                        .body("Erro inesperado no banco de dados");
+                }
         }
 
         /**
@@ -538,206 +514,135 @@ public class BarbeariaController {
                 return ResponseEntity.ok(atualizado);
         }
 
-        @Operation(summary = "Métricas do dashboard", description = "Retorna métricas gerais: clientes únicos, agendamentos do mês, receita média e taxa de cancelamento")
+        @Operation(summary = "Listar todos os agendamentos", description = "Retorna o histórico completo de agendamentos da barbearia.")
         @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "Métricas retornadas com sucesso"),
-                        @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class), examples = @ExampleObject(name = "Não Autorizado", value = """
-                                        {
-                                          "timestamp": "2025-11-25T16:00:00",
-                                          "status": 401,
-                                          "error": "Unauthorized",
-                                          "message": "Token JWT inválido ou expirado",
-                                          "path": "/api/barbearias/dashboard/metricas"
-                                        }
-                                        """)))
-        })
-        @GetMapping("/dashboard/metricas")
-        @PreAuthorize("hasRole('BARBEARIA')")
-        public ResponseEntity<?> obterMetricasDashboard(HttpServletRequest request) {
-                Long barbeariaId = extrairBarbeariaId(request);
-                DashboardMetricasDto metricas = relatorioService.obterMetricasDashboard(barbeariaId);
-                return ResponseEntity.ok(metricas);
-        }
-
-        @Operation(summary = "Serviços populares", description = "Retorna serviços mais agendados no período especificado")
-        @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "Relatório gerado com sucesso"),
-                        @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class), examples = @ExampleObject(name = "Não Autorizado", value = """
-                                        {
-                                          "timestamp": "2025-11-25T16:00:00",
-                                          "status": 401,
-                                          "error": "Unauthorized",
-                                          "message": "Token JWT inválido ou expirado",
-                                          "path": "/api/barbearias/relatorios/servicos-populares"
-                                        }
-                                        """)))
-        })
-        @GetMapping("/relatorios/servicos-populares")
-        @PreAuthorize("hasRole('BARBEARIA')")
-        public ResponseEntity<?> obterServicosPopulares(
-                        @Parameter(description = "Período: MES | TRIMESTRE | ANO") @RequestParam(defaultValue = "MES") String periodo,
-                        HttpServletRequest request) {
-                Long barbeariaId = extrairBarbeariaId(request);
-                java.util.List<ServicoPopularDto> servicos = relatorioService.obterServicosPopulares(barbeariaId,
-                                periodo);
-                return ResponseEntity.ok(servicos);
-        }
-
-        @Operation(summary = "Horários de pico", description = "Retorna distribuição de agendamentos por faixa horária (últimos 30 dias)")
-        @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "Relatório gerado com sucesso"),
-                        @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class), examples = @ExampleObject(name = "Não Autorizado", value = """
-                                        {
-                                          "timestamp": "2025-11-25T16:00:00",
-                                          "status": 401,
-                                          "error": "Unauthorized",
-                                          "message": "Token JWT inválido ou expirado",
-                                          "path": "/api/barbearias/relatorios/horarios-pico"
-                                        }
-                                        """)))
-        })
-        @GetMapping("/relatorios/horarios-pico")
-        @PreAuthorize("hasRole('BARBEARIA')")
-        public ResponseEntity<?> obterHorariosPico(HttpServletRequest request) {
-                Long barbeariaId = extrairBarbeariaId(request);
-                java.util.List<HorarioPicoDto> horarios = relatorioService.obterHorariosPico(barbeariaId);
-                return ResponseEntity.ok(horarios);
-        }
-
-        @Operation(summary = "Listar agendamentos da barbearia", description = "Retorna todos os agendamentos da barbearia autenticada. "
-                        +
-                        "Permite filtrar por data específica (opcional).")
-        @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "Lista de agendamentos retornada com sucesso", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AgendamentoBarbeariaDto.class)), examples = @ExampleObject(name = "Lista de Agendamentos", value = "[{\"id\":1,\"clienteNome\":\"Pedro Oliveira\",\"servicoNome\":\"Corte Masculino\",\"funcionarioNome\":\"João Silva\",\"data\":\"2024-11-25\",\"horarioInicio\":\"14:00\",\"horarioFim\":\"14:30\",\"status\":\"CONFIRMADO\",\"valorTotal\":30.0},{\"id\":2,\"clienteNome\":\"Ana Costa\",\"servicoNome\":\"Manicure\",\"funcionarioNome\":\"Maria Santos\",\"data\":\"2024-11-25\",\"horarioInicio\":\"15:00\",\"horarioFim\":\"16:00\",\"status\":\"PENDENTE\",\"valorTotal\":40.0}]"))),
-                        @ApiResponse(responseCode = "400", description = "Formato de data inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class), examples = @ExampleObject(value = """
-                                        {
-                                          "timestamp": "2025-11-25T14:00:00",
-                                          "status": 400,
-                                          "error": "Bad Request",
-                                          "message": "Formato de data inválido. Use yyyy-MM-dd",
-                                          "path": "/api/barbearias/meus-agendamentos"
-                                        }
+                        @ApiResponse(responseCode = "200", description = "Lista de agendamentos retornada com sucesso", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AgendamentoBarbeariaDto.class)), examples = @ExampleObject(name = "Lista de Agendamentos", value = """
+                                        [
+                                          {
+                                            "id": 123,
+                                            "dataHora": "2025-11-28T14:30:00",
+                                            "status": "PENDENTE",
+                                            "observacoes": "Cliente pediu corte com tesoura",
+                                            "clienteId": 45,
+                                            "clienteNome": "João Silva",
+                                            "clienteTelefone": "11999998888",
+                                            "servicoId": 10,
+                                            "servicoNome": "Corte Masculino",
+                                            "servicoTipo": "Cabelo",
+                                            "servicoPreco": 50.0,
+                                            "servicoDuracao": 30,
+                                            "funcionarioId": 5,
+                                            "funcionarioNome": "Carlos Barbeiro",
+                                            "funcionarioProfissao": "BARBEIRO",
+                                            "dataCriacao": "2025-11-25T10:00:00",
+                                            "dataAtualizacao": "2025-11-25T10:00:00"
+                                          }
+                                        ]
                                         """))),
                         @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
                         @ApiResponse(responseCode = "403", description = "Usuário não possui role BARBEARIA", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
                         @ApiResponse(responseCode = "500", description = "Erro interno do servidor", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
         })
-        @GetMapping("/meus-agendamentos")
+        @GetMapping("/agendamentos/todos")
         @PreAuthorize("hasRole('BARBEARIA')")
-        public ResponseEntity<?> listarMeusAgendamentos(
-                        @Parameter(description = "Data para filtrar agendamentos (formato: yyyy-MM-dd)", required = false, example = "2024-11-25") @RequestParam(required = false) String data,
-                        HttpServletRequest request) {
-                // Extrai token do cabeçalho Authorization
-                String token = request.getHeader("Authorization");
-                if (token == null || !token.startsWith("Bearer ")) {
-                        throw new com.barbearia.domain.exceptions.AcessoNegadoException(
-                                        "Token JWT não fornecido ou inválido");
-                }
-
-                // Remove prefixo "Bearer " do token
-                token = token.substring(7);
-
-                // Extrai ID da barbearia do token
-                Object userIdObj = jwtService.extractClaim(token, "userId");
-                if (userIdObj == null) {
-                        throw new com.barbearia.domain.exceptions.AcessoNegadoException(
-                                        "Token JWT inválido: userId não encontrado");
-                }
-
-                Long barbeariaId = ((Number) userIdObj).longValue();
-
-                // Parse da data se fornecida
-                LocalDate dataFiltro = null;
-                if (data != null && !data.isBlank()) {
-                        try {
-                                dataFiltro = LocalDate.parse(data);
-                        } catch (Exception e) {
-                                throw new IllegalArgumentException("Formato de data inválido. Use yyyy-MM-dd");
-                        }
-                }
-
-                // Lista agendamentos
+        public ResponseEntity<?> listarTodosAgendamentos(HttpServletRequest request) {
+                Long barbeariaId = extrairBarbeariaId(request);
                 List<AgendamentoBarbeariaDto> agendamentos = agendamentoService.listarAgendamentosBarbearia(barbeariaId,
-                                dataFiltro);
-
+                                null);
                 return ResponseEntity.ok(agendamentos);
         }
 
-        @Operation(summary = "Obter relatório financeiro", description = "Gera relatório financeiro da barbearia para o período selecionado. "
-                        +
-                        "Períodos disponíveis: DIA (24h), SEMANA (7 dias), MES (30 dias).")
+        @Operation(summary = "Listar agenda do profissional", description = "Retorna a agenda de agendamentos de um profissional específico. Pode filtrar por data.")
         @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "Relatório gerado com sucesso", content = @Content(mediaType = "application/json", schema = @Schema(implementation = RelatorioFinanceiroDto.class), examples = @ExampleObject(name = "Relatório Financeiro", value = "{\"faturamentoTotal\":2500.50,\"totalAgendamentos\":45,\"ticketMedio\":55.57,\" faturamentoPorDia\":83.35,\"servicosMaisRentaveis\":[{\"servicoNome\":\"Corte Masculino\",\"quantidade\":25,\"faturamento\":750.0},{\"servicoNome\":\"Barba\",\"quantidade\":15,\"faturamento\":375.0}]}"))),
-                        @ApiResponse(responseCode = "400", description = "Período inválido", content = @Content(mediaType = "text/plain")),
-                        @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido", content = @Content(mediaType = "text/plain")),
-                        @ApiResponse(responseCode = "403", description = "Usuário não possui role BARBEARIA", content = @Content(mediaType = "text/plain")),
-                        @ApiResponse(responseCode = "500", description = "Erro interno do servidor", content = @Content(mediaType = "text/plain"))
+                        @ApiResponse(responseCode = "200", description = "Agenda retornada com sucesso", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AgendamentoBarbeariaDto.class)), examples = @ExampleObject(name = "Agenda do Profissional", value = """
+                                        [
+                                          {
+                                            "id": 125,
+                                            "dataHora": "2025-11-28T09:00:00",
+                                            "status": "CONFIRMADO",
+                                            "observacoes": "",
+                                            "clienteId": 47,
+                                            "clienteNome": "Pedro Santos",
+                                            "clienteTelefone": "11977776666",
+                                            "servicoId": 11,
+                                            "servicoNome": "Barba",
+                                            "servicoTipo": "Barba",
+                                            "servicoPreco": 35.0,
+                                            "servicoDuracao": 30,
+                                            "funcionarioId": 5,
+                                            "funcionarioNome": "Carlos Barbeiro",
+                                            "funcionarioProfissao": "BARBEIRO",
+                                            "dataCriacao": "2025-11-26T14:00:00",
+                                            "dataAtualizacao": "2025-11-26T14:00:00"
+                                          }
+                                        ]
+                                        """))),
+                        @ApiResponse(responseCode = "400", description = "Dados inválidos", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "403", description = "Usuário não possui role BARBEARIA", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "404", description = "Funcionário não encontrado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "500", description = "Erro interno do servidor", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
         })
-        @GetMapping("/gestao-financeira")
+        @GetMapping("/funcionarios/{funcionarioId}/agenda")
         @PreAuthorize("hasRole('BARBEARIA')")
-        public ResponseEntity<?> obterRelatorioFinanceiro(
-                        @Parameter(description = "Período do relatório", required = false, example = "MES", schema = @Schema(allowableValues = {
-                                        "DIA", "SEMANA",
-                                        "MES" })) @RequestParam(defaultValue = "MES") PeriodoRelatorio periodo,
+        public ResponseEntity<?> listarAgendaProfissional(
+                        @PathVariable Long funcionarioId,
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate data,
                         HttpServletRequest request) {
-
+                Long barbeariaId = extrairBarbeariaId(request);
                 try {
-                        // Extrair token JWT do header Authorization
-                        String authHeader = request.getHeader("Authorization");
-                        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                                                .body("Token JWT não fornecido");
-                        }
-
-                        // Remove prefixo "Bearer " do token
-                        String token = authHeader.substring(7);
-
-                        // Extrai ID da barbearia do token
-                        Object userIdObj = jwtService.extractClaim(token, "userId");
-                        if (userIdObj == null) {
-                                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                                                .body("Token JWT inválido: userId não encontrado");
-                        }
-
-                        Long barbeariaId = ((Number) userIdObj).longValue();
-
-                        // Gerar relatório financeiro
-                        RelatorioFinanceiroDto relatorio = financeiroService.gerarRelatorioFinanceiro(
-                                        barbeariaId, periodo);
-
-                        return ResponseEntity.ok(relatorio);
-
+                        List<AgendamentoBarbeariaDto> agenda = agendamentoService.listarAgendaProfissionalParaBarbearia(
+                                        barbeariaId, funcionarioId, data);
+                        return ResponseEntity.ok(agenda);
                 } catch (IllegalArgumentException e) {
-                        return ResponseEntity.badRequest().body(e.getMessage());
-                } catch (Exception e) {
-                        return ResponseEntity.internalServerError()
-                                        .body("Erro ao gerar relatório financeiro: " + e.getMessage());
+                        return ResponseEntity.badRequest()
+                                        .body(new ApiErrorDto(LocalDateTime.now(), HttpStatus.BAD_REQUEST.value(),
+                                                        "Bad Request", e.getMessage(), request.getRequestURI()));
                 }
         }
 
-        @Operation(summary = "Gerar relatório de comissões", description = "Gera relatório detalhado de comissões dos profissionais para um período específico.")
+        @Operation(summary = "Listar agendamentos futuros", description = "Retorna apenas os agendamentos futuros da barbearia.")
         @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "Relatório de comissões gerado com sucesso", content = @Content(mediaType = "application/json", schema = @Schema(implementation = RelatorioComissoesDto.class), examples = @ExampleObject(name = "Relatório de Comissões", value = "{\"totalComissoes\":500.0,\"comissoesPorFuncionario\":[{\"funcionarioNome\":\"João Silva\",\" quantidadeAtendimentos\":20,\"valorTotalAtendimentos\":600.0,\"comissao\":300.0},{\"funcionarioNome\":\"Maria Santos\",\" quantidadeAtendimentos\":15,\"valorTotalAtendimentos\":400.0,\"comissao\":200.0}]}"))),
-                        @ApiResponse(responseCode = "400", description = "Parâmetros de data inválidos", content = @Content(mediaType = "text/plain")),
-                        @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido", content = @Content(mediaType = "text/plain")),
-                        @ApiResponse(responseCode = "403", description = "Usuário não possui role BARBEARIA", content = @Content(mediaType = "text/plain")),
-                        @ApiResponse(responseCode = "500", description = "Erro interno do servidor", content = @Content(mediaType = "text/plain"))
+                        @ApiResponse(responseCode = "200", description = "Lista de agendamentos futuros retornada com sucesso", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AgendamentoBarbeariaDto.class)), examples = @ExampleObject(name = "Agendamentos Futuros", value = """
+                                        [
+                                          {
+                                            "id": 124,
+                                            "dataHora": "2025-12-01T10:00:00",
+                                            "status": "CONFIRMADO",
+                                            "observacoes": "",
+                                            "clienteId": 46,
+                                            "clienteNome": "Maria Oliveira",
+                                            "clienteTelefone": "11988887777",
+                                            "servicoId": 12,
+                                            "servicoNome": "Manicure",
+                                            "servicoTipo": "Unhas",
+                                            "servicoPreco": 40.0,
+                                            "servicoDuracao": 45,
+                                            "funcionarioId": 6,
+                                            "funcionarioNome": "Ana Manicure",
+                                            "funcionarioProfissao": "MANICURE",
+                                            "dataCriacao": "2025-11-26T09:00:00",
+                                            "dataAtualizacao": "2025-11-26T09:00:00"
+                                          }
+                                        ]
+                                        """))),
+                        @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "403", description = "Usuário não possui role BARBEARIA", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "500", description = "Erro interno do servidor", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
         })
-        @GetMapping("/relatorios/comissoes")
+        @GetMapping("/agendamentos/futuros")
         @PreAuthorize("hasRole('BARBEARIA')")
-        public ResponseEntity<?> gerarRelatorioComissoes(
-                        @Parameter(description = "Data de início do período", required = true, example = "2024-11-01") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
-                        @Parameter(description = "Data de fim do período", required = true, example = "2024-11-30") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim,
-                        HttpServletRequest request) {
-                try {
-                        Long barbeariaId = extrairBarbeariaId(request);
-                        RelatorioComissoesDto relatorio = comissaoService.gerarRelatorioComissoes(barbeariaId,
-                                        dataInicio, dataFim);
-                        return ResponseEntity.ok(relatorio);
-                } catch (Exception e) {
-                        return ResponseEntity.internalServerError()
-                                        .body("Erro ao gerar relatório de comissões: " + e.getMessage());
-                }
+        public ResponseEntity<?> listarAgendamentosFuturos(HttpServletRequest request) {
+                Long barbeariaId = extrairBarbeariaId(request);
+                // Utiliza a mesma lógica de listagem mas filtraremos no service ou aqui se
+                // necessário
+                // Por enquanto, vamos assumir que o frontend quer uma lista separada, mas o
+                // service pode ser o mesmo com filtro de data
+                // Para "futuros", idealmente teríamos um método específico no service, mas vou
+                // usar o genérico com data de hoje em diante
+                List<AgendamentoBarbeariaDto> agendamentos = agendamentoService
+                                .listarAgendamentosFuturosBarbearia(barbeariaId);
+                return ResponseEntity.ok(agendamentos);
         }
 
         @Operation(summary = "Listar meus clientes", description = "Retorna todos os clientes que possuem pelo menos um agendamento com a barbearia. "
@@ -950,10 +855,10 @@ public class BarbeariaController {
 
         @Operation(summary = "Criar exceção de horário para funcionário", description = "Barbearia pode adicionar disponibilidade extra em data específica para um funcionário")
         @ApiResponses(value = {
-                        @ApiResponse(responseCode = "201", description = "Exceção criada com sucesso"),
-                        @ApiResponse(responseCode = "400", description = "Dados inválidos ou já existe exceção nesta data"),
-                        @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
-                        @ApiResponse(responseCode = "404", description = "Funcionário não encontrado")
+                        @ApiResponse(responseCode = "201", description = "Exceção criada com sucesso", content = @Content(mediaType = "application/json", schema = @Schema(implementation = HorarioExcecaoResponseDto.class))),
+                        @ApiResponse(responseCode = "400", description = "Dados inválidos ou já existe exceção nesta data", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "404", description = "Funcionário não encontrado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
         })
         @PostMapping("/funcionarios/{funcionarioId}/excecoes")
         @PreAuthorize("hasRole('BARBEARIA')")
@@ -979,8 +884,8 @@ public class BarbeariaController {
 
         @Operation(summary = "Listar exceções de horário do funcionário", description = "Lista exceções (disponibilidade extra) de um funcion...ário específico")
         @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso"),
-                        @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido")
+                        @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = HorarioExcecaoResponseDto.class)))),
+                        @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
         })
         @GetMapping("/funcionarios/{funcionarioId}/excecoes")
         @PreAuthorize("hasRole('BARBEARIA')")
@@ -1007,8 +912,8 @@ public class BarbeariaController {
         @Operation(summary = "Remover exceção de horário", description = "Barbearia pode remover qualquer exceção (criada por ela ou pelo profissional)")
         @ApiResponses(value = {
                         @ApiResponse(responseCode = "204", description = "Exceção removida com sucesso"),
-                        @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido"),
-                        @ApiResponse(responseCode = "404", description = "Exceção não encontrada")
+                        @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "404", description = "Exceção não encontrada", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
         })
         @DeleteMapping("/funcionarios/{funcionarioId}/excecoes/{excecaoId}")
         @PreAuthorize("hasRole('BARBEARIA')")
