@@ -18,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletRequest;
 
+import com.barbearia.domain.enums.StatusAgendamento;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -86,9 +87,76 @@ public class ProfissionalDashboardController {
                         @RequestParam(required = false) String dataInicio,
                         @RequestParam(required = false) String dataFim) {
                 JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
-                List<AgendamentoBriefDto> agendamentos = agendamentoService
-                                .listarAgendamentosProfissional(funcionario.getId());
+
+                // Parse status if provided
+                StatusAgendamento statusEnum = null;
+                if (status != null && !status.isBlank()) {
+                        try {
+                                statusEnum = StatusAgendamento.valueOf(status.toUpperCase());
+                        } catch (IllegalArgumentException e) {
+                                return ResponseEntity.badRequest()
+                                                .body(java.util.Map.of("error", "Status inválido: " + status));
+                        }
+                }
+
+                // Parse dates if provided
+                LocalDate dataInicioDate = null;
+                LocalDate dataFimDate = null;
+                try {
+                        if (dataInicio != null && !dataInicio.isBlank()) {
+                                dataInicioDate = LocalDate.parse(dataInicio);
+                        }
+                        if (dataFim != null && !dataFim.isBlank()) {
+                                dataFimDate = LocalDate.parse(dataFim);
+                        }
+                } catch (Exception e) {
+                        return ResponseEntity.badRequest()
+                                        .body(java.util.Map.of("error", "Formato de data inválido. Use YYYY-MM-DD"));
+                }
+
+                List<AgendamentoResponseDto> agendamentos = agendamentoService
+                                .listarAgendamentosProfissionalCompleto(
+                                                funcionario.getId(),
+                                                statusEnum,
+                                                dataInicioDate,
+                                                dataFimDate);
                 return ResponseEntity.ok(agendamentos);
+        }
+
+        /**
+         * Obtém informações de comissões do profissional.
+         */
+        @Operation(summary = "Obter comissões", description = "Retorna informações sobre comissões do profissional em um período")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Informações de comissões", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ComissaoProfissionalDto.class))),
+                        @ApiResponse(responseCode = "401", description = "Link inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
+        })
+        @GetMapping("/{accessToken}/comissoes")
+        public ResponseEntity<?> obterComissoes(
+                        @PathVariable String accessToken,
+                        @RequestParam(required = false) @Parameter(description = "Data inicial (YYYY-MM-DD)") String dataInicio,
+                        @RequestParam(required = false) @Parameter(description = "Data final (YYYY-MM-DD)") String dataFim) {
+                JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
+
+                // Parse dates if provided
+                java.time.LocalDate dataInicioDate = null;
+                java.time.LocalDate dataFimDate = null;
+                try {
+                        if (dataInicio != null && !dataInicio.isBlank()) {
+                                dataInicioDate = java.time.LocalDate.parse(dataInicio);
+                        }
+                        if (dataFim != null && !dataFim.isBlank()) {
+                                dataFimDate = java.time.LocalDate.parse(dataFim);
+                        }
+                } catch (Exception e) {
+                        return ResponseEntity.badRequest()
+                                        .body(java.util.Map.of("error", "Formato de data inválido. Use YYYY-MM-DD"));
+                }
+
+                com.barbearia.application.dto.ComissaoProfissionalDto comissoes = agendamentoService
+                                .calcularComissoesProfissional(funcionario.getId(), dataInicioDate, dataFimDate);
+                return ResponseEntity.ok(comissoes);
         }
 
         /**
@@ -392,6 +460,23 @@ public class ProfissionalDashboardController {
                 JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
                 agendamentoService.cancelarAgendamento(agendamentoId, funcionario.getId(), "BARBEIRO");
                 return ResponseEntity.noContent().build();
+        }
+
+        @Operation(summary = "Marcar como faltou", description = "Profissional marca cliente como faltou ao agendamento confirmado")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "204", description = "Marcado como faltou"),
+                        @ApiResponse(responseCode = "401", description = "Link inválido ou expirado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "403", description = "Sem permissão para marcar este agendamento", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "404", description = "Agendamento não encontrado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
+        })
+        @PostMapping("/{accessToken}/agendamentos/{agendamentoId}/faltou")
+        public ResponseEntity<?> marcarComoFaltou(
+                        @PathVariable String accessToken,
+                        @PathVariable Long agendamentoId) {
+                JpaFuncionario funcionario = profissionalLinkService.validarToken(accessToken);
+                agendamentoService.marcarComoFaltou(agendamentoId, funcionario.getId(), "PROFISSIONAL");
+                return ResponseEntity.ok(java.util.Map.of("mensagem", "Agendamento marcado como faltou com sucesso"));
         }
 
         @ExceptionHandler(IllegalArgumentException.class)
