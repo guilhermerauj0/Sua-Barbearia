@@ -104,6 +104,20 @@ public class AvaliacaoController {
         return ResponseEntity.ok(stats);
     }
 
+    /**
+     * Verifica se um agendamento já foi avaliado.
+     */
+    @Operation(summary = "Verificar avaliação", description = "Verifica se um agendamento específico já foi avaliado.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Status retornado com sucesso", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Boolean.class))),
+            @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class)))
+    })
+    @GetMapping("/avaliacoes/verificar/{agendamentoId}")
+    public ResponseEntity<Boolean> verificarAvaliacao(@PathVariable Long agendamentoId) {
+        boolean avaliado = avaliacaoService.verificarSeAgendamentoAvaliado(agendamentoId);
+        return ResponseEntity.ok(avaliado);
+    }
+
     // Helper method
 
     private String extrairToken(HttpServletRequest request) {

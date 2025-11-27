@@ -136,6 +136,14 @@ public class AvaliacaoService {
         return stats;
     }
 
+    /**
+     * Verifica se um agendamento já foi avaliado.
+     */
+    @Transactional(readOnly = true)
+    public boolean verificarSeAgendamentoAvaliado(Long agendamentoId) {
+        return avaliacaoRepository.existsByAgendamentoId(agendamentoId);
+    }
+
     // Helper methods
 
     private AvaliacaoResponseDto toResponseDto(JpaAvaliacao avaliacao, String clienteNome) {
