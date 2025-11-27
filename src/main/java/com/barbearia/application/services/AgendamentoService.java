@@ -191,23 +191,91 @@ public class AgendamentoService {
     }
 
     /**
-     * Lista agendamentos futuros de um profissional.
+     * Lista agendamentos de um profissional com filtros opcionais.
      * 
-     * @param profissionalId ID do profissional autenticado
-     * @return Lista de agendamentos futuros em formato resumido
+     * @param profissionalId ID do profissional
+     * @param status         Status para filtrar (opcional)
+     * @param dataInicio     Data inicial para filtrar (opcional)
+     * @param dataFim        Data final para filtrar (opcional)
+     * @return Lista de agendamentos em formato resumido
      */
-    public List<AgendamentoBriefDto> listarAgendamentosProfissional(Long profissionalId) {
+    public List<AgendamentoBriefDto> listarAgendamentosProfissional(
+            Long profissionalId,
+            StatusAgendamento status,
+            LocalDate dataInicio,
+            LocalDate dataFim) {
+
         if (profissionalId == null) {
             throw new IllegalArgumentException("ID do profissional não pode ser nulo");
         }
 
-        LocalDateTime agora = LocalDateTime.now();
+        List<JpaAgendamento> agendamentos;
 
-        List<JpaAgendamento> agendamentos = agendamentoRepository
-                .findByBarbeiroIdAndDataBetween(profissionalId, agora, agora.plusYears(1));
+        // Aplicar filtros conforme parâmetros fornecidos
+        if (status != null && dataInicio != null && dataFim != null) {
+            // Filtrar por status E intervalo de datas
+            LocalDateTime inicio = dataInicio.atStartOfDay();
+            LocalDateTime fim = dataFim.atTime(LocalTime.MAX);
+            agendamentos = agendamentoRepository.findByBarbeiroIdAndStatusAndDataHoraBetween(
+                    profissionalId, status, inicio, fim);
+        } else if (status != null) {
+            // Filtrar apenas por status
+            agendamentos = agendamentoRepository.findByBarbeiroIdAndStatus(
+                    profissionalId, status);
+        } else if (dataInicio != null && dataFim != null) {
+            // Filtrar apenas por intervalo de datas
+            LocalDateTime inicio = dataInicio.atStartOfDay();
+            LocalDateTime fim = dataFim.atTime(LocalTime.MAX);
+            agendamentos = agendamentoRepository.findByBarbeiroIdAndDataHoraBetween(
+                    profissionalId, inicio, fim);
+        } else {
+            // Sem filtros - retornar TODOS os agendamentos
+            agendamentos = agendamentoRepository.findByBarbeiroIdOrderByDataHoraDesc(
+                    profissionalId);
+        }
 
         return agendamentos.stream()
                 .map(AgendamentoMapper::toBriefDto)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Lista agendamentos de um profissional com dados completos.
+     * 
+     * @param funcionarioId ID do profissional
+     * @param status        Status para filtrar (opcional)
+     * @param dataInicio    Data inicial (opcional)
+     * @param dataFim       Data final (opcional)
+     * @return Lista com dados completos dos agendamentos
+     */
+    public List<AgendamentoResponseDto> listarAgendamentosProfissionalCompleto(
+            Long funcionarioId,
+            StatusAgendamento status,
+            LocalDate dataInicio,
+            LocalDate dataFim) {
+
+        List<JpaAgendamento> agendamentos;
+
+        // Aplicar filtros
+        if (status != null && dataInicio != null && dataFim != null) {
+            agendamentos = agendamentoRepository.findByBarbeiroIdAndStatusAndDataHoraBetween(
+                    funcionarioId,
+                    status,
+                    dataInicio.atStartOfDay(),
+                    dataFim.atTime(23, 59, 59));
+        } else if (status != null) {
+            agendamentos = agendamentoRepository.findByBarbeiroIdAndStatus(funcionarioId, status);
+        } else if (dataInicio != null && dataFim != null) {
+            agendamentos = agendamentoRepository.findByBarbeiroIdAndDataHoraBetween(
+                    funcionarioId,
+                    dataInicio.atStartOfDay(),
+                    dataFim.atTime(23, 59, 59));
+        } else {
+            agendamentos = agendamentoRepository.findByBarbeiroIdOrderByDataHoraDesc(funcionarioId);
+        }
+
+        return agendamentos.stream()
+                .map(AgendamentoMapper::toResponseDto)
                 .collect(Collectors.toList());
     }
 
@@ -942,6 +1010,109 @@ public class AgendamentoService {
         agendamento.setStatus(StatusAgendamento.CONCLUIDO);
         agendamento.setDataAtualizacao(LocalDateTime.now());
         agendamentoRepository.save(agendamento);
+    }
+
+    /**
+     * Marca o cliente como faltou ao agendamento confirmado.
+     * Apenas profissionais podem marcar como faltou.
+     * 
+     * @param agendamentoId ID do agendamento
+     * @param usuarioId     ID do usuário autenticado
+     * @param tipoUsuario   Tipo do usuário
+     */
+    @Transactional
+    public void marcarComoFaltou(Long agendamentoId, Long usuarioId, String tipoUsuario) {
+        if (agendamentoId == null)
+            throw new IllegalArgumentException("ID do agendamento não pode ser nulo");
+
+        JpaAgendamento agendamento = agendamentoRepository.findById(agendamentoId)
+                .orElseThrow(() -> new AgendamentoNaoEncontradoException("Agendamento não encontrado"));
+
+        if (!verificarAutorizacaoAcesso(agendamento, usuarioId, tipoUsuario)) {
+            throw new AcessoNegadoException("Sem permissão para marcar este agendamento como faltou");
+        }
+
+        if ("CLIENTE".equalsIgnoreCase(tipoUsuario)) {
+            throw new AcessoNegadoException("Clientes não podem marcar agendamentos como faltou");
+        }
+
+        // Apenas agendamentos confirmados podem ser marcados como faltou
+        if (agendamento.getStatus() != StatusAgendamento.CONFIRMADO) {
+            throw new IllegalStateException(
+                    "Apenas agendamentos confirmados podem ser marcados como faltou. Status atual: "
+                            + agendamento.getStatus());
+        }
+
+        agendamento.setStatus(StatusAgendamento.FALTOU);
+        agendamento.setDataAtualizacao(LocalDateTime.now());
+        agendamentoRepository.save(agendamento);
+    }
+
+    /**
+     * Calcula as comissões de um profissional em um período.
+     * 
+     * @param funcionarioId ID do profissional
+     * @param dataInicio    Data inicial (opcional, padrão: 30 dias atrás)
+     * @param dataFim       Data final (opcional, padrão: hoje)
+     * @return Informações de comissões do profissional
+     */
+    public com.barbearia.application.dto.ComissaoProfissionalDto calcularComissoesProfissional(
+            Long funcionarioId,
+            java.time.LocalDate dataInicio,
+            java.time.LocalDate dataFim) {
+
+        // Definir período padrão se não fornecido
+        if (dataInicio == null) {
+            dataInicio = java.time.LocalDate.now().minusDays(30);
+        }
+        if (dataFim == null) {
+            dataFim = java.time.LocalDate.now();
+        }
+
+        // Buscar funcionário para obter taxa de comissão
+        @SuppressWarnings("null")
+        JpaFuncionario jpaFuncionario = funcionarioRepository.findById(funcionarioId)
+                .orElseThrow(() -> new IllegalArgumentException("Profissional não encontrado"));
+
+        com.barbearia.domain.entities.Funcionario funcionarioDomain = com.barbearia.adapters.mappers.FuncionarioMapper
+                .toDomain(jpaFuncionario);
+
+        // Obter taxa de comissão (em percentual)
+        double taxaComissao = funcionarioDomain.calcularComissao(100.0);
+
+        // Buscar agendamentos concluídos no período
+        LocalDateTime dataInicioTime = dataInicio.atStartOfDay();
+        LocalDateTime dataFimTime = dataFim.atTime(23, 59, 59);
+
+        List<JpaAgendamento> agendamentos = agendamentoRepository
+                .findByBarbeiroIdAndStatusAndDataHoraBetween(
+                        funcionarioId,
+                        com.barbearia.domain.enums.StatusAgendamento.CONCLUIDO,
+                        dataInicioTime,
+                        dataFimTime);
+
+        // Calcular total de comissões
+        java.math.BigDecimal totalComissoes = java.math.BigDecimal.ZERO;
+
+        for (JpaAgendamento agendamento : agendamentos) {
+            // Buscar valor do serviço
+            @SuppressWarnings("null")
+            var servico = servicoRepository.findById(agendamento.getServicoId());
+            if (servico.isPresent()) {
+                java.math.BigDecimal valorServico = servico.get().getPreco();
+                double comissao = funcionarioDomain.calcularComissao(valorServico.doubleValue());
+                totalComissoes = totalComissoes.add(java.math.BigDecimal.valueOf(comissao));
+            }
+        }
+
+        @SuppressWarnings("null")
+        long totalServicos = (long) agendamentos.size();
+
+        return new com.barbearia.application.dto.ComissaoProfissionalDto(
+                taxaComissao,
+                totalServicos,
+                totalComissoes,
+                new com.barbearia.application.dto.PeriodoDto(dataInicio, dataFim));
     }
 
     /**
