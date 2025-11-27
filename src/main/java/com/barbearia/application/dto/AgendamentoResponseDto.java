@@ -18,15 +18,15 @@ import java.time.LocalDateTime;
  * @author Sua Barbearia Team
  */
 public record AgendamentoResponseDto(
-    Long id,
-    Long clienteId,
-    Long barbeariaId,
-    Long servicoId,
-    Long funcionarioId,
-    LocalDateTime dataHora,
-    StatusAgendamento status,
-    String observacoes,
-    LocalDateTime dataCriacao,
-    LocalDateTime dataAtualizacao
-) {
+        Long id,
+        Long clienteId,
+        Long barbeariaId,
+        Long servicoId,
+        Long funcionarioId,
+        LocalDateTime dataHora,
+        StatusAgendamento status,
+        String observacoes,
+        LocalDateTime dataCriacao,
+        LocalDateTime dataAtualizacao,
+        Boolean avaliado) {
 }
