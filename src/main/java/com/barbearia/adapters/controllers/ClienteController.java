@@ -5,7 +5,10 @@ import com.barbearia.application.dto.ClienteProfileDto;
 import com.barbearia.application.dto.ClienteUpdateDto;
 import com.barbearia.application.security.JwtService;
 import com.barbearia.application.services.AgendamentoService;
+import com.barbearia.application.services.BarbeariaService;
 import com.barbearia.application.services.ClienteService;
+import com.barbearia.application.dto.BarbeariaListItemDto;
+import com.barbearia.application.dto.ApiErrorDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -33,13 +36,16 @@ public class ClienteController {
     private final AgendamentoService agendamentoService;
     private final JwtService jwtService;
     private final ClienteService clienteService;
+    private final BarbeariaService barbeariaService;
 
     public ClienteController(AgendamentoService agendamentoService,
             JwtService jwtService,
-            ClienteService clienteService) {
+            ClienteService clienteService,
+            BarbeariaService barbeariaService) {
         this.agendamentoService = agendamentoService;
         this.jwtService = jwtService;
         this.clienteService = clienteService;
+        this.barbeariaService = barbeariaService;
     }
 
     @Operation(summary = "Histórico de agendamentos", description = "Retorna todos os agendamentos do cliente (passados e futuros)", security = @SecurityRequirement(name = "Bearer"))
@@ -127,10 +133,26 @@ public class ClienteController {
         return ResponseEntity.ok(perfil);
     }
 
+    @Operation(summary = "Listar todas as barbearias ativas", description = "Retorna uma lista de barbearias ativas no sistema. Endpoint público, não requer autenticação.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = BarbeariaListItemDto.class)), examples = @ExampleObject(name = "Lista de Barbearias", value = "[{\"id\":1,\"nome\":\"Barbearia Elite\",\"ativo\":true},{\"id\":2,\"nome\":\"Salão Premium\",\"ativo\":true}]"))),
+            @ApiResponse(responseCode = "500", description = "Erro interno do servidor", content = @Content(schema = @Schema(implementation = ApiErrorDto.class)))
+    })
+    @GetMapping("/barbearias")
+    public ResponseEntity<?> listarBarbearias() {
+        try {
+            List<BarbeariaListItemDto> barbearias = barbeariaService.listarBarbearias();
+            return ResponseEntity.ok(barbearias);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body("Erro ao listar barbearias: " + e.getMessage());
+        }
+    }
+
     @Operation(summary = "Atualizar perfil", description = "Atualiza dados do cliente (nome, email, telefone)", security = @SecurityRequirement(name = "Bearer"))
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Perfil atualizado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ClienteProfileDto.class))),
-            @ApiResponse(responseCode = "400", description = "Dados inválidos", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class), examples = @ExampleObject(name = "Validação", value = """
+            @ApiResponse(responseCode = "400", description = "Dados inválidos", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class), examples = @ExampleObject(name = "Validação", value = """
                     {
                       "timestamp": "2025-11-25T17:00:00",
                       "status": 400,
@@ -139,8 +161,8 @@ public class ClienteController {
                       "path": "/api/clientes/meu-perfil"
                     }
                     """))),
-            @ApiResponse(responseCode = "401", description = "Token JWT inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class))),
-            @ApiResponse(responseCode = "404", description = "Cliente não encontrado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class)))
+            @ApiResponse(responseCode = "401", description = "Token JWT inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+            @ApiResponse(responseCode = "404", description = "Cliente não encontrado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
     })
     @PutMapping("/meu-perfil")
     public ResponseEntity<?> atualizarMeuPerfil(
@@ -148,7 +170,7 @@ public class ClienteController {
             @RequestBody ClienteUpdateDto updateDto) {
         Long clienteId = extrairClienteIdDoToken(request);
         if (clienteId == null) {
-            return ResponseEntity.status(401).body(new com.barbearia.application.dto.ApiErrorDto(
+            return ResponseEntity.status(401).body(new ApiErrorDto(
                     java.time.LocalDateTime.now(),
                     401,
                     "Unauthorized",

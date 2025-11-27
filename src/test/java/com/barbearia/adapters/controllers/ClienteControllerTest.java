@@ -2,7 +2,9 @@ package com.barbearia.adapters.controllers;
 
 import com.barbearia.application.dto.AgendamentoBriefDto;
 import com.barbearia.application.security.JwtService;
+import com.barbearia.application.dto.BarbeariaListItemDto;
 import com.barbearia.application.services.AgendamentoService;
+import com.barbearia.application.services.BarbeariaService;
 import com.barbearia.application.services.ClienteService;
 import com.barbearia.domain.enums.StatusAgendamento;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,6 +50,9 @@ class ClienteControllerTest {
 
         @MockitoBean
         private ClienteService clienteService;
+
+        @MockitoBean
+        private BarbeariaService barbeariaService;
 
         private String validJwtToken;
         private Long clienteId;
@@ -184,5 +189,50 @@ class ClienteControllerTest {
 
                 // Assert
                 verify(agendamentoService, times(1)).listarHistoricoCliente(5L);
+        }
+
+        @Test
+        @DisplayName("GET /api/clientes/barbearias - Deve listar barbearias ativas com sucesso")
+        @WithMockUser
+        void deveListarBarbeariaComSucesso() throws Exception {
+                // Arrange
+                BarbeariaListItemDto barbearia1 = new BarbeariaListItemDto();
+                barbearia1.setId(1L);
+                barbearia1.setNome("Barbearia Premium");
+                barbearia1.setNomeFantasia("Premium Cuts");
+                barbearia1.setTelefone("(11) 98765-4321");
+
+                BarbeariaListItemDto barbearia2 = new BarbeariaListItemDto();
+                barbearia2.setId(2L);
+                barbearia2.setNome("Barbearia Elegance");
+                barbearia2.setNomeFantasia("Elegance Barber");
+                barbearia2.setTelefone("(11) 99876-5432");
+
+                when(barbeariaService.listarBarbearias())
+                                .thenReturn(Arrays.asList(barbearia1, barbearia2));
+
+                // Act & Assert
+                mockMvc.perform(get("/api/clientes/barbearias")
+                                .contentType(MediaType.APPLICATION_JSON))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$", hasSize(2)))
+                                .andExpect(jsonPath("$[0].nome", is("Barbearia Premium")));
+
+                verify(barbeariaService, times(1)).listarBarbearias();
+        }
+
+        @Test
+        @DisplayName("GET /api/clientes/barbearias - Deve retornar lista vazia quando não há barbearias")
+        @WithMockUser
+        void deveRetornarListaVaziaQuandoNaoHaBarbearias() throws Exception {
+                // Arrange
+                when(barbeariaService.listarBarbearias())
+                                .thenReturn(Collections.emptyList());
+
+                // Act & Assert
+                mockMvc.perform(get("/api/clientes/barbearias")
+                                .contentType(MediaType.APPLICATION_JSON))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$", hasSize(0)));
         }
 }
