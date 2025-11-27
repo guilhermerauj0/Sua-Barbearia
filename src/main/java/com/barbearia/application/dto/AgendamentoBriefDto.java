@@ -8,7 +8,8 @@ import java.time.LocalDateTime;
  * 
  * Contém apenas informações essenciais para exibição em listas:
  * - Dados do agendamento (id, data/hora, status)
- * - Nomes das entidades relacionadas (para evitar buscas adicionais no front-end)
+ * - Nomes das entidades relacionadas (para evitar buscas adicionais no
+ * front-end)
  * - Valor do serviço (futuro)
  * 
  * Este DTO é otimizado para transferência de dados, economizando banda.
@@ -16,12 +17,12 @@ import java.time.LocalDateTime;
  * @author Sua Barbearia Team
  */
 public record AgendamentoBriefDto(
-        Long id,
-        LocalDateTime dataHora,
-        StatusAgendamento status,
-        String nomeBarbearia,
-        String nomeBarbeiro,  // Pode ser null se ainda não atribuído
-        String nomeServico,
-        String observacoes
-) {
+                Long id,
+                LocalDateTime dataHora,
+                StatusAgendamento status,
+                String nomeBarbearia,
+                String nomeBarbeiro, // Pode ser null se ainda não atribuído
+                String nomeServico,
+                String observacoes,
+                Boolean avaliado) {
 }
