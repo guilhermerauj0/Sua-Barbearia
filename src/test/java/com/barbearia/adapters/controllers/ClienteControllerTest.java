@@ -85,7 +85,8 @@ class ClienteControllerTest {
                                                 "Barbearia Central",
                                                 "João Silva",
                                                 "Corte + Barba",
-                                                "Cliente satisfeito"),
+                                                "Cliente satisfeito",
+                                                false),
                                 new AgendamentoBriefDto(
                                                 2L,
                                                 now.minusDays(15),
@@ -93,7 +94,8 @@ class ClienteControllerTest {
                                                 "Barbearia Central",
                                                 "Pedro Santos",
                                                 "Corte Simples",
-                                                null));
+                                                null,
+                                                false));
 
                 when(jwtService.extractClaim(eq(validJwtToken), eq("userId")))
                                 .thenReturn(clienteId);
