@@ -14,19 +14,21 @@ import com.barbearia.infrastructure.persistence.entities.JpaAgendamento;
  * - Converter para DTOs (brief, response)
  * 
  * Por enquanto, apenas conversões básicas.
- * Conversão para AgendamentoBriefDto será enriquecida com dados de outras entidades
+ * Conversão para AgendamentoBriefDto será enriquecida com dados de outras
+ * entidades
  * quando implementarmos Servicos e Barbeiros.
  * 
  * @author Sua Barbearia Team
  */
 public class AgendamentoMapper {
-    
+
     /**
      * Converte entidade JPA para entidade de domínio
      */
     public static Agendamento toDomain(JpaAgendamento jpa) {
-        if (jpa == null) return null;
-        
+        if (jpa == null)
+            return null;
+
         return new Agendamento(
                 jpa.getId(),
                 jpa.getClienteId(),
@@ -37,16 +39,17 @@ public class AgendamentoMapper {
                 jpa.getStatus(),
                 jpa.getObservacoes(),
                 jpa.getDataCriacao(),
-                jpa.getDataAtualizacao()
-        );
+                jpa.getDataAtualizacao(),
+                jpa.isAvaliado());
     }
-    
+
     /**
      * Converte entidade de domínio para entidade JPA
      */
     public static JpaAgendamento toJpa(Agendamento domain) {
-        if (domain == null) return null;
-        
+        if (domain == null)
+            return null;
+
         JpaAgendamento jpa = new JpaAgendamento();
         jpa.setId(domain.getId());
         jpa.setClienteId(domain.getClienteId());
@@ -58,20 +61,23 @@ public class AgendamentoMapper {
         jpa.setObservacoes(domain.getObservacoes());
         jpa.setDataCriacao(domain.getDataCriacao());
         jpa.setDataAtualizacao(domain.getDataAtualizacao());
-        
+        jpa.setAvaliado(domain.isAvaliado());
+
         return jpa;
     }
-    
+
     /**
      * Converte entidade JPA para DTO resumido.
      * 
-     * NOTA: Por enquanto, nomeBarbearia, nomeBarbeiro e nomeServico são placeholders.
+     * NOTA: Por enquanto, nomeBarbearia, nomeBarbeiro e nomeServico são
+     * placeholders.
      * Quando implementarmos as entidades correspondentes, faremos joins ou buscas
      * para preencher esses dados reais.
      */
     public static AgendamentoBriefDto toBriefDto(JpaAgendamento jpa) {
-        if (jpa == null) return null;
-        
+        if (jpa == null)
+            return null;
+
         return new AgendamentoBriefDto(
                 jpa.getId(),
                 jpa.getDataHora(),
@@ -79,16 +85,17 @@ public class AgendamentoMapper {
                 "Barbearia #" + jpa.getBarbeariaId(), // Placeholder - substituir com nome real
                 jpa.getBarbeiroId() != null ? "Barbeiro #" + jpa.getBarbeiroId() : null, // Placeholder
                 "Serviço #" + jpa.getServicoId(), // Placeholder - substituir com nome real
-                jpa.getObservacoes()
-        );
+                jpa.getObservacoes(),
+                jpa.isAvaliado());
     }
-    
+
     /**
      * Converte entidade de domínio para DTO resumido
      */
     public static AgendamentoBriefDto toBriefDto(Agendamento domain) {
-        if (domain == null) return null;
-        
+        if (domain == null)
+            return null;
+
         return new AgendamentoBriefDto(
                 domain.getId(),
                 domain.getDataHora(),
@@ -96,10 +103,10 @@ public class AgendamentoMapper {
                 "Barbearia #" + domain.getBarbeariaId(), // Placeholder
                 domain.getBarbeiroId() != null ? "Barbeiro #" + domain.getBarbeiroId() : null,
                 "Serviço #" + domain.getServicoId(), // Placeholder
-                domain.getObservacoes()
-        );
+                domain.getObservacoes(),
+                domain.isAvaliado());
     }
-    
+
     /**
      * Converte entidade JPA para DTO de resposta.
      * 
@@ -107,8 +114,9 @@ public class AgendamentoMapper {
      * Usado tanto para criar quanto para consultar agendamentos.
      */
     public static AgendamentoResponseDto toResponseDto(JpaAgendamento jpa) {
-        if (jpa == null) return null;
-        
+        if (jpa == null)
+            return null;
+
         return new AgendamentoResponseDto(
                 jpa.getId(),
                 jpa.getClienteId(),
@@ -119,7 +127,7 @@ public class AgendamentoMapper {
                 jpa.getStatus(),
                 jpa.getObservacoes(),
                 jpa.getDataCriacao(),
-                jpa.getDataAtualizacao()
-        );
+                jpa.getDataAtualizacao(),
+                jpa.isAvaliado());
     }
 }
