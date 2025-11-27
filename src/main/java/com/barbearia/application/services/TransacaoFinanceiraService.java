@@ -66,7 +66,6 @@ public class TransacaoFinanceiraService {
         List<CategoriaResumoDto> resumo = obterResumoPorCategoria(
                 barbeariaId, dataInicio, dataFim, TipoTransacao.DESPESA);
 
-        @SuppressWarnings("null")
         long quantidade = (long) despesas.size();
 
         return new ListaDespesasDto(
@@ -95,7 +94,6 @@ public class TransacaoFinanceiraService {
             throw new IllegalArgumentException("Transação não é uma despesa");
         }
 
-        @SuppressWarnings("null")
         String categoriaName = dto.categoria().name();
         transacao.setValor(dto.valor());
         transacao.setCategoria(categoriaName);
@@ -156,7 +154,6 @@ public class TransacaoFinanceiraService {
         List<CategoriaResumoDto> resumo = obterResumoPorCategoria(
                 barbeariaId, dataInicio, dataFim, TipoTransacao.RECEITA_EXTRA);
 
-        @SuppressWarnings("null")
         long quantidade = (long) receitas.size();
 
         return new ListaReceitasExtrasDto(
@@ -185,7 +182,6 @@ public class TransacaoFinanceiraService {
             throw new IllegalArgumentException("Transação não é uma receita extra");
         }
 
-        @SuppressWarnings("null")
         String categoriaName = dto.categoria().name();
         transacao.setValor(dto.valor());
         transacao.setCategoria(categoriaName);
