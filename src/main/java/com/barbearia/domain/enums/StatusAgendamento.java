@@ -16,28 +16,33 @@ public enum StatusAgendamento {
      * Agendamento criado, aguardando confirmação
      */
     PENDENTE("Pendente"),
-    
+
     /**
      * Agendamento confirmado pela barbearia
      */
     CONFIRMADO("Confirmado"),
-    
+
     /**
      * Serviço realizado com sucesso
      */
     CONCLUIDO("Concluído"),
-    
+
     /**
      * Agendamento cancelado
      */
-    CANCELADO("Cancelado");
-    
+    CANCELADO("Cancelado"),
+
+    /**
+     * Cliente faltou ao agendamento confirmado
+     */
+    FALTOU("Faltou");
+
     private final String descricao;
-    
+
     StatusAgendamento(String descricao) {
         this.descricao = descricao;
     }
-    
+
     public String getDescricao() {
         return descricao;
     }
