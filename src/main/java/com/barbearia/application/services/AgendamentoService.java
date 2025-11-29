@@ -5,6 +5,7 @@ import com.barbearia.application.dto.AgendamentoBarbeariaDto;
 import com.barbearia.application.dto.AgendamentoBriefDto;
 import com.barbearia.application.dto.AgendamentoRequestDto;
 import com.barbearia.application.dto.AgendamentoResponseDto;
+import com.barbearia.application.dto.AgendamentoProfissionalDto;
 import com.barbearia.application.observers.AgendamentoEventObserver;
 import com.barbearia.domain.enums.StatusAgendamento;
 import com.barbearia.domain.exceptions.AcessoNegadoException;
@@ -276,6 +277,74 @@ public class AgendamentoService {
 
         return agendamentos.stream()
                 .map(AgendamentoMapper::toResponseDto)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Lista agendamentos de um profissional com dados completos E DURAÇÃO.
+     * 
+     * @param funcionarioId ID do profissional
+     * @param status        Status para filtrar (opcional)
+     * @param dataInicio    Data inicial (opcional)
+     * @param dataFim       Data final (opcional)
+     * @return Lista com dados completos dos agendamentos incluindo duração
+     */
+    @SuppressWarnings("null")
+    public List<AgendamentoProfissionalDto> listarAgendamentosProfissionalComDuracao(
+            Long funcionarioId,
+            StatusAgendamento status,
+            LocalDate dataInicio,
+            LocalDate dataFim) {
+
+        List<JpaAgendamento> agendamentos;
+
+        // Reutilizando a lógica de filtro
+        if (status != null && dataInicio != null && dataFim != null) {
+            agendamentos = agendamentoRepository.findByBarbeiroIdAndStatusAndDataHoraBetween(
+                    funcionarioId,
+                    status,
+                    dataInicio.atStartOfDay(),
+                    dataFim.atTime(23, 59, 59));
+        } else if (status != null) {
+            agendamentos = agendamentoRepository.findByBarbeiroIdAndStatus(funcionarioId, status);
+        } else if (dataInicio != null && dataFim != null) {
+            agendamentos = agendamentoRepository.findByBarbeiroIdAndDataHoraBetween(
+                    funcionarioId,
+                    dataInicio.atStartOfDay(),
+                    dataFim.atTime(23, 59, 59));
+        } else {
+            agendamentos = agendamentoRepository.findByBarbeiroIdOrderByDataHoraDesc(funcionarioId);
+        }
+
+        // Buscar serviços para obter duração
+        java.util.Set<Long> servicoIds = agendamentos.stream()
+                .map(JpaAgendamento::getServicoId)
+                .collect(Collectors.toSet());
+
+        java.util.Map<Long, JpaServico> servicosMap = servicoRepository.findAllById(servicoIds).stream()
+                .collect(Collectors.toMap(JpaServico::getId, s -> s));
+
+        return agendamentos.stream()
+                .map(jpa -> {
+                    JpaServico servico = servicosMap.get(jpa.getServicoId());
+                    int duracao = servico != null ? servico.getDuracao() : 30; // Default 30 min
+                    LocalDateTime dataHoraFim = jpa.getDataHora().plusMinutes(duracao);
+
+                    return new AgendamentoProfissionalDto(
+                            jpa.getId(),
+                            jpa.getClienteId(),
+                            jpa.getBarbeariaId(),
+                            jpa.getServicoId(),
+                            jpa.getBarbeiroId(),
+                            jpa.getDataHora(),
+                            dataHoraFim,
+                            duracao,
+                            jpa.getStatus(),
+                            jpa.getObservacoes(),
+                            jpa.getDataCriacao(),
+                            jpa.getDataAtualizacao(),
+                            jpa.isAvaliado());
+                })
                 .collect(Collectors.toList());
     }
 
@@ -1178,7 +1247,6 @@ public class AgendamentoService {
         }
 
         // Verificar se funcionário pertence à barbearia
-        @SuppressWarnings("null")
         JpaFuncionario funcionario = funcionarioRepository.findById(funcionarioId)
                 .orElseThrow(() -> new IllegalArgumentException("Funcionário não encontrado"));
 

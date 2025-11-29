@@ -84,12 +84,11 @@ public class AgendamentoController {
     }
   }
 
-  @Operation(summary = "Criar agendamento", description = "Cliente agenda serviço com profissional específico. Valida conflitos e disponibilidade.", security = @SecurityRequirement(name = "Bearer"), requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(name = "Agendamento Exemplo", value = """
+  @Operation(summary = "Criar agendamento", description = "Cliente agenda serviço com profissional específico. Valida conflitos e disponibilidade. O barbeariaId é determinado automaticamente através do funcionário.", security = @SecurityRequirement(name = "Bearer"), requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(name = "Agendamento Exemplo", value = """
       {
         "servicoId": 1,
         "funcionarioId": 1,
-        "barbeariaId": 1,
-        "dataHora": "2025-11-25T14:30:00",
+        "dataHora": "2025-12-01T14:30:00",
         "observacoes": "Preferência: barba com navalha"
       }
       """))))

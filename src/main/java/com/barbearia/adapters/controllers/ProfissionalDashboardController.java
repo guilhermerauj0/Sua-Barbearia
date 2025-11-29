@@ -76,7 +76,7 @@ public class ProfissionalDashboardController {
          */
         @Operation(summary = "Listar agendamentos", description = "Lista agendamentos do profissional")
         @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "Lista de agendamentos", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AgendamentoBriefDto.class)))),
+                        @ApiResponse(responseCode = "200", description = "Lista de agendamentos", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AgendamentoProfissionalDto.class)))),
                         @ApiResponse(responseCode = "401", description = "Link inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
                         @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
         })
@@ -114,8 +114,8 @@ public class ProfissionalDashboardController {
                                         .body(java.util.Map.of("error", "Formato de data inválido. Use YYYY-MM-DD"));
                 }
 
-                List<AgendamentoResponseDto> agendamentos = agendamentoService
-                                .listarAgendamentosProfissionalCompleto(
+                List<AgendamentoProfissionalDto> agendamentos = agendamentoService
+                                .listarAgendamentosProfissionalComDuracao(
                                                 funcionario.getId(),
                                                 statusEnum,
                                                 dataInicioDate,

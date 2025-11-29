@@ -2,9 +2,11 @@ package com.barbearia.adapters.controllers;
 
 import com.barbearia.application.dto.HorarioExcecaoRequestDto;
 import com.barbearia.application.dto.HorarioExcecaoResponseDto;
+import com.barbearia.application.services.AgendamentoService;
 import com.barbearia.application.services.HorarioBloqueioService;
 import com.barbearia.application.services.HorarioGestaoService;
 import com.barbearia.application.services.ProfissionalLinkService;
+
 import com.barbearia.infrastructure.persistence.entities.JpaFuncionario;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -40,6 +42,9 @@ class ProfissionalDashboardControllerTest {
 
     @Mock
     private HorarioGestaoService horarioGestaoService;
+
+    @Mock
+    private AgendamentoService agendamentoService;
 
     @InjectMocks
     private ProfissionalDashboardController controller;
@@ -133,5 +138,21 @@ class ProfissionalDashboardControllerTest {
         // Assert
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
         verify(horarioGestaoService).removerExcecao(10L, 1L, "PROFISSIONAL");
+    }
+
+    @Test
+    @DisplayName("GET /agendamentos - Deve listar agendamentos com duração")
+    void deveListarAgendamentosComDuracao() {
+        // Arrange
+        when(profissionalLinkService.validarToken(validToken)).thenReturn(funcionario);
+        when(agendamentoService.listarAgendamentosProfissionalComDuracao(eq(1L), any(), any(), any()))
+                .thenReturn(Collections.emptyList());
+
+        // Act
+        ResponseEntity<?> response = controller.listarAgendamentos(validToken, null, null, null);
+
+        // Assert
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(agendamentoService).listarAgendamentosProfissionalComDuracao(eq(1L), any(), any(), any());
     }
 }
