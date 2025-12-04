@@ -76,6 +76,10 @@ public class AvaliacaoService {
         // @PrePersist calcula nota_geral automaticamente
         JpaAvaliacao salva = avaliacaoRepository.save(avaliacao);
 
+        // Marca agendamento como avaliado
+        agendamento.setAvaliado(true);
+        agendamentoRepository.save(agendamento);
+
         // Busca nome do cliente
         var cliente = clienteRepository.findById(clienteId);
         String clienteNome = cliente.map(c -> c.getNome()).orElse("Anônimo");
@@ -130,6 +134,14 @@ public class AvaliacaoService {
         stats.setAvaliacoes5Estrelas(avaliacaoRepository.countByBarbeariaIdAndNotaGeral(barbeariaId, 5));
 
         return stats;
+    }
+
+    /**
+     * Verifica se um agendamento já foi avaliado.
+     */
+    @Transactional(readOnly = true)
+    public boolean verificarSeAgendamentoAvaliado(Long agendamentoId) {
+        return avaliacaoRepository.existsByAgendamentoId(agendamentoId);
     }
 
     // Helper methods

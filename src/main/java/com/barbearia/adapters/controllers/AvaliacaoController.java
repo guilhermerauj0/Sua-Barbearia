@@ -7,6 +7,7 @@ import com.barbearia.application.services.AvaliacaoService;
 import com.barbearia.application.security.JwtService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -48,31 +49,31 @@ public class AvaliacaoController {
      */
     @Operation(summary = "Criar avaliação", description = "Cliente avalia barbearia com 4 notas (serviço, ambiente, limpeza, atendimento) + comentário. Agendamento deve estar CONCLUÍDO.", security = @SecurityRequirement(name = "Bearer"))
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "Avaliação criada com sucesso", content = @Content(schema = @Schema(implementation = AvaliacaoResponseDto.class))),
-            @ApiResponse(responseCode = "400", description = "Agendamento já avaliado ou não concluído"),
-            @ApiResponse(responseCode = "401", description = "Token JWT inválido")
+            @ApiResponse(responseCode = "201", description = "Avaliação criada com sucesso", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AvaliacaoResponseDto.class))),
+            @ApiResponse(responseCode = "400", description = "Agendamento já avaliado ou não concluído", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class), examples = @ExampleObject(value = """
+                    {
+                      "timestamp": "2025-11-25T14:30:00",
+                      "status": 400,
+                      "error": "Bad Request",
+                      "message": "Agendamento já avaliado",
+                      "path": "/api/avaliacoes"
+                    }
+                    """))),
+            @ApiResponse(responseCode = "401", description = "Token JWT inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class)))
     })
     @PostMapping("/avaliacoes")
     @PreAuthorize("hasRole('CLIENTE')")
     public ResponseEntity<?> criarAvaliacao(
             @Valid @RequestBody AvaliacaoRequestDto requestDto,
             HttpServletRequest request) {
-        try {
-            // Extrai cliente ID do token
-            String token = extrairToken(request);
-            Object userIdObj = jwtService.extractClaim(token, "userId");
-            Long clienteId = ((Number) userIdObj).longValue();
+        // Extrai cliente ID do token
+        String token = extrairToken(request);
+        Object userIdObj = jwtService.extractClaim(token, "userId");
+        Long clienteId = ((Number) userIdObj).longValue();
 
-            AvaliacaoResponseDto avaliacao = avaliacaoService.criarAvaliacao(clienteId, requestDto);
+        AvaliacaoResponseDto avaliacao = avaliacaoService.criarAvaliacao(clienteId, requestDto);
 
-            return ResponseEntity.status(HttpStatus.CREATED).body(avaliacao);
-
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError()
-                    .body("Erro ao criar avaliação: " + e.getMessage());
-        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(avaliacao);
     }
 
     /**
@@ -80,19 +81,13 @@ public class AvaliacaoController {
      */
     @Operation(summary = "Listar avaliações", description = "Retorna todas as avaliações de uma barbearia (públicas, sem autenticação)")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Lista de avaliações", content = @Content(schema = @Schema(implementation = AvaliacaoResponseDto.class)))
+            @ApiResponse(responseCode = "200", description = "Lista de avaliações", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AvaliacaoResponseDto.class))),
+            @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class)))
     })
     @GetMapping("/barbearias/{barbeariaId}/avaliacoes")
     public ResponseEntity<?> listarAvaliacoes(@PathVariable Long barbeariaId) {
-        try {
-            List<AvaliacaoResponseDto> avaliacoes = avaliacaoService.buscarAvaliacoesPorBarbearia(barbeariaId);
-
-            return ResponseEntity.ok(avaliacoes);
-
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError()
-                    .body("Erro ao listar avaliações: " + e.getMessage());
-        }
+        List<AvaliacaoResponseDto> avaliacoes = avaliacaoService.buscarAvaliacoesPorBarbearia(barbeariaId);
+        return ResponseEntity.ok(avaliacoes);
     }
 
     /**
@@ -100,19 +95,27 @@ public class AvaliacaoController {
      */
     @Operation(summary = "Estatísticas de avaliações", description = "Retorna médias por aspecto, total de avaliações e distribuição 1-5 estrelas (público)")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Estatísticas calculadas", content = @Content(schema = @Schema(implementation = EstatisticasAvaliacoesDto.class)))
+            @ApiResponse(responseCode = "200", description = "Estatísticas calculadas", content = @Content(mediaType = "application/json", schema = @Schema(implementation = EstatisticasAvaliacoesDto.class))),
+            @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class)))
     })
     @GetMapping("/barbearias/{barbeariaId}/estatisticas-avaliacoes")
     public ResponseEntity<?> obterEstatisticas(@PathVariable Long barbeariaId) {
-        try {
-            EstatisticasAvaliacoesDto stats = avaliacaoService.calcularEstatisticas(barbeariaId);
+        EstatisticasAvaliacoesDto stats = avaliacaoService.calcularEstatisticas(barbeariaId);
+        return ResponseEntity.ok(stats);
+    }
 
-            return ResponseEntity.ok(stats);
-
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError()
-                    .body("Erro ao calcular estatísticas: " + e.getMessage());
-        }
+    /**
+     * Verifica se um agendamento já foi avaliado.
+     */
+    @Operation(summary = "Verificar avaliação", description = "Verifica se um agendamento específico já foi avaliado.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Status retornado com sucesso", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Boolean.class))),
+            @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class)))
+    })
+    @GetMapping("/avaliacoes/verificar/{agendamentoId}")
+    public ResponseEntity<Boolean> verificarAvaliacao(@PathVariable Long agendamentoId) {
+        boolean avaliado = avaliacaoService.verificarSeAgendamentoAvaliado(agendamentoId);
+        return ResponseEntity.ok(avaliado);
     }
 
     // Helper method

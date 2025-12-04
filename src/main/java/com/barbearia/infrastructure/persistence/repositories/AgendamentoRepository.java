@@ -138,6 +138,17 @@ public interface AgendamentoRepository extends JpaRepository<JpaAgendamento, Lon
         List<JpaAgendamento> findByBarbeariaIdOrderByDataHoraDesc(Long barbeariaId);
 
         /**
+         * Busca agendamentos futuros de uma barbearia.
+         * 
+         * @param barbeariaId ID da barbearia
+         * @param dataHora    Data/hora atual
+         * @return Lista de agendamentos futuros
+         */
+        List<JpaAgendamento> findByBarbeariaIdAndDataHoraAfterOrderByDataHoraAsc(
+                        Long barbeariaId,
+                        LocalDateTime dataHora);
+
+        /**
          * Calcula o faturamento total da barbearia em um período.
          * 
          * Query nativa SQL para melhor performance.
@@ -268,4 +279,84 @@ public interface AgendamentoRepository extends JpaRepository<JpaAgendamento, Lon
                         @Param("clienteId") Long clienteId,
                         @Param("dataLimite") LocalDateTime dataLimite,
                         @Param("status") com.barbearia.domain.enums.StatusAgendamento status);
+
+        /**
+         * Busca agendamentos de uma barbearia em um período através do funcionário.
+         * 
+         * @param barbeariaId ID da barbearia (via funcionário)
+         * @param dataInicio  Data/hora inicial
+         * @param dataFim     Data/hora final
+         * @return Lista de agendamentos
+         */
+        @Query("SELECT a FROM JpaAgendamento a " +
+                        "INNER JOIN JpaFuncionario f ON a.barbeiroId = f.id " +
+                        "WHERE f.barbeariaId = :barbeariaId " +
+                        "AND a.dataHora BETWEEN :dataInicio AND :dataFim " +
+                        "ORDER BY a.dataHora ASC")
+        List<JpaAgendamento> findByFuncionarioBarbeariaIdAndDataBetween(
+                        @Param("barbeariaId") Long barbeariaId,
+                        @Param("dataInicio") LocalDateTime dataInicio,
+                        @Param("dataFim") LocalDateTime dataFim);
+
+        /**
+         * Busca todos os agendamentos de um profissional.
+         * 
+         * @param barbeiroId ID do profissional/barbeiro
+         * @return Lista de agendamentos ordenados por data decrescente
+         */
+        List<JpaAgendamento> findByBarbeiroIdOrderByDataHoraDesc(Long barbeiroId);
+
+        /**
+         * Busca agendamentos de um profissional filtrados por status.
+         * 
+         * @param barbeiroId ID do profissional/barbeiro
+         * @param status     Status do agendamento
+         * @return Lista de agendamentos com o status especificado
+         */
+        List<JpaAgendamento> findByBarbeiroIdAndStatus(
+                        Long barbeiroId,
+                        com.barbearia.domain.enums.StatusAgendamento status);
+
+        /**
+         * Busca agendamentos de um profissional em um intervalo de datas.
+         * 
+         * @param barbeiroId ID do profissional/barbeiro
+         * @param dataInicio Data/hora inicial
+         * @param dataFim    Data/hora final
+         * @return Lista de agendamentos no intervalo especificado
+         */
+        List<JpaAgendamento> findByBarbeiroIdAndDataHoraBetween(
+                        Long barbeiroId,
+                        LocalDateTime dataInicio,
+                        LocalDateTime dataFim);
+
+        /**
+         * Busca agendamentos de um profissional filtrados por status e intervalo de
+         * datas.
+         * 
+         * @param barbeiroId ID do profissional/barbeiro
+         * @param status     Status do agendamento
+         * @param dataInicio Data/hora inicial
+         * @param dataFim    Data/hora final
+         * @return Lista de agendamentos com filtros aplicados
+         */
+        List<JpaAgendamento> findByBarbeiroIdAndStatusAndDataHoraBetween(
+                        Long barbeiroId,
+                        com.barbearia.domain.enums.StatusAgendamento status,
+                        LocalDateTime dataInicio,
+                        LocalDateTime dataFim);
+
+        /**
+         * Busca agendamentos de um profissional em um intervalo de datas ordenados por
+         * data ascendente.
+         * 
+         * @param barbeiroId ID do profissional/barbeiro
+         * @param dataInicio Data/hora inicial
+         * @param dataFim    Data/hora final
+         * @return Lista de agendamentos no intervalo especificado
+         */
+        List<JpaAgendamento> findByBarbeiroIdAndDataHoraBetweenOrderByDataHoraAsc(
+                        Long barbeiroId,
+                        LocalDateTime dataInicio,
+                        LocalDateTime dataFim);
 }

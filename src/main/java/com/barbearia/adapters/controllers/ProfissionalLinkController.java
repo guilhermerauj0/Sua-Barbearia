@@ -1,5 +1,6 @@
 package com.barbearia.adapters.controllers;
 
+import com.barbearia.application.dto.ApiErrorDto;
 import com.barbearia.application.dto.FuncionarioLinkRequestDto;
 import com.barbearia.application.dto.FuncionarioLinkResponseDto;
 import com.barbearia.application.security.JwtService;
@@ -8,6 +9,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -28,182 +30,174 @@ import org.springframework.web.bind.annotation.*;
 @CrossOrigin(origins = "*")
 public class ProfissionalLinkController {
 
-    private final ProfissionalLinkService profissionalLinkService;
-    private final JwtService jwtService;
+        private final ProfissionalLinkService profissionalLinkService;
+        private final JwtService jwtService;
 
-    public ProfissionalLinkController(ProfissionalLinkService profissionalLinkService,
-            JwtService jwtService) {
-        this.profissionalLinkService = profissionalLinkService;
-        this.jwtService = jwtService;
-    }
-
-    @Operation(summary = "Gerar link de acesso", description = "Barbearia gera link único para profissional acessar dashboard. Pode definir expiração opcional.", security = @SecurityRequirement(name = "Bearer"), requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = {
-            @ExampleObject(name = "Com expiração (30 dias)", value = """
-                    {
-                      "dataExpiracao": "2025-12-25"
-                    }
-                    """),
-            @ExampleObject(name = "Sem expiração", value = "{}")
-    })))
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "Link gerado com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Funcionário não pertence à barbearia"),
-            @ApiResponse(responseCode = "401", description = "Token inválido")
-    })
-    @PostMapping("/{funcionarioId}/link-acesso")
-    @PreAuthorize("hasRole('BARBEARIA')")
-    public ResponseEntity<?> gerarLinkAcesso(
-            @Parameter(description = "ID do funcionário") @PathVariable Long funcionarioId,
-            @RequestBody(required = false) @Valid FuncionarioLinkRequestDto requestDto,
-            HttpServletRequest request) {
-        try {
-            Long barbeariaId = extrairBarbeariaId(request);
-
-            FuncionarioLinkResponseDto response = profissionalLinkService.gerarLinkAcesso(
-                    barbeariaId,
-                    funcionarioId,
-                    requestDto != null ? requestDto.getDataExpiracao() : null);
-
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Erro: " + e.getMessage());
-        }
-    }
-
-    @Operation(summary = "Consultar status do link", description = "Verifica se profissional tem link ativo, expirado ou desativado", security = @SecurityRequirement(name = "Bearer"))
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Status retornado"),
-            @ApiResponse(responseCode = "404", description = "Profissional não possui link"),
-            @ApiResponse(responseCode = "401", description = "Token inválido")
-    })
-    @GetMapping("/{funcionarioId}/link-acesso")
-    @PreAuthorize("hasRole('BARBEARIA')")
-    public ResponseEntity<?> consultarStatusLink(
-            @Parameter(description = "ID do funcionário") @PathVariable Long funcionarioId,
-            HttpServletRequest request) {
-        try {
-            Long barbeariaId = extrairBarbeariaId(request);
-
-            FuncionarioLinkResponseDto response = profissionalLinkService.consultarStatusLink(
-                    barbeariaId,
-                    funcionarioId);
-
-            if (response == null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body("Profissional não possui link gerado");
-            }
-
-            return ResponseEntity.ok(response);
-
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Erro: " + e.getMessage());
-        }
-    }
-
-    @Operation(summary = "Ativar link", description = "Reativa link desativado. Pode atualizar data de expiração.", security = @SecurityRequirement(name = "Bearer"))
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Link ativado"),
-            @ApiResponse(responseCode = "400", description = "Link não existe"),
-            @ApiResponse(responseCode = "401", description = "Token inválido")
-    })
-    @PatchMapping("/{funcionarioId}/link-acesso/ativar")
-    @PreAuthorize("hasRole('BARBEARIA')")
-    public ResponseEntity<?> ativarLink(
-            @Parameter(description = "ID do funcionário") @PathVariable Long funcionarioId,
-            @RequestBody(required = false) @Valid FuncionarioLinkRequestDto requestDto,
-            HttpServletRequest request) {
-        try {
-            Long barbeariaId = extrairBarbeariaId(request);
-
-            FuncionarioLinkResponseDto response = profissionalLinkService.reativarLink(
-                    barbeariaId,
-                    funcionarioId,
-                    requestDto != null ? requestDto.getDataExpiracao() : null);
-
-            return ResponseEntity.ok(response);
-
-        } catch (IllegalStateException | IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Erro: " + e.getMessage());
-        }
-    }
-
-    @Operation(summary = "Desativar link", description = "Desativa link do profissional. Ele não poderá mais acessar o dashboard até reativar.", security = @SecurityRequirement(name = "Bearer"))
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "204", description = "Link desativado"),
-            @ApiResponse(responseCode = "400", description = "Link não existe"),
-            @ApiResponse(responseCode = "401", description = "Token inválido")
-    })
-    @PatchMapping("/{funcionarioId}/link-acesso/desativar")
-    @PreAuthorize("hasRole('BARBEARIA')")
-    public ResponseEntity<?> desativarLink(
-            @Parameter(description = "ID do funcionário") @PathVariable Long funcionarioId,
-            HttpServletRequest request) {
-        try {
-            Long barbeariaId = extrairBarbeariaId(request);
-
-            profissionalLinkService.desativarLink(barbeariaId, funcionarioId);
-
-            return ResponseEntity.noContent().build();
-
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Erro: " + e.getMessage());
-        }
-    }
-
-    @Operation(summary = "Atualizar expiração", description = "Modifica data de expiração de link ativo", security = @SecurityRequirement(name = "Bearer"), requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(name = "Nova data", value = """
-            {
-              "dataExpiracao": "2026-01-01"
-            }
-            """))))
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "204", description = "Expiração atualizada"),
-            @ApiResponse(responseCode = "400", description = "Data inválida ou link não existe"),
-            @ApiResponse(responseCode = "401", description = "Token inválido")
-    })
-    @PutMapping("/{funcionarioId}/link-acesso/expiracao")
-    @PreAuthorize("hasRole('BARBEARIA')")
-    public ResponseEntity<?> atualizarExpiracao(
-            @Parameter(description = "ID do funcionário") @PathVariable Long funcionarioId,
-            @Valid @RequestBody FuncionarioLinkRequestDto requestDto,
-            HttpServletRequest request) {
-        try {
-            Long barbeariaId = extrairBarbeariaId(request);
-
-            profissionalLinkService.atualizarExpiracao(
-                    barbeariaId,
-                    funcionarioId,
-                    requestDto.getDataExpiracao());
-
-            return ResponseEntity.noContent().build();
-
-        } catch (IllegalStateException | IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Erro: " + e.getMessage());
-        }
-    }
-
-    private Long extrairBarbeariaId(HttpServletRequest request) {
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            throw new IllegalArgumentException("Token JWT não fornecido");
+        public ProfissionalLinkController(ProfissionalLinkService profissionalLinkService,
+                        JwtService jwtService) {
+                this.profissionalLinkService = profissionalLinkService;
+                this.jwtService = jwtService;
         }
 
-        String token = authHeader.substring(7);
-        Object userIdObj = jwtService.extractClaim(token, "userId");
-        if (userIdObj == null) {
-            throw new IllegalArgumentException("Token JWT inválido: userId não encontrado");
+        @Operation(summary = "Gerar link de acesso", description = "Barbearia gera link único para profissional acessar dashboard. Pode definir expiração opcional.", security = @SecurityRequirement(name = "Bearer"), requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = {
+                        @ExampleObject(name = "Com expiração (30 dias)", value = """
+                                        {
+                                          "dataExpiracao": "2025-12-25"
+                                        }
+                                        """),
+                        @ExampleObject(name = "Sem expiração", value = "{}")
+        })))
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "201", description = "Link gerado com sucesso"),
+                        @ApiResponse(responseCode = "400", description = "Funcionário não pertence à barbearia", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class), examples = @ExampleObject(name = "Validação", value = """
+                                        {
+                                          "timestamp": "2025-11-25T17:00:00",
+                                          "status": 400,
+                                          "error": "Bad Request",
+                                          "message": "Funcionário não pertence a esta barbearia",
+                                          "path": "/api/barbearias/funcionarios/1/link-acesso"
+                                        }
+                                        """))),
+                        @ApiResponse(responseCode = "401", description = "Token inválido", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class), examples = @ExampleObject(name = "Não Autorizado", value = """
+                                        {
+                                          "timestamp": "2025-11-25T17:00:00",
+                                          "status": 401,
+                                          "error": "Unauthorized",
+                                          "message": "Token JWT inválido ou expirado",
+                                          "path": "/api/barbearias/funcionarios/1/link-acesso"
+                                        }
+                                        """)))
+        })
+        @PostMapping("/{funcionarioId}/link-acesso")
+        @PreAuthorize("hasRole('BARBEARIA')")
+        public ResponseEntity<?> gerarLinkAcesso(
+                        @Parameter(description = "ID do funcionário") @PathVariable Long funcionarioId,
+                        @RequestBody(required = false) @Valid FuncionarioLinkRequestDto requestDto,
+                        HttpServletRequest request) {
+                Long barbeariaId = extrairBarbeariaId(request);
+
+                // Se requestDto for null, cria um default (ex: expiração padrão 30 dias)
+                if (requestDto == null) {
+                        requestDto = new FuncionarioLinkRequestDto();
+                        requestDto.setDiasExpiracao(30);
+                }
+
+                // Se diasExpiracao foi informado, calcula data. Se data foi informada, usa ela.
+                // Se nenhum, usa 30 dias.
+                java.time.LocalDateTime dataExpiracao = null;
+                if (requestDto.getDataExpiracao() != null) {
+                        dataExpiracao = requestDto.getDataExpiracao();
+                } else if (requestDto.getDiasExpiracao() != null) {
+                        dataExpiracao = java.time.LocalDateTime.now().plusDays(requestDto.getDiasExpiracao());
+                } else {
+                        dataExpiracao = java.time.LocalDateTime.now().plusDays(30);
+                }
+
+                FuncionarioLinkResponseDto response = profissionalLinkService.gerarLinkAcesso(
+                                barbeariaId,
+                                funcionarioId,
+                                dataExpiracao);
+
+                return ResponseEntity.status(HttpStatus.CREATED).body(response);
         }
 
-        return ((Number) userIdObj).longValue();
-    }
+        @Operation(summary = "Consultar status do link", description = "Verifica se o funcionário tem link ativo", security = @SecurityRequirement(name = "Bearer"))
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Status retornado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = FuncionarioLinkResponseDto.class))),
+                        @ApiResponse(responseCode = "403", description = "Não autorizado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "404", description = "Funcionário não encontrado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
+        })
+        @GetMapping("/{funcionarioId}")
+        @PreAuthorize("hasRole('BARBEARIA')")
+        public ResponseEntity<?> consultarStatusLink(
+                        @Parameter(description = "ID do funcionário") @PathVariable Long funcionarioId,
+                        HttpServletRequest request) {
+                Long barbeariaId = extrairBarbeariaId(request);
+                FuncionarioLinkResponseDto response = profissionalLinkService.consultarStatusLink(barbeariaId,
+                                funcionarioId);
+                if (response == null) {
+                        return ResponseEntity.notFound().build();
+                }
+                return ResponseEntity.ok(response);
+        }
+
+        @Operation(summary = "Desativar link", description = "Desativa o link de acesso imediatamente", security = @SecurityRequirement(name = "Bearer"))
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Link desativado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = FuncionarioLinkResponseDto.class))),
+                        @ApiResponse(responseCode = "403", description = "Não autorizado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "404", description = "Funcionário não encontrado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
+        })
+        @PostMapping("/{funcionarioId}/desativar")
+        @PreAuthorize("hasRole('BARBEARIA')")
+        public ResponseEntity<?> desativarLink(
+                        @Parameter(description = "ID do funcionário") @PathVariable Long funcionarioId,
+                        HttpServletRequest request) {
+                Long barbeariaId = extrairBarbeariaId(request);
+                profissionalLinkService.desativarLink(barbeariaId, funcionarioId);
+                FuncionarioLinkResponseDto response = profissionalLinkService.consultarStatusLink(barbeariaId,
+                                funcionarioId);
+                return ResponseEntity.ok(response);
+        }
+
+        @Operation(summary = "Atualizar expiração", description = "Atualiza a data de expiração do link", security = @SecurityRequirement(name = "Bearer"), requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(name = "Nova data", value = """
+                        {
+                          "diasExpiracao": 90
+                        }
+                        """))))
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Expiração atualizada", content = @Content(mediaType = "application/json", schema = @Schema(implementation = FuncionarioLinkResponseDto.class))),
+                        @ApiResponse(responseCode = "400", description = "Dados inválidos", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class), examples = @ExampleObject(name = "Validação", value = """
+                                        {
+                                          "timestamp": "2025-11-25T17:00:00",
+                                          "status": 400,
+                                          "error": "Bad Request",
+                                          "message": "Data de expiração inválida",
+                                          "path": "/api/barbearias/funcionarios/1/link-acesso/expiracao"
+                                        }
+                                        """))),
+                        @ApiResponse(responseCode = "403", description = "Não autorizado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "404", description = "Funcionário não encontrado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class))),
+                        @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorDto.class)))
+        })
+        @PutMapping("/{funcionarioId}/expiracao")
+        @PreAuthorize("hasRole('BARBEARIA')")
+        public ResponseEntity<?> atualizarExpiracao(
+                        @Parameter(description = "ID do funcionário") @PathVariable Long funcionarioId,
+                        @Valid @RequestBody FuncionarioLinkRequestDto requestDto,
+                        HttpServletRequest request) {
+                Long barbeariaId = extrairBarbeariaId(request);
+
+                java.time.LocalDateTime novaData = null;
+                if (requestDto.getDataExpiracao() != null) {
+                        novaData = requestDto.getDataExpiracao();
+                } else if (requestDto.getDiasExpiracao() != null) {
+                        novaData = java.time.LocalDateTime.now().plusDays(requestDto.getDiasExpiracao());
+                } else {
+                        return ResponseEntity.badRequest()
+                                        .body(ApiErrorDto.builder()
+                                                        .timestamp(java.time.LocalDateTime.now())
+                                                        .status(400)
+                                                        .error("Bad Request")
+                                                        .message("Data ou dias de expiração devem ser informados")
+                                                        .path(request.getRequestURI())
+                                                        .build());
+                }
+
+                profissionalLinkService.atualizarExpiracao(barbeariaId, funcionarioId, novaData);
+                // Retorna status atualizado
+                FuncionarioLinkResponseDto response = profissionalLinkService.consultarStatusLink(barbeariaId,
+                                funcionarioId);
+                return ResponseEntity.ok(response);
+        }
+
+        private Long extrairBarbeariaId(HttpServletRequest request) {
+                String authHeader = request.getHeader("Authorization");
+                if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                        String token = authHeader.substring(7);
+                        return ((Number) jwtService.extractClaim(token, "userId")).longValue();
+                }
+                throw new RuntimeException("Token não encontrado ou inválido");
+        }
 }

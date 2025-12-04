@@ -4,6 +4,8 @@ import com.barbearia.application.dto.ServicoDto;
 import com.barbearia.domain.entities.*;
 import com.barbearia.infrastructure.persistence.entities.JpaServico;
 
+import org.springframework.stereotype.Component;
+
 /**
  * Mapper para conversão entre diferentes representações de Serviço.
  * 
@@ -17,8 +19,9 @@ import com.barbearia.infrastructure.persistence.entities.JpaServico;
  * 
  * @author Sua Barbearia Team
  */
+@Component
 public class ServicoMapper {
-    
+
     /**
      * Converte JpaServico para ServicoDto
      * 
@@ -29,7 +32,7 @@ public class ServicoMapper {
         if (jpaServico == null) {
             return null;
         }
-        
+
         ServicoDto dto = new ServicoDto();
         dto.setId(jpaServico.getId());
         dto.setNome(jpaServico.getNome());
@@ -39,10 +42,10 @@ public class ServicoMapper {
         dto.setBarbeariaId(jpaServico.getBarbeariaId());
         dto.setAtivo(jpaServico.isAtivo());
         dto.setTipoServico(jpaServico.getTipoServico());
-        
+
         return dto;
     }
-    
+
     /**
      * Converte JpaServico para a subclasse correta de Servico de domínio
      * usando polimorfismo baseado no tipo de serviço.
@@ -54,10 +57,10 @@ public class ServicoMapper {
         if (jpaServico == null) {
             return null;
         }
-        
+
         Servico servico = null;
         String tipoServico = jpaServico.getTipoServico();
-        
+
         // Usa polimorfismo para retornar a subclasse correta baseada no tipo
         switch (tipoServico) {
             case "CORTE":
@@ -82,7 +85,7 @@ public class ServicoMapper {
                 // Se não reconhecer o tipo, não converte
                 return null;
         }
-        
+
         // Preenche os atributos da classe base
         servico.setId(jpaServico.getId());
         servico.setNome(jpaServico.getNome());
@@ -93,7 +96,7 @@ public class ServicoMapper {
         servico.setAtivo(jpaServico.isAtivo());
         servico.setDataCriacao(jpaServico.getDataCriacao());
         servico.setDataAtualizacao(jpaServico.getDataAtualizacao());
-        
+
         return servico;
     }
 }

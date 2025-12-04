@@ -11,30 +11,18 @@ import com.barbearia.infrastructure.persistence.repositories.ProfissionalServico
 import com.barbearia.infrastructure.persistence.repositories.HorarioFuncionamentoRepository;
 import com.barbearia.infrastructure.persistence.repositories.AgendamentoRepository;
 import com.barbearia.infrastructure.persistence.repositories.ServicoRepository;
+import com.barbearia.infrastructure.persistence.repositories.HorarioExcecaoRepository;
+import com.barbearia.infrastructure.persistence.entities.JpaHorarioExcecao;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Serviço para gerenciar horários disponíveis para agendamentos.
- * 
- * Lógica de cálculo de disponibilidade:
- * 1. Validar parâmetros de entrada
- * 2. Buscar todos os profissionais qualificados para o serviço
- * 3. Para cada profissional:
- * - Obter horário de funcionamento para o dia da semana
- * - Buscar agendamentos existentes para a data
- * - Calcular slots de 30min de intervalo
- * - Remover slots já ocupados
- * - Retornar slots disponíveis com nome do profissional
- * 
- * @author Sua Barbearia Team
- */
 @Service
 public class HorarioService {
 
@@ -43,8 +31,8 @@ public class HorarioService {
     private final HorarioFuncionamentoRepository horarioFuncionamentoRepository;
     private final AgendamentoRepository agendamentoRepository;
     private final ServicoRepository servicoRepository;
-    private final HorarioGestaoService horarioGestaoService;
     private final HorarioBloqueioService horarioBloqueioService;
+    private final HorarioExcecaoRepository horarioExcecaoRepository;
 
     // Intervalo padrão entre horários: 30 minutos
     private static final int INTERVALO_MINUTOS = 30;
@@ -55,15 +43,15 @@ public class HorarioService {
             HorarioFuncionamentoRepository horarioFuncionamentoRepository,
             AgendamentoRepository agendamentoRepository,
             ServicoRepository servicoRepository,
-            HorarioGestaoService horarioGestaoService,
-            HorarioBloqueioService horarioBloqueioService) {
+            HorarioBloqueioService horarioBloqueioService,
+            HorarioExcecaoRepository horarioExcecaoRepository) {
         this.funcionarioRepository = funcionarioRepository;
         this.profissionalServicoRepository = profissionalServicoRepository;
         this.horarioFuncionamentoRepository = horarioFuncionamentoRepository;
         this.agendamentoRepository = agendamentoRepository;
         this.servicoRepository = servicoRepository;
-        this.horarioGestaoService = horarioGestaoService;
         this.horarioBloqueioService = horarioBloqueioService;
+        this.horarioExcecaoRepository = horarioExcecaoRepository;
     }
 
     /**
@@ -102,12 +90,6 @@ public class HorarioService {
             return horariosDisponiveis;
         }
 
-        // Verificar se há exceção/feriado para esta data (INTEGRAÇÃO T17)
-        if (!horarioGestaoService.estaAberto(barbeariaId, data, LocalTime.of(9, 0))) {
-            // Se a barbearia está fechada nesta data, retornar lista vazia
-            return horariosDisponiveis;
-        }
-
         // Obter informações do serviço (para saber a duração)
         Optional<JpaServico> servicoOpt = servicoRepository.findById(servicoId);
         if (servicoOpt.isEmpty()) {
@@ -138,23 +120,39 @@ public class HorarioService {
             }
             JpaFuncionario funcionario = funcionarioOpt.get();
 
-            // Tenta buscar horário específico do profissional
-            Optional<com.barbearia.infrastructure.persistence.entities.JpaHorarioFuncionamento> horarioOpt = horarioFuncionamentoRepository
-                    .findByFuncionarioIdAndDiaSemanaAtivo(funcionarioId, diaSemana);
+            LocalTime horaAbertura;
+            LocalTime horaFechamento;
 
-            // Se não tiver horário específico, tenta o da barbearia
-            if (horarioOpt.isEmpty()) {
-                horarioOpt = horarioFuncionamentoRepository.findByBarbeariaIdAndDiaSemanaAtivo(barbeariaId, diaSemana);
+            // 1. Verificar se há EXCEÇÃO para esta data (Prioridade Alta)
+            Optional<JpaHorarioExcecao> excecaoOpt = horarioExcecaoRepository.findByFuncionarioIdAndData(funcionarioId,
+                    data);
+
+            if (excecaoOpt.isPresent()) {
+                var excecao = excecaoOpt.get();
+                horaAbertura = excecao.getHoraAbertura();
+                horaFechamento = excecao.getHoraFechamento();
+            } else {
+                // 2. Se não houver exceção, usar horário padrão recorrente
+
+                // Tenta buscar horário específico do profissional
+                Optional<com.barbearia.infrastructure.persistence.entities.JpaHorarioFuncionamento> horarioOpt = horarioFuncionamentoRepository
+                        .findByFuncionarioIdAndDiaSemanaAtivo(funcionarioId, diaSemana);
+
+                // Se não tiver horário específico, tenta o da barbearia
+                if (horarioOpt.isEmpty()) {
+                    horarioOpt = horarioFuncionamentoRepository.findByBarbeariaIdAndDiaSemanaAtivo(barbeariaId,
+                            diaSemana);
+                }
+
+                if (horarioOpt.isEmpty()) {
+                    // Profissional e barbearia fechados nesse dia
+                    continue;
+                }
+
+                var horarioFuncionamento = horarioOpt.get();
+                horaAbertura = horarioFuncionamento.getHoraAbertura();
+                horaFechamento = horarioFuncionamento.getHoraFechamento();
             }
-
-            if (horarioOpt.isEmpty()) {
-                // Profissional e barbearia fechados nesse dia
-                continue;
-            }
-
-            var horarioFuncionamento = horarioOpt.get();
-            LocalTime horaAbertura = horarioFuncionamento.getHoraAbertura();
-            LocalTime horaFechamento = horarioFuncionamento.getHoraFechamento();
 
             // Buscar agendamentos do profissional para essa data
             LocalDateTime inicioData = data.atStartOfDay();
@@ -180,6 +178,42 @@ public class HorarioService {
         }
 
         return horariosDisponiveis;
+    }
+
+    /**
+     * Retorna os dias com disponibilidade em um determinado mês.
+     */
+    public List<LocalDate> obterDatasDisponiveis(
+            Long barbeariaId,
+            Long servicoId,
+            int ano,
+            int mes,
+            Long funcionarioId) {
+
+        List<LocalDate> datasDisponiveis = new ArrayList<>();
+        YearMonth yearMonth = YearMonth.of(ano, mes);
+        LocalDate hoje = LocalDate.now();
+
+        // Iterar por todos os dias do mês
+        for (int dia = 1; dia <= yearMonth.lengthOfMonth(); dia++) {
+            LocalDate data = yearMonth.atDay(dia);
+
+            // Ignorar datas passadas
+            if (data.isBefore(hoje)) {
+                continue;
+            }
+
+            // Verificar se há disponibilidade neste dia
+            // Nota: Isso pode ser otimizado no futuro para não calcular todos os slots
+            List<HorarioDisponivelDto> slots = obterHorariosDisponiveis(
+                    barbeariaId, servicoId, data, funcionarioId);
+
+            if (!slots.isEmpty()) {
+                datasDisponiveis.add(data);
+            }
+        }
+
+        return datasDisponiveis;
     }
 
     /**

@@ -50,45 +50,45 @@ import java.util.Optional;
  */
 @Service
 public class BarbeariaService {
-    
+
     /**
      * Repository para acesso ao banco de dados
      */
     private final BarbeariaRepository barbeariaRepository;
-    
+
     /**
      * Repository para acesso a dados de serviços
      */
     private final ServicoRepository servicoRepository;
-    
+
     /**
      * Repository para acesso a dados de horários de funcionamento
      */
     private final HorarioFuncionamentoRepository horarioFuncionamentoRepository;
-    
+
     /**
      * Encoder para fazer hash de senhas usando BCrypt
      * BCrypt é um algoritmo robusto e recomendado para senhas
      */
     private final BCryptPasswordEncoder passwordEncoder;
-    
+
     /**
      * Construtor com injeção de dependências
      * Spring injeta automaticamente quando há apenas um construtor
      * 
-     * @param barbeariaRepository Repository de barbearias
-     * @param servicoRepository Repository de serviços
+     * @param barbeariaRepository            Repository de barbearias
+     * @param servicoRepository              Repository de serviços
      * @param horarioFuncionamentoRepository Repository de horários de funcionamento
      */
-    public BarbeariaService(BarbeariaRepository barbeariaRepository, 
-                           ServicoRepository servicoRepository,
-                           HorarioFuncionamentoRepository horarioFuncionamentoRepository) {
+    public BarbeariaService(BarbeariaRepository barbeariaRepository,
+            ServicoRepository servicoRepository,
+            HorarioFuncionamentoRepository horarioFuncionamentoRepository) {
         this.barbeariaRepository = barbeariaRepository;
         this.servicoRepository = servicoRepository;
         this.horarioFuncionamentoRepository = horarioFuncionamentoRepository;
         this.passwordEncoder = new BCryptPasswordEncoder();
     }
-    
+
     /**
      * Registra uma nova barbearia no sistema
      * 
@@ -111,33 +111,33 @@ public class BarbeariaService {
     public BarbeariaResponseDto registrarBarbearia(BarbeariaRequestDto requestDto) {
         // 1. Valida se as senhas conferem
         validarSenhas(requestDto);
-        
+
         // 2. Verifica duplicidade de email
         validarEmailUnico(requestDto.getEmail());
-        
+
         // 3. Valida o documento (CPF ou CNPJ)
         validarDocumento(requestDto);
-        
+
         // 4. Verifica duplicidade de documento
         validarDocumentoUnico(requestDto);
-        
+
         // 5. Faz hash da senha (NUNCA armazene senha em texto puro!)
         String senhaHash = passwordEncoder.encode(requestDto.getSenha());
-        
+
         // 6. Cria barbearia de domínio usando a factory
         Barbearia barbearia = UsuarioFactory.criarBarbearia(requestDto, senhaHash);
-        
+
         // 7. Converte barbearia de domínio para entidade JPA
         JpaBarbearia jpaBarbearia = BarbeariaMapper.toJpaEntity(barbearia);
-        
+
         // 8. Salva no banco de dados
         @SuppressWarnings("null")
         JpaBarbearia barbeariaSalva = barbeariaRepository.save(jpaBarbearia);
-        
+
         // 9. Converte para DTO de resposta (sem senha) e retorna
         return BarbeariaMapper.toResponseDto(barbeariaSalva);
     }
-    
+
     /**
      * Valida se a senha e confirmação são iguais
      * 
@@ -149,7 +149,7 @@ public class BarbeariaService {
             throw new IllegalArgumentException("Senha e confirmação de senha não coincidem");
         }
     }
-    
+
     /**
      * Verifica se o email já está cadastrado no sistema
      * 
@@ -160,12 +160,12 @@ public class BarbeariaService {
      */
     private void validarEmailUnico(String email) {
         String emailNormalizado = email.toLowerCase().trim();
-        
+
         if (barbeariaRepository.existsByEmail(emailNormalizado)) {
             throw new IllegalArgumentException("Email já cadastrado no sistema");
         }
     }
-    
+
     /**
      * Valida o documento (CPF ou CNPJ) usando algoritmos oficiais
      * 
@@ -178,15 +178,14 @@ public class BarbeariaService {
      */
     private void validarDocumento(BarbeariaRequestDto requestDto) {
         String documento = requestDto.getDocumento();
-        
+
         if (!DocumentoValidator.validar(documento, requestDto.getTipoDocumento())) {
             String tipoDocumento = requestDto.getTipoDocumento().getDescricao();
             throw new IllegalArgumentException(
-                String.format("%s inválido. Verifique o número informado.", tipoDocumento)
-            );
+                    String.format("%s inválido. Verifique o número informado.", tipoDocumento));
         }
     }
-    
+
     /**
      * Verifica se o documento já está cadastrado
      * 
@@ -203,16 +202,15 @@ public class BarbeariaService {
      */
     private void validarDocumentoUnico(BarbeariaRequestDto requestDto) {
         String documentoLimpo = DocumentoValidator.limparDocumento(requestDto.getDocumento());
-        
+
         if (barbeariaRepository.existsByTipoDocumentoAndDocumento(
                 requestDto.getTipoDocumento(), documentoLimpo)) {
             String tipoDocumento = requestDto.getTipoDocumento().getDescricao();
             throw new IllegalArgumentException(
-                String.format("%s já cadastrado no sistema", tipoDocumento)
-            );
+                    String.format("%s já cadastrado no sistema", tipoDocumento));
         }
     }
-    
+
     /**
      * Busca uma barbearia pelo ID
      * 
@@ -223,11 +221,11 @@ public class BarbeariaService {
     @SuppressWarnings("null")
     public BarbeariaResponseDto buscarPorId(Long id) {
         JpaBarbearia barbearia = barbeariaRepository.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("Barbearia não encontrada com ID: " + id));
-        
+                .orElseThrow(() -> new IllegalArgumentException("Barbearia não encontrada com ID: " + id));
+
         return BarbeariaMapper.toResponseDto(barbearia);
     }
-    
+
     /**
      * Busca uma barbearia pelo email
      * 
@@ -237,13 +235,13 @@ public class BarbeariaService {
      */
     public BarbeariaResponseDto buscarPorEmail(String email) {
         String emailNormalizado = email.toLowerCase().trim();
-        
+
         JpaBarbearia barbearia = barbeariaRepository.findByEmail(emailNormalizado)
-            .orElseThrow(() -> new IllegalArgumentException("Barbearia não encontrada com email: " + email));
-        
+                .orElseThrow(() -> new IllegalArgumentException("Barbearia não encontrada com email: " + email));
+
         return BarbeariaMapper.toResponseDto(barbearia);
     }
-    
+
     /**
      * Verifica se um email já está cadastrado
      * 
@@ -254,21 +252,20 @@ public class BarbeariaService {
         String emailNormalizado = email.toLowerCase().trim();
         return barbeariaRepository.existsByEmail(emailNormalizado);
     }
-    
+
     /**
      * Verifica se um documento já está cadastrado
      * 
      * @param tipoDocumento Tipo do documento (CPF ou CNPJ)
-     * @param documento Número do documento
+     * @param documento     Número do documento
      * @return true se documento já existe, false caso contrário
      */
     public boolean documentoJaCadastrado(String tipoDocumento, String documento) {
         String documentoLimpo = DocumentoValidator.limparDocumento(documento);
         return barbeariaRepository.existsByTipoDocumentoAndDocumento(
-            com.barbearia.domain.enums.TipoDocumento.valueOf(tipoDocumento), documentoLimpo
-        );
+                com.barbearia.domain.enums.TipoDocumento.valueOf(tipoDocumento), documentoLimpo);
     }
-    
+
     /**
      * Lista todas as barbearias ativas do sistema.
      * 
@@ -280,7 +277,7 @@ public class BarbeariaService {
                 .map(BarbeariaMapper::toListItemDto)
                 .toList();
     }
-    
+
     /**
      * Lista todos os serviços ativos de uma barbearia específica.
      * 
@@ -293,19 +290,19 @@ public class BarbeariaService {
         @SuppressWarnings("null")
         JpaBarbearia barbearia = barbeariaRepository.findById(barbeariaId)
                 .orElseThrow(() -> new IllegalArgumentException("Barbearia não encontrada"));
-        
+
         if (!barbearia.isAtivo()) {
             throw new IllegalArgumentException("Barbearia está inativa");
         }
-        
+
         // Busca serviços ativos da barbearia
         List<JpaServico> servicos = servicoRepository.findByBarbeariaIdAndAtivoTrue(barbeariaId);
-        
+
         return servicos.stream()
                 .map(ServicoMapper::toDto)
                 .toList();
     }
-    
+
     /**
      * Cria um novo serviço para uma barbearia.
      * 
@@ -318,9 +315,10 @@ public class BarbeariaService {
      * - Duração deve ser maior que zero
      * 
      * @param barbeariaId ID da barbearia proprietária do serviço
-     * @param requestDto Dados do serviço a ser criado
+     * @param requestDto  Dados do serviço a ser criado
      * @return DTO com dados do serviço criado
-     * @throws IllegalArgumentException se dados inválidos ou barbearia não encontrada
+     * @throws IllegalArgumentException se dados inválidos ou barbearia não
+     *                                  encontrada
      */
     @Transactional
     public ServicoDto criarServico(Long barbeariaId, com.barbearia.application.dto.ServicoRequestDto requestDto) {
@@ -328,19 +326,19 @@ public class BarbeariaService {
         if (!requestDto.isValid()) {
             throw new IllegalArgumentException(
                     "Dados do serviço inválidos. Verifique se todos os campos obrigatórios foram preenchidos: " +
-                    "nome, preço, duração e tipoServico. " +
-                    "Tipos permitidos: CORTE, BARBA, MANICURE, SOBRANCELHA, COLORACAO, TRATAMENTO_CAPILAR");
+                            "nome, preço, duração e tipoServico. " +
+                            "Tipos permitidos: CORTE, BARBA, MANICURE, SOBRANCELHA, COLORACAO, TRATAMENTO_CAPILAR");
         }
-        
+
         // Verifica se a barbearia existe e está ativa
         @SuppressWarnings("null")
         JpaBarbearia barbearia = barbeariaRepository.findById(barbeariaId)
                 .orElseThrow(() -> new IllegalArgumentException("Barbearia não encontrada"));
-        
+
         if (!barbearia.isAtivo()) {
             throw new IllegalArgumentException("Barbearia está inativa e não pode criar serviços");
         }
-        
+
         // Cria entidade JPA do serviço usando Factory Pattern
         // A factory cria a subclasse correta (JpaServicoCorte, JpaServicoBarba, etc.)
         // O tipoServico é obrigatório e deve ser um dos valores permitidos
@@ -351,14 +349,14 @@ public class BarbeariaService {
         servico.setPreco(requestDto.getPreco());
         servico.setDuracao(requestDto.getDuracao());
         servico.setAtivo(true);
-        
+
         // Salva no banco
         JpaServico servicoSalvo = servicoRepository.save(servico);
-        
+
         // Retorna DTO
         return ServicoMapper.toDto(servicoSalvo);
     }
-    
+
     /**
      * Cria ou atualiza um horário de funcionamento para uma barbearia.
      * 
@@ -372,43 +370,42 @@ public class BarbeariaService {
      * - horaAbertura deve ser antes de horaFechamento
      * 
      * @param barbeariaId ID da barbearia proprietária do horário
-     * @param requestDto Dados do horário de funcionamento a ser criado
+     * @param requestDto  Dados do horário de funcionamento a ser criado
      * @return DTO com dados do horário criado/atualizado
-     * @throws IllegalArgumentException se dados inválidos ou barbearia não encontrada
+     * @throws IllegalArgumentException se dados inválidos ou barbearia não
+     *                                  encontrada
      */
     @Transactional
     public HorarioFuncionamentoResponseDto criarHorarioFuncionamento(
-            Long barbeariaId, 
+            Long barbeariaId,
             HorarioFuncionamentoRequestDto requestDto) {
-        
+
         // Valida os dados do DTO
         if (!requestDto.isValid()) {
             throw new IllegalArgumentException(
-                "Dados do horário inválidos. Verifique se:\n" +
-                "- diaSemana está entre 0 (domingo) e 6 (sábado)\n" +
-                "- horaAbertura e horaFechamento estão preenchidos\n" +
-                "- horaAbertura é antes de horaFechamento"
-            );
+                    "Dados do horário inválidos. Verifique se:\n" +
+                            "- diaSemana está entre 0 (domingo) e 6 (sábado)\n" +
+                            "- horaAbertura e horaFechamento estão preenchidos\n" +
+                            "- horaAbertura é antes de horaFechamento");
         }
-        
+
         // Verifica se a barbearia existe e está ativa
         @SuppressWarnings("null")
         JpaBarbearia barbearia = barbeariaRepository.findById(barbeariaId)
                 .orElseThrow(() -> new IllegalArgumentException("Barbearia não encontrada"));
-        
+
         if (!barbearia.isAtivo()) {
             throw new IllegalArgumentException("Barbearia está inativa e não pode criar horários de funcionamento");
         }
-        
+
         // Verifica se já existe um horário para este dia da semana
-        Optional<JpaHorarioFuncionamento> horarioExistente = 
-            horarioFuncionamentoRepository.findByBarbeariaIdAndDiaSemana(
-                barbeariaId, 
-                requestDto.getDiaSemana()
-            );
-        
+        Optional<JpaHorarioFuncionamento> horarioExistente = horarioFuncionamentoRepository
+                .findByBarbeariaIdAndDiaSemana(
+                        barbeariaId,
+                        requestDto.getDiaSemana());
+
         JpaHorarioFuncionamento horario;
-        
+
         if (horarioExistente.isPresent()) {
             // Atualiza o horário existente
             horario = horarioExistente.get();
@@ -418,19 +415,118 @@ public class BarbeariaService {
         } else {
             // Cria novo horário
             horario = new JpaHorarioFuncionamento(
-                barbeariaId,
-                requestDto.getDiaSemana(),
-                requestDto.getHoraAbertura(),
-                requestDto.getHoraFechamento()
-            );
+                    barbeariaId,
+                    requestDto.getDiaSemana(),
+                    requestDto.getHoraAbertura(),
+                    requestDto.getHoraFechamento());
             horario.setAtivo(true);
         }
-        
+
         // Salva no banco
         JpaHorarioFuncionamento horarioSalvo = horarioFuncionamentoRepository.save(horario);
-        
+
         // Retorna DTO
         return HorarioFuncionamentoMapper.toResponseDto(horarioSalvo);
     }
-}
 
+    /**
+     * Edita um serviço existente da barbearia.
+     * 
+     * Validações:
+     * - Barbearia deve existir e estar ativa
+     * - Serviço deve existir e pertencer à barbearia
+     * - tipoServico não pode ser alterado (imutável)
+     * - Campos editáveis: nome, descrição, preço, duração
+     * 
+     * @param barbeariaId ID da barbearia proprietária
+     * @param servicoId   ID do serviço a ser editado
+     * @param requestDto  Novos dados do serviço
+     * @return DTO com dados atualizados
+     * @throws IllegalArgumentException se validações falharem
+     */
+    @Transactional
+    public ServicoDto editarServico(Long barbeariaId, Long servicoId,
+            com.barbearia.application.dto.ServicoRequestDto requestDto) {
+        // Valida campos obrigatórios
+        if (!requestDto.isValid()) {
+            throw new IllegalArgumentException(
+                    "Dados do serviço inválidos. Verifique se todos os campos obrigatórios foram preenchidos.");
+        }
+
+        // Verifica se a barbearia existe e está ativa
+        @SuppressWarnings("null")
+        JpaBarbearia barbearia = barbeariaRepository.findById(barbeariaId)
+                .orElseThrow(() -> new IllegalArgumentException("Barbearia não encontrada"));
+
+        if (!barbearia.isAtivo()) {
+            throw new IllegalArgumentException("Barbearia está inativa");
+        }
+
+        // Verifica se o serviço existe e pertence à barbearia
+        @SuppressWarnings("null")
+        JpaServico servico = servicoRepository.findById(servicoId)
+                .orElseThrow(() -> new IllegalArgumentException("Serviço não encontrado"));
+
+        if (!servico.getBarbeariaId().equals(barbeariaId)) {
+            throw new IllegalArgumentException(
+                    "Serviço não pertence a esta barbearia");
+        }
+
+        // Verifica se está tentando alterar o tipo de serviço (não permitido)
+        if (!servico.getTipoServico().equals(requestDto.getTipoServico())) {
+            throw new IllegalArgumentException(
+                    "Não é permitido alterar o tipo de serviço após criação");
+        }
+
+        // Atualiza campos editáveis
+        servico.setNome(requestDto.getNome().trim());
+        servico.setDescricao(requestDto.getDescricao() != null ? requestDto.getDescricao().trim() : null);
+        servico.setPreco(requestDto.getPreco());
+        servico.setDuracao(requestDto.getDuracao());
+
+        // Salva no banco
+        JpaServico servicoAtualizado = servicoRepository.save(servico);
+
+        // Retorna DTO
+        return ServicoMapper.toDto(servicoAtualizado);
+    }
+
+    /**
+     * Desativa um serviço (soft delete).
+     * 
+     * Marca o serviço como inativo ao invés de deletar do banco.
+     * Preserva histórico e integridade referencial.
+     * 
+     * Validações:
+     * - Barbearia deve existir
+     * - Serviço deve existir e pertencer à barbearia
+     * 
+     * @param barbeariaId ID da barbearia proprietária
+     * @param servicoId   ID do serviço a ser desativado
+     * @return Mensagem informativa
+     * @throws IllegalArgumentException se validações falharem
+     */
+    @Transactional
+    public String desativarServico(Long barbeariaId, Long servicoId) {
+        // Verifica se a barbearia existe
+        @SuppressWarnings({ "unused", "null" })
+        JpaBarbearia barbearia = barbeariaRepository.findById(barbeariaId)
+                .orElseThrow(() -> new IllegalArgumentException("Barbearia não encontrada"));
+
+        // Verifica se o serviço existe e pertence à barbearia
+        @SuppressWarnings("null")
+        JpaServico servico = servicoRepository.findById(servicoId)
+                .orElseThrow(() -> new IllegalArgumentException("Serviço não encontrado"));
+
+        if (!servico.getBarbeariaId().equals(barbeariaId)) {
+            throw new IllegalArgumentException(
+                    "Serviço não pertence a esta barbearia");
+        }
+
+        // Marca como inativo
+        servico.setAtivo(false);
+        servicoRepository.save(servico);
+
+        return "Serviço desativado com sucesso. O histórico de agendamentos foi preservado.";
+    }
+}

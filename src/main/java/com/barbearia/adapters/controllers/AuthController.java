@@ -54,20 +54,22 @@ public class AuthController {
             }
             """))))
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "Cliente registrado", content = @Content(schema = @Schema(implementation = ClienteResponseDto.class))),
-            @ApiResponse(responseCode = "400", description = "Email já cadastrado ou dados inválidos")
+            @ApiResponse(responseCode = "201", description = "Cliente registrado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ClienteResponseDto.class))),
+            @ApiResponse(responseCode = "400", description = "Email já cadastrado ou dados inválidos", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class), examples = @ExampleObject(value = """
+                    {
+                      "timestamp": "2025-11-25T14:30:00",
+                      "status": 400,
+                      "error": "Bad Request",
+                      "message": "Email já cadastrado",
+                      "path": "/api/auth/cliente/registrar"
+                    }
+                    """))),
+            @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class)))
     })
     @PostMapping("/cliente/registrar")
     public ResponseEntity<?> registrarCliente(@Valid @RequestBody ClienteRequestDto requestDto) {
-        try {
-            ClienteResponseDto clienteCriado = clienteService.registrarCliente(requestDto);
-            return ResponseEntity.status(HttpStatus.CREATED).body(clienteCriado);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao registrar cliente: " + e.getMessage());
-        }
+        ClienteResponseDto clienteCriado = clienteService.registrarCliente(requestDto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(clienteCriado);
     }
 
     /**
@@ -80,21 +82,22 @@ public class AuthController {
             }
             """))))
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Login realizado", content = @Content(schema = @Schema(implementation = LoginResponseDto.class))),
-            @ApiResponse(responseCode = "401", description = "Credenciais inválidas")
+            @ApiResponse(responseCode = "200", description = "Login realizado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = LoginResponseDto.class))),
+            @ApiResponse(responseCode = "401", description = "Credenciais inválidas", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class), examples = @ExampleObject(value = """
+                    {
+                      "timestamp": "2025-11-25T14:30:00",
+                      "status": 401,
+                      "error": "Unauthorized",
+                      "message": "Credenciais inválidas",
+                      "path": "/api/auth/cliente/login"
+                    }
+                    """))),
+            @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class)))
     })
     @PostMapping("/cliente/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequestDto loginRequest) {
-        try {
-            LoginResponseDto loginResponse = authService.login(loginRequest);
-            return ResponseEntity.ok(loginResponse);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body("Credenciais inválidas");
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao realizar login: " + e.getMessage());
-        }
+        LoginResponseDto loginResponse = authService.login(loginRequest);
+        return ResponseEntity.ok(loginResponse);
     }
 
     /**
@@ -129,20 +132,22 @@ public class AuthController {
                     """)
     })))
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "Barbearia registrada", content = @Content(schema = @Schema(implementation = BarbeariaResponseDto.class))),
-            @ApiResponse(responseCode = "400", description = "CPF/CNPJ inválido ou email duplicado")
+            @ApiResponse(responseCode = "201", description = "Barbearia registrada", content = @Content(mediaType = "application/json", schema = @Schema(implementation = BarbeariaResponseDto.class))),
+            @ApiResponse(responseCode = "400", description = "CPF/CNPJ inválido ou email duplicado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class), examples = @ExampleObject(value = """
+                    {
+                      "timestamp": "2025-11-25T14:30:00",
+                      "status": 400,
+                      "error": "Bad Request",
+                      "message": "CPF inválido",
+                      "path": "/api/auth/barbearia/registrar"
+                    }
+                    """))),
+            @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class)))
     })
     @PostMapping("/barbearia/registrar")
     public ResponseEntity<?> registrarBarbearia(@Valid @RequestBody BarbeariaRequestDto requestDto) {
-        try {
-            BarbeariaResponseDto barbeariaCriada = barbeariaService.registrarBarbearia(requestDto);
-            return ResponseEntity.status(HttpStatus.CREATED).body(barbeariaCriada);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao registrar barbearia: " + e.getMessage());
-        }
+        BarbeariaResponseDto barbeariaCriada = barbeariaService.registrarBarbearia(requestDto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(barbeariaCriada);
     }
 
     /**
@@ -155,20 +160,21 @@ public class AuthController {
             }
             """))))
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Login realizado", content = @Content(schema = @Schema(implementation = LoginResponseDto.class))),
-            @ApiResponse(responseCode = "401", description = "Credenciais inválidas")
+            @ApiResponse(responseCode = "200", description = "Login realizado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = LoginResponseDto.class))),
+            @ApiResponse(responseCode = "401", description = "Credenciais inválidas", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class), examples = @ExampleObject(value = """
+                    {
+                      "timestamp": "2025-11-25T14:30:00",
+                      "status": 401,
+                      "error": "Unauthorized",
+                      "message": "Credenciais inválidas",
+                      "path": "/api/auth/barbearia/login"
+                    }
+                    """))),
+            @ApiResponse(responseCode = "500", description = "Erro interno", content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.barbearia.application.dto.ApiErrorDto.class)))
     })
     @PostMapping("/barbearia/login")
     public ResponseEntity<?> loginBarbearia(@Valid @RequestBody LoginRequestDto loginRequest) {
-        try {
-            LoginResponseDto loginResponse = authService.loginBarbearia(loginRequest);
-            return ResponseEntity.ok(loginResponse);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body("Credenciais inválidas");
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao realizar login: " + e.getMessage());
-        }
+        LoginResponseDto loginResponse = authService.loginBarbearia(loginRequest);
+        return ResponseEntity.ok(loginResponse);
     }
 }

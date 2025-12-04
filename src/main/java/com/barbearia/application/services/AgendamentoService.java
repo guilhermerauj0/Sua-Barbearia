@@ -5,9 +5,8 @@ import com.barbearia.application.dto.AgendamentoBarbeariaDto;
 import com.barbearia.application.dto.AgendamentoBriefDto;
 import com.barbearia.application.dto.AgendamentoRequestDto;
 import com.barbearia.application.dto.AgendamentoResponseDto;
-import com.barbearia.application.dto.AgendamentoUpdateDto;
+import com.barbearia.application.dto.AgendamentoProfissionalDto;
 import com.barbearia.application.observers.AgendamentoEventObserver;
-import com.barbearia.application.observers.AgendamentoObserver;
 import com.barbearia.domain.enums.StatusAgendamento;
 import com.barbearia.domain.exceptions.AcessoNegadoException;
 import com.barbearia.domain.exceptions.AgendamentoNaoEncontradoException;
@@ -56,7 +55,6 @@ public class AgendamentoService {
     private final ServicoRepository servicoRepository;
     private final ClienteRepository clienteRepository;
     private final ProfissionalServicoRepository profissionalServicoRepository;
-    private final List<AgendamentoObserver> observers;
     private final List<AgendamentoEventObserver> eventObservers;
 
     public AgendamentoService(AgendamentoRepository agendamentoRepository,
@@ -64,14 +62,13 @@ public class AgendamentoService {
             ServicoRepository servicoRepository,
             ClienteRepository clienteRepository,
             ProfissionalServicoRepository profissionalServicoRepository,
-            List<AgendamentoObserver> observers,
+            ProfissionalLinkService profissionalLinkService,
             List<AgendamentoEventObserver> eventObservers) {
         this.agendamentoRepository = agendamentoRepository;
         this.funcionarioRepository = funcionarioRepository;
         this.servicoRepository = servicoRepository;
         this.clienteRepository = clienteRepository;
         this.profissionalServicoRepository = profissionalServicoRepository;
-        this.observers = observers != null ? observers : new ArrayList<>();
         this.eventObservers = eventObservers != null ? eventObservers : new ArrayList<>();
     }
 
@@ -191,6 +188,163 @@ public class AgendamentoService {
 
         return agendamentos.stream()
                 .map(AgendamentoMapper::toBriefDto)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Lista agendamentos de um profissional com filtros opcionais.
+     * 
+     * @param profissionalId ID do profissional
+     * @param status         Status para filtrar (opcional)
+     * @param dataInicio     Data inicial para filtrar (opcional)
+     * @param dataFim        Data final para filtrar (opcional)
+     * @return Lista de agendamentos em formato resumido
+     */
+    public List<AgendamentoBriefDto> listarAgendamentosProfissional(
+            Long profissionalId,
+            StatusAgendamento status,
+            LocalDate dataInicio,
+            LocalDate dataFim) {
+
+        if (profissionalId == null) {
+            throw new IllegalArgumentException("ID do profissional não pode ser nulo");
+        }
+
+        List<JpaAgendamento> agendamentos;
+
+        // Aplicar filtros conforme parâmetros fornecidos
+        if (status != null && dataInicio != null && dataFim != null) {
+            // Filtrar por status E intervalo de datas
+            LocalDateTime inicio = dataInicio.atStartOfDay();
+            LocalDateTime fim = dataFim.atTime(LocalTime.MAX);
+            agendamentos = agendamentoRepository.findByBarbeiroIdAndStatusAndDataHoraBetween(
+                    profissionalId, status, inicio, fim);
+        } else if (status != null) {
+            // Filtrar apenas por status
+            agendamentos = agendamentoRepository.findByBarbeiroIdAndStatus(
+                    profissionalId, status);
+        } else if (dataInicio != null && dataFim != null) {
+            // Filtrar apenas por intervalo de datas
+            LocalDateTime inicio = dataInicio.atStartOfDay();
+            LocalDateTime fim = dataFim.atTime(LocalTime.MAX);
+            agendamentos = agendamentoRepository.findByBarbeiroIdAndDataHoraBetween(
+                    profissionalId, inicio, fim);
+        } else {
+            // Sem filtros - retornar TODOS os agendamentos
+            agendamentos = agendamentoRepository.findByBarbeiroIdOrderByDataHoraDesc(
+                    profissionalId);
+        }
+
+        return agendamentos.stream()
+                .map(AgendamentoMapper::toBriefDto)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Lista agendamentos de um profissional com dados completos.
+     * 
+     * @param funcionarioId ID do profissional
+     * @param status        Status para filtrar (opcional)
+     * @param dataInicio    Data inicial (opcional)
+     * @param dataFim       Data final (opcional)
+     * @return Lista com dados completos dos agendamentos
+     */
+    public List<AgendamentoResponseDto> listarAgendamentosProfissionalCompleto(
+            Long funcionarioId,
+            StatusAgendamento status,
+            LocalDate dataInicio,
+            LocalDate dataFim) {
+
+        List<JpaAgendamento> agendamentos;
+
+        // Aplicar filtros
+        if (status != null && dataInicio != null && dataFim != null) {
+            agendamentos = agendamentoRepository.findByBarbeiroIdAndStatusAndDataHoraBetween(
+                    funcionarioId,
+                    status,
+                    dataInicio.atStartOfDay(),
+                    dataFim.atTime(23, 59, 59));
+        } else if (status != null) {
+            agendamentos = agendamentoRepository.findByBarbeiroIdAndStatus(funcionarioId, status);
+        } else if (dataInicio != null && dataFim != null) {
+            agendamentos = agendamentoRepository.findByBarbeiroIdAndDataHoraBetween(
+                    funcionarioId,
+                    dataInicio.atStartOfDay(),
+                    dataFim.atTime(23, 59, 59));
+        } else {
+            agendamentos = agendamentoRepository.findByBarbeiroIdOrderByDataHoraDesc(funcionarioId);
+        }
+
+        return agendamentos.stream()
+                .map(AgendamentoMapper::toResponseDto)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Lista agendamentos de um profissional com dados completos E DURAÇÃO.
+     * 
+     * @param funcionarioId ID do profissional
+     * @param status        Status para filtrar (opcional)
+     * @param dataInicio    Data inicial (opcional)
+     * @param dataFim       Data final (opcional)
+     * @return Lista com dados completos dos agendamentos incluindo duração
+     */
+    @SuppressWarnings("null")
+    public List<AgendamentoProfissionalDto> listarAgendamentosProfissionalComDuracao(
+            Long funcionarioId,
+            StatusAgendamento status,
+            LocalDate dataInicio,
+            LocalDate dataFim) {
+
+        List<JpaAgendamento> agendamentos;
+
+        // Reutilizando a lógica de filtro
+        if (status != null && dataInicio != null && dataFim != null) {
+            agendamentos = agendamentoRepository.findByBarbeiroIdAndStatusAndDataHoraBetween(
+                    funcionarioId,
+                    status,
+                    dataInicio.atStartOfDay(),
+                    dataFim.atTime(23, 59, 59));
+        } else if (status != null) {
+            agendamentos = agendamentoRepository.findByBarbeiroIdAndStatus(funcionarioId, status);
+        } else if (dataInicio != null && dataFim != null) {
+            agendamentos = agendamentoRepository.findByBarbeiroIdAndDataHoraBetween(
+                    funcionarioId,
+                    dataInicio.atStartOfDay(),
+                    dataFim.atTime(23, 59, 59));
+        } else {
+            agendamentos = agendamentoRepository.findByBarbeiroIdOrderByDataHoraDesc(funcionarioId);
+        }
+
+        // Buscar serviços para obter duração
+        java.util.Set<Long> servicoIds = agendamentos.stream()
+                .map(JpaAgendamento::getServicoId)
+                .collect(Collectors.toSet());
+
+        java.util.Map<Long, JpaServico> servicosMap = servicoRepository.findAllById(servicoIds).stream()
+                .collect(Collectors.toMap(JpaServico::getId, s -> s));
+
+        return agendamentos.stream()
+                .map(jpa -> {
+                    JpaServico servico = servicosMap.get(jpa.getServicoId());
+                    int duracao = servico != null ? servico.getDuracao() : 30; // Default 30 min
+                    LocalDateTime dataHoraFim = jpa.getDataHora().plusMinutes(duracao);
+
+                    return new AgendamentoProfissionalDto(
+                            jpa.getId(),
+                            jpa.getClienteId(),
+                            jpa.getBarbeariaId(),
+                            jpa.getServicoId(),
+                            jpa.getBarbeiroId(),
+                            jpa.getDataHora(),
+                            dataHoraFim,
+                            duracao,
+                            jpa.getStatus(),
+                            jpa.getObservacoes(),
+                            jpa.getDataCriacao(),
+                            jpa.getDataAtualizacao(),
+                            jpa.isAvaliado());
+                })
                 .collect(Collectors.toList());
     }
 
@@ -595,222 +749,61 @@ public class AgendamentoService {
     }
 
     /**
-     * Atualiza o status de um agendamento.
+     * Lista agendamentos futuros da barbearia.
      * 
-     * Validações:
-     * - Agendamento deve existir
-     * - Agendamento deve pertencer à barbearia autenticada
-     * - Transições de status devem ser válidas
-     * - Operação é idempotente (mesmo status não gera erro)
-     * 
-     * Notifica observers sobre mudança de status.
-     * 
-     * @param agendamentoId ID do agendamento
-     * @param barbeariaId   ID da barbearia autenticada
-     * @param updateDto     DTO com novo status
-     * @return DTO com dados atualizados do agendamento
-     * @throws AgendamentoNaoEncontradoException se agendamento não existe
-     * @throws AcessoNegadoException             se agendamento não pertence à
-     *                                           barbearia
-     * @throws IllegalArgumentException          se transição de status inválida
+     * @param barbeariaId ID da barbearia
+     * @return Lista de agendamentos futuros
      */
-    @Transactional
-    public AgendamentoResponseDto atualizarStatusAgendamento(
-            Long agendamentoId,
-            Long barbeariaId,
-            AgendamentoUpdateDto updateDto) {
-
-        if (agendamentoId == null) {
-            throw new IllegalArgumentException("ID do agendamento não pode ser nulo");
-        }
-
+    public List<AgendamentoBarbeariaDto> listarAgendamentosFuturosBarbearia(Long barbeariaId) {
         if (barbeariaId == null) {
             throw new IllegalArgumentException("ID da barbearia não pode ser nulo");
         }
 
-        if (updateDto == null || updateDto.status() == null) {
-            throw new IllegalArgumentException("Novo status não pode ser nulo");
-        }
+        LocalDateTime agora = LocalDateTime.now();
+        List<JpaAgendamento> agendamentos = agendamentoRepository.findByBarbeariaIdAndDataHoraAfterOrderByDataHoraAsc(
+                barbeariaId, agora);
 
-        // Buscar agendamento
-        Optional<JpaAgendamento> agendamentoOpt = agendamentoRepository.findById(agendamentoId);
-        if (agendamentoOpt.isEmpty()) {
-            throw new AgendamentoNaoEncontradoException(
-                    "Agendamento com ID " + agendamentoId + " não existe");
-        }
-
-        JpaAgendamento agendamento = agendamentoOpt.get();
-
-        // Verificar propriedade
-        if (!agendamento.getBarbeariaId().equals(barbeariaId)) {
-            throw new AcessoNegadoException(
-                    "Este agendamento não pertence à sua barbearia");
-        }
-
-        StatusAgendamento statusAnterior = agendamento.getStatus();
-        StatusAgendamento statusNovo = updateDto.status();
-
-        // Idempotência: se status já é o mesmo, retorna sem erro
-        if (statusAnterior == statusNovo) {
-            return AgendamentoMapper.toResponseDto(agendamento);
-        }
-
-        // Validar transição de status
-        validarTransicaoStatus(statusAnterior, statusNovo);
-
-        // Atualizar status
-        agendamento.setStatus(statusNovo);
-        agendamento.setDataAtualizacao(LocalDateTime.now());
-
-        JpaAgendamento agendamentoAtualizado = agendamentoRepository.save(agendamento);
-
-        // Notificar observers
-        notificarObservers(
-                agendamentoId,
-                statusAnterior,
-                statusNovo,
-                agendamento.getClienteId(),
-                barbeariaId);
-
-        // Notificar eventos específicos se houver mudança para status relevante
-        if (statusNovo == StatusAgendamento.CONFIRMADO && statusAnterior != StatusAgendamento.CONFIRMADO) {
-            notificarEventoEspecifico(agendamentoAtualizado, "confirmado", null);
-        } else if (statusNovo == StatusAgendamento.CANCELADO && statusAnterior != StatusAgendamento.CANCELADO) {
-            notificarEventoEspecifico(agendamentoAtualizado, "cancelado", null);
-        }
-
-        return AgendamentoMapper.toResponseDto(agendamentoAtualizado);
+        return agendamentos.stream()
+                .map(this::converterParaBarbeariaDto)
+                .collect(Collectors.toList());
     }
 
     /**
-     * Valida se a transição de status é permitida.
+     * statusNovo,
+     * agendamento.getClienteId(),
+     * barbeariaId);
      * 
-     * Regras:
-     * - Não pode confirmar agendamento cancelado
-     * - Não pode cancelar agendamento concluído
-     * - Pode sempre marcar como concluído (independente do status anterior)
+     * // Notificar eventos específicos se houver mudança para status relevante
+     * if (statusNovo == StatusAgendamento.CONFIRMADO && statusAnterior !=
+     * StatusAgendamento.CONFIRMADO) {
+     * notificarEventoEspecifico(agendamentoAtualizado, "confirmado", null);
+     * } else if (statusNovo == StatusAgendamento.CANCELADO && statusAnterior !=
+     * StatusAgendamento.CANCELADO) {
+     * notificarEventoEspecifico(agendamentoAtualizado, "cancelado", null);
+     * }
      * 
-     * @param statusAtual Status atual do agendamento
-     * @param statusNovo  Novo status desejado
-     * @throws IllegalArgumentException se transição não permitida
-     */
-    private void validarTransicaoStatus(StatusAgendamento statusAtual, StatusAgendamento statusNovo) {
-        // Não pode confirmar um agendamento cancelado
-        if (statusAtual == StatusAgendamento.CANCELADO && statusNovo == StatusAgendamento.CONFIRMADO) {
-            throw new IllegalArgumentException(
-                    "Não é possível confirmar um agendamento cancelado");
-        }
-
-        // Não pode cancelar um agendamento concluído
-        if (statusAtual == StatusAgendamento.CONCLUIDO && statusNovo == StatusAgendamento.CANCELADO) {
-            throw new IllegalArgumentException(
-                    "Não é possível cancelar um agendamento já concluído");
-        }
-
-        // Pode sempre marcar como concluído (independente do status)
-        // Pode sempre cancelar (exceto se já concluído - validado acima)
-        // Outras transições são permitidas
-    }
-
-    /**
-     * Notifica todos os observers registrados sobre mudança de status.
+     * return AgendamentoMapper.toResponseDto(agendamentoAtualizado);
+     * }
      * 
-     * @param agendamentoId  ID do agendamento
-     * @param statusAnterior Status anterior
-     * @param statusNovo     Novo status
-     * @param clienteId      ID do cliente
-     * @param barbeariaId    ID da barbearia
-     */
-    private void notificarObservers(
-            Long agendamentoId,
-            StatusAgendamento statusAnterior,
-            StatusAgendamento statusNovo,
-            Long clienteId,
-            Long barbeariaId) {
-
-        for (AgendamentoObserver observer : observers) {
-            try {
-                observer.onStatusChanged(
-                        agendamentoId,
-                        statusAnterior,
-                        statusNovo,
-                        clienteId,
-                        barbeariaId);
-            } catch (Exception e) {
-                // Log erro mas não interrompe o fluxo
-                System.err.println("Erro ao notificar observer: " + e.getMessage());
-            }
-        }
-    }
-
-    /**
-     * Método auxiliar para notificar eventos específicos com dados completos.
+     * /**
+     * cliente.getNome(),
+     * cliente.getTelefone(),
+     * servico.getNome(),
+     * dataHora,
+     * barbeariaNome,
+     * motivoCancelamento);
+     * break;
+     * default:
+     * System.err.println("Tipo de evento desconhecido: " + tipoEvento);
+     * }
      * 
-     * @param agendamento        Agendamento JPA com dados atualizados
-     * @param tipoEvento         Tipo do evento ("confirmado", "cancelado")
-     * @param motivoCancelamento Motivo do cancelamento (apenas para cancelamento)
-     */
-    private void notificarEventoEspecifico(JpaAgendamento agendamento, String tipoEvento, String motivoCancelamento) {
-        try {
-            // Buscar dados do cliente
-            @SuppressWarnings("null")
-            JpaCliente cliente = clienteRepository.findById(agendamento.getClienteId()).orElse(null);
-            if (cliente == null) {
-                System.err.println("Cliente não encontrado para agendamento: " + agendamento.getId());
-                return;
-            }
-
-            // Buscar dados do serviço
-            @SuppressWarnings("null")
-            JpaServico servico = servicoRepository.findById(agendamento.getServicoId()).orElse(null);
-            if (servico == null) {
-                System.err.println("Serviço não encontrado para agendamento: " + agendamento.getId());
-                return;
-            }
-
-            // Buscar dados da barbearia através do funcionário
-            @SuppressWarnings("null")
-            JpaFuncionario funcionario = funcionarioRepository.findById(agendamento.getBarbeiroId()).orElse(null);
-            String barbeariaNome = "Barbearia";
-            if (funcionario != null) {
-                barbeariaNome = "Sua Barbearia"; // Placeholder até implementação da busca por barbearia
-            }
-
-            // Formatar data/hora
-            String dataHora = agendamento.getDataHora()
-                    .format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy 'às' HH:mm"));
-
-            // Notificar evento específico
-            switch (tipoEvento) {
-                case "confirmado":
-                    notificarAgendamentoConfirmado(
-                            agendamento.getId(),
-                            cliente.getNome(),
-                            cliente.getTelefone(),
-                            servico.getNome(),
-                            dataHora,
-                            barbeariaNome);
-                    break;
-                case "cancelado":
-                    notificarAgendamentoCancelado(
-                            agendamento.getId(),
-                            cliente.getNome(),
-                            cliente.getTelefone(),
-                            servico.getNome(),
-                            dataHora,
-                            barbeariaNome,
-                            motivoCancelamento);
-                    break;
-                default:
-                    System.err.println("Tipo de evento desconhecido: " + tipoEvento);
-            }
-
-        } catch (Exception e) {
-            System.err.println("Erro ao preparar notificação de evento específico: " + e.getMessage());
-        }
-    }
-
-    /**
+     * } catch (Exception e) {
+     * System.err.println("Erro ao preparar notificação de evento específico: " +
+     * e.getMessage());
+     * }
+     * }
+     * 
+     * /**
      * Método auxiliar para notificar a criação de um agendamento.
      * 
      * @param agendamento Agendamento JPA salvo
@@ -888,77 +881,6 @@ public class AgendamentoService {
             } catch (Exception e) {
                 // Log erro mas não interrompe o fluxo
                 System.err.println("Erro ao notificar event observer sobre criação: " + e.getMessage());
-            }
-        }
-    }
-
-    /**
-     * Notifica todos os event observers sobre a confirmação de um agendamento.
-     * 
-     * @param agendamentoId   ID do agendamento confirmado
-     * @param clienteNome     Nome do cliente
-     * @param clienteTelefone Telefone do cliente
-     * @param servicoNome     Nome do serviço
-     * @param dataHora        Data e hora do agendamento
-     * @param barbeariaNome   Nome da barbearia
-     */
-    private void notificarAgendamentoConfirmado(
-            Long agendamentoId,
-            String clienteNome,
-            String clienteTelefone,
-            String servicoNome,
-            String dataHora,
-            String barbeariaNome) {
-
-        for (AgendamentoEventObserver observer : eventObservers) {
-            try {
-                observer.onAgendamentoConfirmado(
-                        agendamentoId,
-                        clienteNome,
-                        clienteTelefone,
-                        servicoNome,
-                        dataHora,
-                        barbeariaNome);
-            } catch (Exception e) {
-                // Log erro mas não interrompe o fluxo
-                System.err.println("Erro ao notificar event observer sobre confirmação: " + e.getMessage());
-            }
-        }
-    }
-
-    /**
-     * Notifica todos os event observers sobre o cancelamento de um agendamento.
-     * 
-     * @param agendamentoId      ID do agendamento cancelado
-     * @param clienteNome        Nome do cliente
-     * @param clienteTelefone    Telefone do cliente
-     * @param servicoNome        Nome do serviço
-     * @param dataHora           Data e hora do agendamento
-     * @param barbeariaNome      Nome da barbearia
-     * @param motivoCancelamento Motivo do cancelamento (opcional)
-     */
-    private void notificarAgendamentoCancelado(
-            Long agendamentoId,
-            String clienteNome,
-            String clienteTelefone,
-            String servicoNome,
-            String dataHora,
-            String barbeariaNome,
-            String motivoCancelamento) {
-
-        for (AgendamentoEventObserver observer : eventObservers) {
-            try {
-                observer.onAgendamentoCancelado(
-                        agendamentoId,
-                        clienteNome,
-                        clienteTelefone,
-                        servicoNome,
-                        dataHora,
-                        barbeariaNome,
-                        motivoCancelamento);
-            } catch (Exception e) {
-                // Log erro mas não interrompe o fluxo
-                System.err.println("Erro ao notificar event observer sobre cancelamento: " + e.getMessage());
             }
         }
     }
@@ -1177,5 +1099,177 @@ public class AgendamentoService {
         agendamento.setStatus(StatusAgendamento.CONCLUIDO);
         agendamento.setDataAtualizacao(LocalDateTime.now());
         agendamentoRepository.save(agendamento);
+    }
+
+    /**
+     * Marca o cliente como faltou ao agendamento confirmado.
+     * Apenas profissionais podem marcar como faltou.
+     * 
+     * @param agendamentoId ID do agendamento
+     * @param usuarioId     ID do usuário autenticado
+     * @param tipoUsuario   Tipo do usuário
+     */
+    @Transactional
+    public void marcarComoFaltou(Long agendamentoId, Long usuarioId, String tipoUsuario) {
+        if (agendamentoId == null)
+            throw new IllegalArgumentException("ID do agendamento não pode ser nulo");
+
+        JpaAgendamento agendamento = agendamentoRepository.findById(agendamentoId)
+                .orElseThrow(() -> new AgendamentoNaoEncontradoException("Agendamento não encontrado"));
+
+        if (!verificarAutorizacaoAcesso(agendamento, usuarioId, tipoUsuario)) {
+            throw new AcessoNegadoException("Sem permissão para marcar este agendamento como faltou");
+        }
+
+        if ("CLIENTE".equalsIgnoreCase(tipoUsuario)) {
+            throw new AcessoNegadoException("Clientes não podem marcar agendamentos como faltou");
+        }
+
+        // Apenas agendamentos confirmados podem ser marcados como faltou
+        if (agendamento.getStatus() != StatusAgendamento.CONFIRMADO) {
+            throw new IllegalStateException(
+                    "Apenas agendamentos confirmados podem ser marcados como faltou. Status atual: "
+                            + agendamento.getStatus());
+        }
+
+        agendamento.setStatus(StatusAgendamento.FALTOU);
+        agendamento.setDataAtualizacao(LocalDateTime.now());
+        agendamentoRepository.save(agendamento);
+    }
+
+    /**
+     * Calcula as comissões de um profissional em um período.
+     * 
+     * @param funcionarioId ID do profissional
+     * @param dataInicio    Data inicial (opcional, padrão: 30 dias atrás)
+     * @param dataFim       Data final (opcional, padrão: hoje)
+     * @return Informações de comissões do profissional
+     */
+    public com.barbearia.application.dto.ComissaoProfissionalDto calcularComissoesProfissional(
+            Long funcionarioId,
+            java.time.LocalDate dataInicio,
+            java.time.LocalDate dataFim) {
+
+        // Definir período padrão se não fornecido
+        if (dataInicio == null) {
+            dataInicio = java.time.LocalDate.now().minusDays(30);
+        }
+        if (dataFim == null) {
+            dataFim = java.time.LocalDate.now();
+        }
+
+        // Buscar funcionário para obter taxa de comissão
+        @SuppressWarnings("null")
+        JpaFuncionario jpaFuncionario = funcionarioRepository.findById(funcionarioId)
+                .orElseThrow(() -> new IllegalArgumentException("Profissional não encontrado"));
+
+        com.barbearia.domain.entities.Funcionario funcionarioDomain = com.barbearia.adapters.mappers.FuncionarioMapper
+                .toDomain(jpaFuncionario);
+
+        // Obter taxa de comissão (em percentual)
+        double taxaComissao = funcionarioDomain.calcularComissao(100.0);
+
+        // Buscar agendamentos concluídos no período
+        LocalDateTime dataInicioTime = dataInicio.atStartOfDay();
+        LocalDateTime dataFimTime = dataFim.atTime(23, 59, 59);
+
+        List<JpaAgendamento> agendamentos = agendamentoRepository
+                .findByBarbeiroIdAndStatusAndDataHoraBetween(
+                        funcionarioId,
+                        com.barbearia.domain.enums.StatusAgendamento.CONCLUIDO,
+                        dataInicioTime,
+                        dataFimTime);
+
+        // Calcular total de comissões
+        java.math.BigDecimal totalComissoes = java.math.BigDecimal.ZERO;
+
+        for (JpaAgendamento agendamento : agendamentos) {
+            // Buscar valor do serviço
+            @SuppressWarnings("null")
+            var servico = servicoRepository.findById(agendamento.getServicoId());
+            if (servico.isPresent()) {
+                java.math.BigDecimal valorServico = servico.get().getPreco();
+                double comissao = funcionarioDomain.calcularComissao(valorServico.doubleValue());
+                totalComissoes = totalComissoes.add(java.math.BigDecimal.valueOf(comissao));
+            }
+        }
+
+        long totalServicos = (long) agendamentos.size();
+
+        return new com.barbearia.application.dto.ComissaoProfissionalDto(
+                taxaComissao,
+                totalServicos,
+                totalComissoes,
+                new com.barbearia.application.dto.PeriodoDto(dataInicio, dataFim));
+    }
+
+    /**
+     * Busca um agendamento específico por ID para a barbearia.
+     * Valida que o agendamento pertence à barbearia informada.
+     * 
+     * @param barbeariaId   ID da barbearia autenticada
+     * @param agendamentoId ID do agendamento
+     * @return DTO do agendamento
+     * @throws IllegalArgumentException se agendamento não encontrado ou não
+     *                                  pertence à barbearia
+     */
+    @SuppressWarnings("null")
+    public AgendamentoBarbeariaDto buscarAgendamentoPorIdParaBarbearia(Long barbeariaId, Long agendamentoId) {
+        JpaAgendamento agendamento = agendamentoRepository.findById(agendamentoId)
+                .orElseThrow(() -> new IllegalArgumentException("Agendamento não encontrado"));
+
+        // Verifica se o agendamento pertence à barbearia
+        if (!agendamento.getBarbeariaId().equals(barbeariaId)) {
+            throw new IllegalArgumentException("Agendamento não encontrado ou não pertence a esta barbearia");
+        }
+
+        return converterParaBarbeariaDto(agendamento);
+    }
+
+    /**
+     * Lista a agenda de um profissional específico para a barbearia.
+     * 
+     * @param barbeariaId   ID da barbearia autenticada
+     * @param funcionarioId ID do funcionário
+     * @param data          Data para filtrar (opcional)
+     * @return Lista de agendamentos detalhados
+     */
+    public List<AgendamentoBarbeariaDto> listarAgendaProfissionalParaBarbearia(
+            Long barbeariaId,
+            Long funcionarioId,
+            LocalDate data) {
+
+        if (barbeariaId == null) {
+            throw new IllegalArgumentException("ID da barbearia não pode ser nulo");
+        }
+        if (funcionarioId == null) {
+            throw new IllegalArgumentException("ID do funcionário não pode ser nulo");
+        }
+
+        // Verificar se funcionário pertence à barbearia
+        JpaFuncionario funcionario = funcionarioRepository.findById(funcionarioId)
+                .orElseThrow(() -> new IllegalArgumentException("Funcionário não encontrado"));
+
+        if (!funcionario.getBarbeariaId().equals(barbeariaId)) {
+            throw new IllegalArgumentException("Funcionário não pertence a esta barbearia");
+        }
+
+        List<JpaAgendamento> agendamentos;
+
+        if (data != null) {
+            // Filtrar por data específica
+            LocalDateTime inicioDia = data.atStartOfDay();
+            LocalDateTime fimDia = data.atTime(LocalTime.MAX);
+            agendamentos = agendamentoRepository.findByBarbeiroIdAndDataHoraBetweenOrderByDataHoraAsc(
+                    funcionarioId, inicioDia, fimDia);
+        } else {
+            // Retornar todos os agendamentos (futuros e passados) ordenados por data
+            // (mais recentes primeiro)
+            agendamentos = agendamentoRepository.findByBarbeiroIdOrderByDataHoraDesc(funcionarioId);
+        }
+
+        return agendamentos.stream()
+                .map(this::converterParaBarbeariaDto)
+                .collect(Collectors.toList());
     }
 }
