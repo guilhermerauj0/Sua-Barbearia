@@ -11,6 +11,7 @@ public class HorarioFuncionamentoResponseDto {
     
     private Long id;
     private Long barbeariaId;
+    private Long funcionarioId;
     private Integer diaSemana;
     private LocalTime horaAbertura;
     private LocalTime horaFechamento;
@@ -19,11 +20,12 @@ public class HorarioFuncionamentoResponseDto {
     public HorarioFuncionamentoResponseDto() {
     }
     
-    public HorarioFuncionamentoResponseDto(Long id, Long barbeariaId, Integer diaSemana, 
+    public HorarioFuncionamentoResponseDto(Long id, Long barbeariaId, Long funcionarioId, Integer diaSemana, 
                                            LocalTime horaAbertura, LocalTime horaFechamento, 
                                            Boolean ativo) {
         this.id = id;
         this.barbeariaId = barbeariaId;
+        this.funcionarioId = funcionarioId;
         this.diaSemana = diaSemana;
         this.horaAbertura = horaAbertura;
         this.horaFechamento = horaFechamento;
@@ -46,6 +48,14 @@ public class HorarioFuncionamentoResponseDto {
     
     public void setBarbeariaId(Long barbeariaId) {
         this.barbeariaId = barbeariaId;
+    }
+    
+    public Long getFuncionarioId() {
+        return funcionarioId;
+    }
+    
+    public void setFuncionarioId(Long funcionarioId) {
+        this.funcionarioId = funcionarioId;
     }
     
     public Integer getDiaSemana() {
@@ -85,6 +95,7 @@ public class HorarioFuncionamentoResponseDto {
         return "HorarioFuncionamentoResponseDto{" +
                 "id=" + id +
                 ", barbeariaId=" + barbeariaId +
+                ", funcionarioId=" + funcionarioId +
                 ", diaSemana=" + diaSemana +
                 ", horaAbertura=" + horaAbertura +
                 ", horaFechamento=" + horaFechamento +

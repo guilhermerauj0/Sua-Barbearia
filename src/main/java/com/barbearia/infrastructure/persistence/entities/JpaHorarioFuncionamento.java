@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "horarios_funcionamento", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"barbearia_id", "dia_semana"})
+    @UniqueConstraint(columnNames = {"barbearia_id", "dia_semana", "funcionario_id"})
 })
 public class JpaHorarioFuncionamento {
     
@@ -20,6 +20,9 @@ public class JpaHorarioFuncionamento {
     
     @Column(name = "barbearia_id", nullable = false)
     private Long barbeariaId;
+
+    @Column(name = "funcionario_id")
+    private Long funcionarioId;
     
     @Column(name = "dia_semana", nullable = false)
     private Integer diaSemana;  // 1=SEGUNDA até 7=DOMINGO (ISO 8601)
@@ -45,6 +48,18 @@ public class JpaHorarioFuncionamento {
     public JpaHorarioFuncionamento(Long barbeariaId, Integer diaSemana, 
                                     LocalTime horaAbertura, LocalTime horaFechamento) {
         this.barbeariaId = barbeariaId;
+        this.diaSemana = diaSemana;
+        this.horaAbertura = horaAbertura;
+        this.horaFechamento = horaFechamento;
+        this.ativo = true;
+        this.dataCriacao = LocalDateTime.now();
+        this.dataAtualizacao = LocalDateTime.now();
+    }
+    
+    public JpaHorarioFuncionamento(Long barbeariaId, Long funcionarioId, Integer diaSemana, 
+                                    LocalTime horaAbertura, LocalTime horaFechamento) {
+        this.barbeariaId = barbeariaId;
+        this.funcionarioId = funcionarioId;
         this.diaSemana = diaSemana;
         this.horaAbertura = horaAbertura;
         this.horaFechamento = horaFechamento;
@@ -79,6 +94,14 @@ public class JpaHorarioFuncionamento {
     
     public void setBarbeariaId(Long barbeariaId) {
         this.barbeariaId = barbeariaId;
+    }
+    
+    public Long getFuncionarioId() {
+        return funcionarioId;
+    }
+    
+    public void setFuncionarioId(Long funcionarioId) {
+        this.funcionarioId = funcionarioId;
     }
     
     public Integer getDiaSemana() {

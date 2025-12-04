@@ -28,7 +28,12 @@ public class HorarioFuncionamentoRequestDto {
      * Hora de fechamento da barbearia
      */
     private LocalTime horaFechamento;
-    
+
+    /**
+     * Indica se o horário está ativo (true) ou inativo (false)
+     */
+    private Boolean ativo;
+
     public HorarioFuncionamentoRequestDto() {
     }
     
@@ -85,6 +90,14 @@ public class HorarioFuncionamentoRequestDto {
     
     public void setHoraFechamento(LocalTime horaFechamento) {
         this.horaFechamento = horaFechamento;
+    }
+
+    public Boolean getAtivo() {
+        return ativo;
+    }
+
+    public void setAtivo(Boolean ativo) {
+        this.ativo = ativo;
     }
     
     @Override

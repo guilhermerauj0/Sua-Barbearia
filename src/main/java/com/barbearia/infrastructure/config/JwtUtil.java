@@ -48,11 +48,16 @@ public class JwtUtil implements JwtService {
     
     @Override
     public String generateToken(Map<String, Object> claims, String subject) {
+        return generateToken(claims, subject, expiration);
+    }
+
+    @Override
+    public String generateToken(Map<String, Object> claims, String subject, Long expirationMillis) {
         return Jwts.builder()
                 .claims(claims)
                 .subject(subject)
                 .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + expiration))
+                .expiration(new Date(System.currentTimeMillis() + expirationMillis))
                 .signWith(getSigningKey())
                 .compact();
     }

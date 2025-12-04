@@ -22,6 +22,16 @@ public interface JwtService {
     String generateToken(Map<String, Object> claims, String subject);
     
     /**
+     * Gera um token JWT com claims personalizados e tempo de expiração específico.
+     * 
+     * @param claims Informações extras a serem incluídas no token
+     * @param subject Identificador principal
+     * @param expirationMillis Tempo de expiração em milissegundos
+     * @return Token JWT gerado
+     */
+    String generateToken(Map<String, Object> claims, String subject, Long expirationMillis);
+
+    /**
      * Gera um token JWT apenas com o subject (sem claims extras).
      * 
      * @param subject Identificador principal (geralmente o email do usuário)

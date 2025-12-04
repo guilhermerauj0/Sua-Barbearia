@@ -9,46 +9,54 @@ import com.barbearia.application.dto.LoginResponseDto;
 import com.barbearia.application.services.AuthService;
 import com.barbearia.application.services.BarbeariaService;
 import com.barbearia.application.services.ClienteService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * Controller REST para autenticação e registro de clientes e barbearias.
- * 
- * Endpoints de Cliente:
- * - POST /api/auth/cliente/registrar - Registrar novo cliente
- * - POST /api/auth/cliente/login - Login de cliente
- * 
- * Endpoints de Barbearia:
- * - POST /api/auth/barbearia/registrar - Registrar nova barbearia
- * - POST /api/auth/barbearia/login - Login de barbearia
- * 
- * @author Sua Barbearia Team
+ * Autenticação e Registro de Clientes e Barbearias.
  */
+@Tag(name = "Autenticação", description = "Registro e login de clientes e barbearias")
 @RestController
 @RequestMapping("/api/auth")
 @CrossOrigin(origins = "*")
 public class AuthController {
-    
+
     private final ClienteService clienteService;
     private final AuthService authService;
     private final BarbeariaService barbeariaService;
-    
-    public AuthController(ClienteService clienteService, AuthService authService, 
-                         BarbeariaService barbeariaService) {
+
+    public AuthController(ClienteService clienteService, AuthService authService,
+            BarbeariaService barbeariaService) {
         this.clienteService = clienteService;
         this.authService = authService;
         this.barbeariaService = barbeariaService;
     }
-    
+
     /**
-     * Endpoint para registrar um novo cliente.
-     * 
-     * @param requestDto Dados do cliente a ser registrado
-     * @return ClienteResponseDto com dados do cliente criado (sem senha)
+     * Registra novo cliente no sistema.
      */
+    @Operation(summary = "Registrar cliente", description = "Cadastra novo cliente. Email deve ser único. Use os MESMOS dados no login para testar.", requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(name = "Cliente Teste", value = """
+            {
+              "nome": "Pedro Santos",
+              "email": "pedro.santos@teste.com",
+              "senha": "Teste@123",
+              "confirmarSenha": "Teste@123",
+              "telefone": "11987654321"
+            }
+            """))))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Cliente registrado", content = @Content(schema = @Schema(implementation = ClienteResponseDto.class))),
+            @ApiResponse(responseCode = "400", description = "Email já cadastrado ou dados inválidos")
+    })
     @PostMapping("/cliente/registrar")
     public ResponseEntity<?> registrarCliente(@Valid @RequestBody ClienteRequestDto requestDto) {
         try {
@@ -58,16 +66,23 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("Erro ao registrar cliente: " + e.getMessage());
+                    .body("Erro ao registrar cliente: " + e.getMessage());
         }
     }
-    
+
     /**
-     * Endpoint para login de cliente.
-     * 
-     * @param loginRequest Credenciais do cliente (email e senha)
-     * @return LoginResponseDto com token JWT e informações do usuário
+     * Login de cliente.
      */
+    @Operation(summary = "Login cliente", description = "Autentica cliente e retorna token JWT. Use o MESMO email/senha do registro.", requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(name = "Login Teste", value = """
+            {
+              "email": "pedro.santos@teste.com",
+              "senha": "Teste@123"
+            }
+            """))))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Login realizado", content = @Content(schema = @Schema(implementation = LoginResponseDto.class))),
+            @ApiResponse(responseCode = "401", description = "Credenciais inválidas")
+    })
     @PostMapping("/cliente/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequestDto loginRequest) {
         try {
@@ -75,25 +90,48 @@ public class AuthController {
             return ResponseEntity.ok(loginResponse);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body("Credenciais inválidas");
+                    .body("Credenciais inválidas");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("Erro ao realizar login: " + e.getMessage());
+                    .body("Erro ao realizar login: " + e.getMessage());
         }
     }
-    
+
     /**
-     * Endpoint para registrar uma nova barbearia.
-     * 
-     * Validações realizadas:
-     * - Senhas devem conferir
-     * - Email deve ser único
-     * - Documento (CPF ou CNPJ) deve ser válido
-     * - Documento deve ser único por tipo
-     * 
-     * @param requestDto Dados da barbearia a ser registrada
-     * @return BarbeariaResponseDto com dados da barbearia criada (sem senha)
+     * Registra nova barbearia no sistema.
      */
+    @Operation(summary = "Registrar barbearia", description = "Cadastra nova barbearia. Aceita CPF ou CNPJ. Use os MESMOS dados no login.", requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = {
+            @ExampleObject(name = "Barbearia com CPF", value = """
+                    {
+                      "nome": "Ana Costa",
+                      "email": "ana.costa@teste.com",
+                      "senha": "Barbearia@123",
+                      "confirmarSenha": "Barbearia@123",
+                      "telefone": "11976543210",
+                      "nomeFantasia": "Barbearia Elegance",
+                      "tipoDocumento": "CPF",
+                      "documento": "12345678909",
+                      "endereco": "Rua das Flores, 123 - São Paulo/SP"
+                    }
+                    """),
+            @ExampleObject(name = "Barbearia com CNPJ", value = """
+                    {
+                      "nome": "Carlos Oliveira",
+                      "email": "carlos.oliveira@teste.com",
+                      "senha": "Empresa@456",
+                      "confirmarSenha": "Empresa@456",
+                      "telefone": "21998765432",
+                      "nomeFantasia": "Barbearia Premium",
+                      "tipoDocumento": "CNPJ",
+                      "documento": "11222333000181",
+                      "endereco": "Av. Principal, 500 - Rio de Janeiro/RJ"
+                    }
+                    """)
+    })))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Barbearia registrada", content = @Content(schema = @Schema(implementation = BarbeariaResponseDto.class))),
+            @ApiResponse(responseCode = "400", description = "CPF/CNPJ inválido ou email duplicado")
+    })
     @PostMapping("/barbearia/registrar")
     public ResponseEntity<?> registrarBarbearia(@Valid @RequestBody BarbeariaRequestDto requestDto) {
         try {
@@ -103,16 +141,23 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("Erro ao registrar barbearia: " + e.getMessage());
+                    .body("Erro ao registrar barbearia: " + e.getMessage());
         }
     }
-    
+
     /**
-     * Endpoint para login de barbearia.
-     * 
-     * @param loginRequest Credenciais da barbearia (email e senha)
-     * @return LoginResponseDto com token JWT e informações da barbearia
+     * Login de barbearia.
      */
+    @Operation(summary = "Login barbearia", description = "Autentica barbearia e retorna token JWT. Use o MESMO email/senha do registro.", requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(name = "Login Teste", value = """
+            {
+              "email": "carlos.oliveira@teste.com",
+              "senha": "Empresa@456"
+            }
+            """))))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Login realizado", content = @Content(schema = @Schema(implementation = LoginResponseDto.class))),
+            @ApiResponse(responseCode = "401", description = "Credenciais inválidas")
+    })
     @PostMapping("/barbearia/login")
     public ResponseEntity<?> loginBarbearia(@Valid @RequestBody LoginRequestDto loginRequest) {
         try {
@@ -120,10 +165,10 @@ public class AuthController {
             return ResponseEntity.ok(loginResponse);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body("Credenciais inválidas");
+                    .body("Credenciais inválidas");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("Erro ao realizar login: " + e.getMessage());
+                    .body("Erro ao realizar login: " + e.getMessage());
         }
     }
 }
